@@ -1,39 +1,25 @@
-# To learn more about how to use Nix to configure your environment
-# see: https://firebase.google.com/docs/studio/customize-workspace
 { pkgs, ... }: {
-  # Which nixpkgs channel to use.
-  channel = "stable-24.05"; # or "unstable"
-  # Use https://search.nixos.org/packages to find packages
-  packages = [
-    pkgs.jdk21
-    pkgs.unzip
-  ];
-  # Sets environment variables in the workspace
-  env = {};
-  idx = {
-    # Search for the extensions you want on https://open-vsx.org/ and use "publisher.id"
-    extensions = [
-      "Dart-Code.flutter"
-      "Dart-Code.dart-code"
-    ];
-    workspace = {
-      # Runs when a workspace is first created with this `dev.nix` file
-      onCreate = { };
-      # To run something each time the workspace is (re)started, use the `onStart` hook
-    };
-    # Enable previews and customize configuration
-    previews = {
-      enable = true;
-      previews = {
-        web = {
-          command = ["flutter" "run" "--machine" "-d" "web-server" "--web-hostname" "0.0.0.0" "--web-port" "$PORT"];
-          manager = "flutter";
-        };
-        android = {
-          command = ["flutter" "run" "--machine" "-d" "android" "-d" "localhost:5555"];
-          manager = "flutter";
-        };
-      };
+  channel = "stable-23.11";
+  inputs = {
+    # If you want to use the latest Flutter stable version, you can use the `flutter-stable` package from `Nix unstable`.
+    # More information about this can be found here: https://search.nixos.org/packages?channel=unstable&show=flutter-stable&type=packages&query=flutter-stable
+    nixpkgs-unstable = {
+      type = "NixPkgs";
+      url = "https://nixos.org/channels/nixpkgs-unstable";
     };
   };
+  packages = [
+    # To use the latest Flutter version, you would replace `pkgs.flutter` with `inputs.nixpkgs-unstable.flutter-stable`.
+    # Don't forget to remove `nixpkgs-unstable` from the `inputs` if you are not using it.
+    pkgs.flutter
+    pkgs.dart
+    pkgs.cmake
+  ];
+  extensions = [
+    "dart-code.flutter"
+    "dart-code.dart-code"
+  ];
+
+  idx.workspace.onStart = "flutter doctor";
+  idx.previews.enable = true;
 }
