@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:window_manager/window_manager.dart';
 import 'package:sky_port/providers/serial_provider.dart';
 import 'package:sky_port/widgets/left_panel.dart';
 import 'package:sky_port/widgets/right_panel.dart';
@@ -7,6 +8,17 @@ import 'package:sky_port/widgets/status_bar.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await windowManager.ensureInitialized();
+
+  WindowOptions windowOptions = const WindowOptions(
+    minimumSize: Size(800, 600),
+  );
+  windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.show();
+    await windowManager.focus();
+  });
+
   final container = ProviderContainer();
   await container.read(availablePortsProvider.future);
   runApp(
