@@ -1,16 +1,43 @@
-# myapp
+# SkyPort
 
-A new Flutter project.
+一款使用 Flutter 构建的跨平台串口调试助手。
 
-## Getting Started
+## ✨ 功能
 
-This project is a starting point for a Flutter application.
+*   **串口操作**:
+    *   自动扫描和列出可用串口。
+    *   连接和断开串口设备。
+    *   可配置波特率、数据位、停止位和校验位。
+*   **数据收发**:
+    *   支持 ASCII 和 Hex 格式发送和接收数据。
+    *   时间戳记录。
+    *   清空接收区。
+*   **跨平台**:
+    *   支持 Windows、macOS 和 Linux 桌面平台。
 
-A few resources to get you started if this is your first Flutter project:
+## 🚀 开始使用
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+1.  **克隆仓库**
+    ```bash
+    git clone https://github.com/StarSphere-1024/SkyPort.git
+    cd SkyPort
+    ```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+2.  **获取依赖**
+    ```bash
+    flutter pub get
+    ```
+
+3.  **运行应用**
+    ```bash
+    flutter run
+    ```
+
+## 📦 主要依赖
+
+*   [flutter_riverpod](https://pub.dev/packages/flutter_riverpod): 用于状态管理。
+*   [flutter_libserialport](https://pub.dev/packages/flutter_libserialport): 用于串口通信。
+
+---
+
+*此项目是作为学习和演示目的创建的。*

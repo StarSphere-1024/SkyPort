@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:myapp/widgets/left_panel.dart';
-import 'package:myapp/widgets/right_panel.dart';
-import 'package:myapp/widgets/status_bar.dart';
+import 'package:sky_port/widgets/left_panel.dart';
+import 'package:sky_port/widgets/right_panel.dart';
+import 'package:sky_port/widgets/status_bar.dart';
 
 void main() {
   runApp(
@@ -18,14 +18,14 @@ class SerialDebuggerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Serial Port Debugging Assistant',
+      title: 'SkyPort',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepPurple,
+          seedColor: Colors.blue,
           brightness: Brightness.dark,
         ),
         useMaterial3: true,
@@ -43,7 +43,7 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Serial Port Debugging Assistant'),
+        title: const Text('SkyPort'),
       ),
       body: const SafeArea(
         child: Row(
