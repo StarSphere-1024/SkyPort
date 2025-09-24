@@ -22,7 +22,7 @@ class _RightPanelState extends ConsumerState<RightPanel> {
     _scrollController.dispose();
     super.dispose();
   }
-  
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -65,7 +65,8 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                     String dataText;
                     if (settings.hexDisplay) {
                       dataText = entry.data
-                          .map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase())
+                          .map((b) =>
+                              b.toRadixString(16).padLeft(2, '0').toUpperCase())
                           .join(' ');
                     } else {
                       dataText = utf8.decode(entry.data, allowMalformed: true);
@@ -73,19 +74,29 @@ class _RightPanelState extends ConsumerState<RightPanel> {
 
                     return ListTile(
                       title: Align(
-                        alignment: isSent ? Alignment.centerRight : Alignment.centerLeft,
+                        alignment: isSent
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
                         child: Text(dataText),
                       ),
                       subtitle: Align(
-                        alignment: isSent ? Alignment.centerRight : Alignment.centerLeft,
+                        alignment: isSent
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
                         child: Text(
                           '${isSent ? "TX" : "RX"} - $formattedTimestamp',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
                       tileColor: isSent
-                          ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
-                          : Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.3),
+                          ? Theme.of(context)
+                              .colorScheme
+                              .primaryContainer
+                              .withOpacity(0.3)
+                          : Theme.of(context)
+                              .colorScheme
+                              .secondaryContainer
+                              .withOpacity(0.3),
                     );
                   },
                 ),
@@ -105,12 +116,8 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                         border: OutlineInputBorder(),
                         labelText: 'Enter data to send',
                       ),
-                      onSubmitted: (value) {
-                        if (connection.status == ConnectionStatus.connected) {
-                          ref.read(serialConnectionProvider.notifier).send(value);
-                          _sendController.clear();
-                        }
-                      },
+                      keyboardType: TextInputType.multiline,
+                      maxLines: null,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -119,7 +126,9 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                     label: const Text('Send'),
                     onPressed: connection.status == ConnectionStatus.connected
                         ? () {
-                            ref.read(serialConnectionProvider.notifier).send(_sendController.text);
+                            ref
+                                .read(serialConnectionProvider.notifier)
+                                .send(_sendController.text);
                             _sendController.clear();
                           }
                         : null,
