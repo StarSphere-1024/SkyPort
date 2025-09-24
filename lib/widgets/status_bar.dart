@@ -22,18 +22,24 @@ class StatusBar extends ConsumerWidget {
     }
 
     return BottomAppBar(
-      child: Container(
+      height: 40,
+      child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        height: 30,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Rx: ${connection.rxBytes} | Tx: ${connection.txBytes}'),
+            Text(
+              'Rx: ${connection.rxBytes} | Tx: ${connection.txBytes}',
+              style: const TextStyle(fontSize: 12),
+            ),
             Row(
               children: [
-                Icon(Icons.circle, color: statusColor, size: 12),
-                const SizedBox(width: 8),
-                Text(statusText),
+                Icon(Icons.circle, color: statusColor, size: 10),
+                const SizedBox(width: 6),
+                Text(
+                  statusText,
+                  style: const TextStyle(fontSize: 12),
+                ),
               ],
             )
           ],

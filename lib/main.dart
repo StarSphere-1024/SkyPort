@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sky_port/providers/serial_provider.dart';
 import 'package:sky_port/widgets/left_panel.dart';
 import 'package:sky_port/widgets/right_panel.dart';
 import 'package:sky_port/widgets/status_bar.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final container = ProviderContainer();
+  await container.read(availablePortsProvider.future);
   runApp(
-    const ProviderScope(
-      child: SerialDebuggerApp(),
+    UncontrolledProviderScope(
+      container: container,
+      child: const SerialDebuggerApp(),
     ),
   );
 }

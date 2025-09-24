@@ -73,31 +73,24 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                     }
 
                     return ListTile(
-                      title: Align(
-                        alignment: isSent
-                            ? Alignment.centerRight
-                            : Alignment.centerLeft,
-                        child: Text(dataText),
-                      ),
-                      subtitle: Align(
-                        alignment: isSent
-                            ? Alignment.centerRight
-                            : Alignment.centerLeft,
-                        child: Text(
-                          '${isSent ? "TX" : "RX"} - $formattedTimestamp',
-                          style: Theme.of(context).textTheme.bodySmall,
+                        title: Align(
+                          alignment: isSent
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: Text(dataText),
                         ),
-                      ),
-                      tileColor: isSent
-                          ? Theme.of(context)
-                              .colorScheme
-                              .primaryContainer
-                              .withOpacity(0.3)
-                          : Theme.of(context)
-                              .colorScheme
-                              .secondaryContainer
-                              .withOpacity(0.3),
-                    );
+                        subtitle: Align(
+                          alignment: isSent
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: Text(
+                            '${isSent ? "TX" : "RX"} - $formattedTimestamp',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                        tileColor: isSent
+                            ? Theme.of(context).colorScheme.primaryContainer
+                            : Theme.of(context).colorScheme.secondaryContainer);
                   },
                 ),
               ),

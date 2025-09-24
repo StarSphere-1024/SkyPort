@@ -45,10 +45,15 @@ class SerialConfig {
 
 // 3. Provider for serial port configuration state
 class SerialConfigNotifier extends StateNotifier<SerialConfig?> {
-  SerialConfigNotifier() : super(null);
+  SerialConfigNotifier(List<String> availablePorts) : super(null) {
+    if (availablePorts.isNotEmpty) {
+      state = SerialConfig(portName: availablePorts.first);
+    }
+  }
 
   void setPort(String portName) {
-    state = SerialConfig(portName: portName);
+    state =
+        state?.copyWith(portName: portName) ?? SerialConfig(portName: portName);
   }
 
   void setBaudRate(int baudRate) {
@@ -70,7 +75,8 @@ class SerialConfigNotifier extends StateNotifier<SerialConfig?> {
 
 final serialConfigProvider =
     StateNotifierProvider<SerialConfigNotifier, SerialConfig?>((ref) {
-  return SerialConfigNotifier();
+  final availablePorts = ref.watch(availablePortsProvider).value ?? [];
+  return SerialConfigNotifier(availablePorts);
 });
 
 // 4. Provider for serial connection management
@@ -130,13 +136,18 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
     try {
       final opened = port.openReadWrite();
       if (!opened) {
-        throw SerialPortError('Failed to open port');
+        final error = SerialPort.lastError;
+        throw SerialPortError('Failed to open port: ${error?.message}');
       }
-      port.config.baudRate = config.baudRate;
-      port.config.bits = config.dataBits;
-      port.config.parity = config.parity;
-      port.config.stopBits = config.stopBits;
-      
+
+      // Apply configuration
+      final newConfig = SerialPortConfig();
+      newConfig.baudRate = config.baudRate;
+      newConfig.bits = config.dataBits;
+      newConfig.parity = config.parity;
+      newConfig.stopBits = config.stopBits;
+      port.config = newConfig;
+
       final reader = SerialPortReader(port);
       _dataSubscription = reader.stream.listen((data) {
         _ref.read(dataLogProvider.notifier).addReceived(data);
@@ -182,10 +193,10 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
       _ref.read(dataLogProvider.notifier).addSent(bytesToSend);
       state = state.copyWith(txBytes: state.txBytes + bytesWritten);
     } on SerialPortError catch (e) {
-       state = state.copyWith(errorMessage: 'Error sending data: ${e.message}');
+      state = state.copyWith(errorMessage: 'Error sending data: ${e.message}');
     }
   }
-  
+
   Uint8List _hexToBytes(String hex) {
     hex = hex.replaceAll(RegExp(r'\s+'), '').toUpperCase();
     if (hex.length % 2 != 0) {
@@ -231,7 +242,8 @@ class DataLogNotifier extends StateNotifier<List<LogEntry>> {
   }
 }
 
-final dataLogProvider = StateNotifierProvider<DataLogNotifier, List<LogEntry>>((ref) {
+final dataLogProvider =
+    StateNotifierProvider<DataLogNotifier, List<LogEntry>>((ref) {
   return DataLogNotifier();
 });
 
@@ -262,6 +274,7 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   }
 }
 
-final settingsProvider = StateNotifierProvider<SettingsNotifier, AppSettings>((ref) {
+final settingsProvider =
+    StateNotifierProvider<SettingsNotifier, AppSettings>((ref) {
   return SettingsNotifier();
 });
