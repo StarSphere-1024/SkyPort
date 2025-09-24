@@ -45,17 +45,19 @@ class HomePage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Serial Port Debugging Assistant'),
       ),
-      body: Row(
-        children: [
-          const SizedBox(
-            width: 350,
-            child: LeftPanel(),
-          ),
-          const VerticalDivider(width: 1),
-          const Expanded(
-            child: RightPanel(),
-          ),
-        ],
+      body: SafeArea(
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 350,
+              child: LeftPanel(),
+            ),
+            const VerticalDivider(width: 1),
+            const Expanded(
+              child: RightPanel(),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: const StatusBar(),
     );
