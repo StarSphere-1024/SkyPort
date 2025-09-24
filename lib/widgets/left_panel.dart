@@ -56,6 +56,25 @@ class LeftPanel extends ConsumerWidget {
                           icon: const Icon(Icons.refresh),
                           onPressed: () => ref.refresh(availablePortsProvider),
                         ),
+                        const SizedBox(width: 16),
+                        FilledButton(
+                          onPressed: () {
+                            if (isConnected) {
+                              ref
+                                  .read(serialConnectionProvider.notifier)
+                                  .close();
+                            } else {
+                              ref
+                                  .read(serialConnectionProvider.notifier)
+                                  .open();
+                            }
+                          },
+                          style: isConnected
+                              ? FilledButton.styleFrom(
+                                  backgroundColor: Colors.red)
+                              : null,
+                          child: Text(isConnected ? 'Close' : 'Open'),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -145,20 +164,7 @@ class LeftPanel extends ConsumerWidget {
                     const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,
-                      child: FilledButton(
-                        onPressed: () {
-                          if (isConnected) {
-                            ref.read(serialConnectionProvider.notifier).close();
-                          } else {
-                            ref.read(serialConnectionProvider.notifier).open();
-                          }
-                        },
-                        style: isConnected
-                            ? FilledButton.styleFrom(
-                                backgroundColor: Colors.red)
-                            : null,
-                        child: Text(isConnected ? 'Close' : 'Open'),
-                      ),
+                      child: Container(),
                     )
                   ],
                 ),
