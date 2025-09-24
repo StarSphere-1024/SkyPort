@@ -59,77 +59,87 @@ class LeftPanel extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    DropdownMenu<int>(
-                      enabled: !isConnected,
-                      label: const Text('Baud Rate'),
-                      initialSelection: serialConfig?.baudRate ?? 9600,
-                      onSelected: (int? value) {
-                        if (value != null) {
-                          ref
-                              .read(serialConfigProvider.notifier)
-                              .setBaudRate(value);
-                        }
-                      },
-                      dropdownMenuEntries: const [
-                        DropdownMenuEntry(value: 9600, label: '9600'),
-                        DropdownMenuEntry(value: 19200, label: '19200'),
-                        DropdownMenuEntry(value: 38400, label: '38400'),
-                        DropdownMenuEntry(value: 57600, label: '57600'),
-                        DropdownMenuEntry(value: 115200, label: '115200'),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownMenu<int>(
-                      enabled: !isConnected,
-                      label: const Text('Data Bits'),
-                      initialSelection: serialConfig?.dataBits ?? 8,
-                      onSelected: (int? value) {
-                        if (value != null) {
-                          ref
-                              .read(serialConfigProvider.notifier)
-                              .setDataBits(value);
-                        }
-                      },
-                      dropdownMenuEntries: const [
-                        DropdownMenuEntry(value: 8, label: '8'),
-                        DropdownMenuEntry(value: 7, label: '7'),
-                        DropdownMenuEntry(value: 6, label: '6'),
-                        DropdownMenuEntry(value: 5, label: '5'),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownMenu<int>(
-                      enabled: !isConnected,
-                      label: const Text('Parity'),
-                      initialSelection: serialConfig?.parity ?? 0,
-                      onSelected: (int? value) {
-                        if (value != null) {
-                          ref
-                              .read(serialConfigProvider.notifier)
-                              .setParity(value);
-                        }
-                      },
-                      dropdownMenuEntries: const [
-                        DropdownMenuEntry(value: 0, label: 'None'),
-                        DropdownMenuEntry(value: 1, label: 'Odd'),
-                        DropdownMenuEntry(value: 2, label: 'Even'),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownMenu<int>(
-                      enabled: !isConnected,
-                      label: const Text('Stop Bits'),
-                      initialSelection: serialConfig?.stopBits ?? 1,
-                      onSelected: (int? value) {
-                        if (value != null) {
-                          ref
-                              .read(serialConfigProvider.notifier)
-                              .setStopBits(value);
-                        }
-                      },
-                      dropdownMenuEntries: const [
-                        DropdownMenuEntry(value: 1, label: '1'),
-                        DropdownMenuEntry(value: 2, label: '2'),
+                    GridView(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 16,
+                        crossAxisSpacing: 16,
+                        childAspectRatio: 2.8,
+                      ),
+                      children: [
+                        DropdownMenu<int>(
+                          enabled: !isConnected,
+                          label: const Text('Baud Rate'),
+                          initialSelection: serialConfig?.baudRate ?? 9600,
+                          onSelected: (int? value) {
+                            if (value != null) {
+                              ref
+                                  .read(serialConfigProvider.notifier)
+                                  .setBaudRate(value);
+                            }
+                          },
+                          dropdownMenuEntries: const [
+                            DropdownMenuEntry(value: 9600, label: '9600'),
+                            DropdownMenuEntry(value: 19200, label: '19200'),
+                            DropdownMenuEntry(value: 38400, label: '38400'),
+                            DropdownMenuEntry(value: 57600, label: '57600'),
+                            DropdownMenuEntry(value: 115200, label: '115200'),
+                          ],
+                        ),
+                        DropdownMenu<int>(
+                          enabled: !isConnected,
+                          label: const Text('Data Bits'),
+                          initialSelection: serialConfig?.dataBits ?? 8,
+                          onSelected: (int? value) {
+                            if (value != null) {
+                              ref
+                                  .read(serialConfigProvider.notifier)
+                                  .setDataBits(value);
+                            }
+                          },
+                          dropdownMenuEntries: const [
+                            DropdownMenuEntry(value: 8, label: '8'),
+                            DropdownMenuEntry(value: 7, label: '7'),
+                            DropdownMenuEntry(value: 6, label: '6'),
+                            DropdownMenuEntry(value: 5, label: '5'),
+                          ],
+                        ),
+                        DropdownMenu<int>(
+                          enabled: !isConnected,
+                          label: const Text('Parity'),
+                          initialSelection: serialConfig?.parity ?? 0,
+                          onSelected: (int? value) {
+                            if (value != null) {
+                              ref
+                                  .read(serialConfigProvider.notifier)
+                                  .setParity(value);
+                            }
+                          },
+                          dropdownMenuEntries: const [
+                            DropdownMenuEntry(value: 0, label: 'None'),
+                            DropdownMenuEntry(value: 1, label: 'Odd'),
+                            DropdownMenuEntry(value: 2, label: 'Even'),
+                          ],
+                        ),
+                        DropdownMenu<int>(
+                          enabled: !isConnected,
+                          label: const Text('Stop Bits'),
+                          initialSelection: serialConfig?.stopBits ?? 1,
+                          onSelected: (int? value) {
+                            if (value != null) {
+                              ref
+                                  .read(serialConfigProvider.notifier)
+                                  .setStopBits(value);
+                            }
+                          },
+                          dropdownMenuEntries: const [
+                            DropdownMenuEntry(value: 1, label: '1'),
+                            DropdownMenuEntry(value: 2, label: '2'),
+                          ],
+                        ),
                       ],
                     ),
                     const SizedBox(height: 24),
