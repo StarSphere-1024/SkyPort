@@ -141,8 +141,7 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
 
   @override
   void dispose() {
-    state.port?.close();
-    state.port?.dispose();
+    close();
     super.dispose();
   }
 
@@ -225,10 +224,10 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
       return;
     }
 
+    _ref.read(errorProvider.notifier).clear();
     state = state.copyWith(status: ConnectionStatus.disconnecting);
 
     final portToDispose = state.port;
-    final readerToClose = state.reader;
     final subscriptionToCancel = _dataSubscription;
     _dataSubscription = null;
 
@@ -240,9 +239,8 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
       if (kDebugMode) {
         print("Error during serial port cleanup: $e");
       }
+      _ref.read(errorProvider.notifier).setError('Error closing port: $e');
     } finally {
-      readerToClose?.close();
-      portToDispose?.dispose();
       if (mounted) {
         state = SerialConnection();
       }
