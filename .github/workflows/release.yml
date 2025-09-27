@@ -40,6 +40,9 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Install flutter_distributor
+        run: dart pub global activate flutter_distributor
+
       - name: Install Inno Setup (Windows)
         if: matrix.platform == 'windows'
         run: |
