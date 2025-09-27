@@ -1,0 +1,11 @@
+# distribute_options.yaml
+output: dist
+releases:
+  - name: release
+    jobs:
+      - name: linux
+        package_format: deb
+      - name: windows
+        package_format: exe
+      - name: macos
+        package_format: dmg
