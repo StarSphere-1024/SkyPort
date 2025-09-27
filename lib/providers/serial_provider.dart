@@ -5,6 +5,17 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_libserialport/flutter_libserialport.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+// Custom Exception for when no serial ports are available
+class NoPortsAvailableException implements Exception {
+  final String message;
+  NoPortsAvailableException([this.message = 'No ports available.']);
+
+  @override
+  String toString() {
+    return 'NoPortsAvailableException: $message';
+  }
+}
+
 // 1. Provider for available serial ports
 final availablePortsProvider =
     FutureProvider.autoDispose<List<String>>((ref) async {
@@ -52,9 +63,10 @@ class SerialConfig {
 // 3. Provider for serial port configuration state
 class SerialConfigNotifier extends StateNotifier<SerialConfig?> {
   SerialConfigNotifier(List<String> availablePorts) : super(null) {
-    if (availablePorts.isNotEmpty) {
-      state = SerialConfig(portName: availablePorts.first);
+    if (availablePorts.isEmpty) {
+      throw NoPortsAvailableException('No ports available');
     }
+    state = SerialConfig(portName: availablePorts.first);
   }
 
   void setPort(String portName) {
@@ -164,7 +176,8 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
 
     bool success = false;
     try {
-      if (!port.openReadWrite()) {
+      if (!await Future.value(port.openReadWrite())
+          .timeout(const Duration(seconds: 5))) {
         throw SerialPortError(
             'Failed to open port: ${SerialPort.lastError?.message ?? "Unknown error"}');
       }
@@ -173,17 +186,13 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
 
       final reader = SerialPortReader(port);
       _dataSubscription = reader.stream.listen((data) {
-        if (mounted) {
-          _ref.read(dataLogProvider.notifier).addReceived(data);
-          state = state.copyWith(rxBytes: state.rxBytes + data.length);
-        }
+        if (!mounted) return;
+        _ref.read(dataLogProvider.notifier).addReceived(data);
+        state = state.copyWith(rxBytes: state.rxBytes + data.length);
       }, onError: (error) {
-        if (mounted) {
-          close();
-          _ref
-              .read(errorProvider.notifier)
-              .setError("Port disconnected: $error");
-        }
+        if (!mounted) return;
+        close();
+        _ref.read(errorProvider.notifier).setError("Port disconnected: $error");
       });
 
       success = true;
@@ -192,6 +201,11 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
         port: port,
         reader: reader,
       );
+    } on TimeoutException {
+      _ref
+          .read(errorProvider.notifier)
+          .setError('Error: Port opening timed out.');
+      state = state.copyWith(status: ConnectionStatus.disconnected);
     } catch (e) {
       _ref.read(errorProvider.notifier).setError('Error: $e');
       state = state.copyWith(status: ConnectionStatus.disconnected);
@@ -214,21 +228,21 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
     state = state.copyWith(status: ConnectionStatus.disconnecting);
 
     final portToDispose = state.port;
+    final readerToClose = state.reader;
     final subscriptionToCancel = _dataSubscription;
     _dataSubscription = null;
 
     try {
       await subscriptionToCancel?.cancel();
-
       await Future.delayed(const Duration(milliseconds: 200));
-
       portToDispose?.close();
-      portToDispose?.dispose();
     } catch (e) {
       if (kDebugMode) {
         print("Error during serial port cleanup: $e");
       }
     } finally {
+      readerToClose?.close();
+      portToDispose?.dispose();
       if (mounted) {
         state = SerialConnection();
       }
@@ -273,14 +287,25 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
   }
 
   Uint8List _hexToBytes(String hex) {
-    hex = hex.replaceAll(RegExp(r'\s+'), '').toUpperCase();
-    if (hex.isEmpty) return Uint8List(0);
-    if (hex.length % 2 != 0) {
-      hex = '0$hex';
-    }
-    List<int> bytes = [];
-    for (int i = 0; i < hex.length; i += 2) {
-      bytes.add(int.parse(hex.substring(i, i + 2), radix: 16));
+    final bytes = <int>[];
+    // Efficiently split by whitespace and filter out empty strings.
+    final parts = hex.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty);
+
+    for (var part in parts) {
+      // Pad the part if it has an odd length.
+      if (part.length % 2 != 0) {
+        part = '0$part';
+      }
+
+      for (int i = 0; i < part.length; i += 2) {
+        final hexPair = part.substring(i, i + 2);
+        try {
+          bytes.add(int.parse(hexPair, radix: 16));
+        } on FormatException {
+          // Rethrow with a more informative message.
+          throw FormatException('Invalid hex value found: "$hexPair"');
+        }
+      }
     }
     return Uint8List.fromList(bytes);
   }
