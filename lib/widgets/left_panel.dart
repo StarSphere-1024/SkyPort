@@ -97,7 +97,7 @@ class LeftPanel extends ConsumerWidget {
                                       labelText: 'Port Name',
                                       border: OutlineInputBorder(),
                                     ),
-                                    value: selectedPort,
+                                    initialValue: selectedPort,
                                     items: ports
                                         .map((port) => DropdownMenuItem<String>(
                                               value: port,
@@ -184,12 +184,30 @@ class LeftPanel extends ConsumerWidget {
                                 labelText: 'Baud Rate',
                                 border: OutlineInputBorder(),
                               ),
-                              value: serialConfig?.baudRate ?? 9600,
+                              initialValue: serialConfig?.baudRate ?? 9600,
                               items: const [
+                                DropdownMenuItem(
+                                    value: 1200, child: Text('1200')),
+                                DropdownMenuItem(
+                                    value: 2400, child: Text('2400')),
+                                DropdownMenuItem(
+                                    value: 4800, child: Text('4800')),
                                 DropdownMenuItem(
                                     value: 9600, child: Text('9600')),
                                 DropdownMenuItem(
+                                    value: 19200, child: Text('19200')),
+                                DropdownMenuItem(
+                                    value: 38400, child: Text('38400')),
+                                DropdownMenuItem(
+                                    value: 57600, child: Text('57600')),
+                                DropdownMenuItem(
                                     value: 115200, child: Text('115200')),
+                                DropdownMenuItem(
+                                    value: 230400, child: Text('230400')),
+                                DropdownMenuItem(
+                                    value: 460800, child: Text('460800')),
+                                DropdownMenuItem(
+                                    value: 921600, child: Text('921600')),
                               ],
                               onChanged: (isConnected || isBusy)
                                   ? null
@@ -206,7 +224,7 @@ class LeftPanel extends ConsumerWidget {
                                 labelText: 'Data Bits',
                                 border: OutlineInputBorder(),
                               ),
-                              value: serialConfig?.dataBits ?? 8,
+                              initialValue: serialConfig?.dataBits ?? 8,
                               items: const [
                                 DropdownMenuItem(value: 8, child: Text('8')),
                                 DropdownMenuItem(value: 7, child: Text('7')),
@@ -228,7 +246,7 @@ class LeftPanel extends ConsumerWidget {
                                 labelText: 'Parity',
                                 border: OutlineInputBorder(),
                               ),
-                              value: serialConfig?.parity ?? 0,
+                              initialValue: serialConfig?.parity ?? 0,
                               items: const [
                                 DropdownMenuItem(value: 0, child: Text('None')),
                                 DropdownMenuItem(value: 1, child: Text('Odd')),
@@ -249,7 +267,7 @@ class LeftPanel extends ConsumerWidget {
                                 labelText: 'Stop Bits',
                                 border: OutlineInputBorder(),
                               ),
-                              value: serialConfig?.stopBits ?? 1,
+                              initialValue: serialConfig?.stopBits ?? 1,
                               items: const [
                                 DropdownMenuItem(value: 1, child: Text('1')),
                                 DropdownMenuItem(value: 2, child: Text('2')),
