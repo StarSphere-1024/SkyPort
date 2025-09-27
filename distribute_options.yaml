@@ -1,11 +1,23 @@
 # distribute_options.yaml
-output: dist
+output: dist/
 releases:
   - name: release
     jobs:
       - name: linux
-        package_format: deb
+        package:
+          platform: linux
+          target: deb
       - name: windows
-        package_format: exe
+        package:
+          platform: windows
+          target: exe
+          innosetup:
+            iss: .github/inno_setup.iss
       - name: macos
-        package_format: dmg
+        package:
+          platform: macos
+          target: dmg
+      - name: android
+        package:
+          platform: android
+          target: apk
