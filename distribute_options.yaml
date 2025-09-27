@@ -1,0 +1,41 @@
+# distribute_options.yaml
+output: dist/release/
+releases:
+  - name: release
+    jobs:
+      # Linux x64 packages
+      - name: linux-deb
+        package:
+          platform: linux
+          target: deb
+          arch: x64
+      - name: linux-appimage
+        package:
+          platform: linux
+          target: appimage
+          arch: x64
+      # Linux arm64 packages (需要 arm64 自托管 Runner 或交叉编译环境)
+      - name: linux-arm64-deb
+        package:
+          platform: linux
+          target: deb
+          arch: arm64
+      - name: linux-arm64-appimage
+        package:
+          platform: linux
+          target: appimage
+          arch: arm64
+      - name: windows
+        package:
+          platform: windows
+          target: exe
+          innosetup:
+            iss: .github/inno_setup.iss
+      - name: macos
+        package:
+          platform: macos
+          target: dmg
+      - name: android
+        package:
+          platform: android
+          target: apk

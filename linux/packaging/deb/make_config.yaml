@@ -1,0 +1,38 @@
+# The name of the debian package (required, lowercase letters, digits, signs and dots only).
+display_name: SkyPort
+package_name: skyport
+generic_name: SkyPort
+# The application's title, shown in the app menu (required).
+title: SkyPort
+
+# A short description of the package (required).
+description: A serial port debugging assistant.
+
+# The maintainer of the package (required, must contain name and email).
+maintainer:
+  name: StarSphere-1024
+  email: starsphere@foxmail.com
+
+# The application category for the desktop menu entry (required).
+# Examples: Development; Utility; Game; Graphics;
+category: Development;Utility;
+
+# The name of the application's executable file (required).
+executable: skyport
+
+# The path to the application icon, relative to the project root (required).
+priority: optional
+section: x11
+installed_size: 6604
+essential: false
+icon: assets/icon.png
+
+# The package architecture.
+architecture: amd64
+
+# A list of other packages that this package depends on.
+depends:
+  - libgtk-3-0
+
+# The package version. If this line is commented out, the version will be automatically read from pubspec.yaml.
+# version: 1.0.0

@@ -1,5 +1,7 @@
 # SkyPort
 
+[![Build Status](https://github.com/StarSphere-1024/SkyPort/actions/workflows/release.yml/badge.svg)](https://github.com/StarSphere-1024/SkyPort/actions/workflows/release.yml)
+
 一款使用 Flutter 构建的跨平台串口调试助手。
 
 ## ✨ 功能
@@ -8,6 +10,12 @@
     *   自动扫描和列出可用串口。
     *   连接和断开串口设备。
     *   可配置波特率、数据位、停止位和校验位。
+
+
+## 📥 下载
+
+你可以从 [GitHub Releases](https://github.com/StarSphere-1024/SkyPort/releases) 页面下载最新版本的安装包。
+
 *   **数据收发**:
     *   支持 ASCII 和 Hex 格式发送和接收数据。
     *   时间戳记录。

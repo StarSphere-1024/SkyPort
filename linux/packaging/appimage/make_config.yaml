@@ -1,0 +1,46 @@
+# AppImage packaging configuration for SkyPort
+# 将 AppImage 所需的元数据集中在此文件，fastforge 在 target: appimage 时读取。
+# 若未指定 version，将自动从 pubspec.yaml 的 `version:` 行截取前半部分（去掉 build metadata）。
+
+# 基本显示信息
+display_name: SkyPort
+generic_name: SkyPort
+title: SkyPort
+
+# 描述 (与 pubspec.yaml 中保持一致)
+description: A serial port debugging assistant.
+
+# 可执行文件名称（与 flutter build linux 输出的 binary 名称一致）
+# fastforge 默认会在 build/linux/x64/release/bundle 下找到它。
+executable: skyport
+
+# 图标资源路径（相对于仓库根目录）
+icon: assets/icon.png
+
+# 分类 (Freedesktop Categories 可多选，用分号结束)
+categories:
+  - Development
+  - Utility
+# Maintainer 信息（虽然 AppImage 不强制，需要时用于生成 desktop entry）
+maintainer:
+  name: StarSphere-1024
+  email: starsphere@foxmail.com
+
+# 可选：自定义输出文件名模板（如不提供由 fastforge 默认）
+# 可使用占位符：${VERSION}、${ARCH}
+file_name_template: "SkyPort-${VERSION}-${ARCH}.AppImage"
+
+# 可选依赖（多数情况下 AppImage 已自带；仅在需要时列出）
+depends: []
+
+# 如果需要自定义 desktop entry 的额外键值，可在此扩展。
+extra_desktop:
+  # 必须：AppImage 要求 Desktop Entry 有 Categories= 键，否则报错。
+  Categories: Development;Utility;
+  # 建议：对应用的简短描述
+  Comment: "Serial port debugging assistant"
+  # 改善某些桌面环境窗口分组（需与实际 WMClass 匹配，可运行应用后用 xprop 查看）
+  StartupWMClass: SkyPort
+
+# 版本（注释掉以自动解析）
+# version: 1.0.0

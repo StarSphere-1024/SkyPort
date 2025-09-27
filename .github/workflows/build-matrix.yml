@@ -1,0 +1,178 @@
+name: Build (Linux packages + Windows portable)
+
+# 可被其它工作流复用（workflow_call）。
+on:
+  workflow_call:
+    inputs:
+      retention-days:
+        required: false
+        type: number
+        default: 7
+    outputs:
+      app_version:
+        description: Extracted application version
+        value: ${{ jobs.prepare.outputs.app_version }}
+
+# 同一分支同时触发多次时聚合（避免资源浪费）。
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# 统一可复用的环境变量（版本值在 prepare 后注入下游）。
+env:
+  FLUTTER_CHANNEL: stable
+
+jobs:
+  # 仅做 Checkout + 版本提取，减少在多个矩阵实例里重复解析。
+  prepare:
+    name: Prepare / Extract Version
+    runs-on: ubuntu-latest
+    outputs:
+      app_version: ${{ steps.version.outputs.app_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version
+        id: version
+        shell: bash
+        run: |
+          if grep -q '^version:' pubspec.yaml; then
+            RAW_LINE=$(grep '^version:' pubspec.yaml | head -n1 | cut -d ' ' -f2)
+            APP_VERSION=${RAW_LINE%%+*}
+            echo "app_version=$APP_VERSION" >> "$GITHUB_OUTPUT"
+          else
+            echo "app_version=unknown" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Detected version: $APP_VERSION"
+
+  linux:
+    name: Linux Packages
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ff_job: [linux-deb, linux-appimage]
+        include:
+          - ff_job: linux-deb
+            artifact_suffix: linux-x64-deb
+          - ff_job: linux-appimage
+            artifact_suffix: linux-x64-appimage
+    env:
+      APP_VERSION: ${{ needs.prepare.outputs.app_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev
+      - name: Install AppImage tool (appimagetool)
+        if: matrix.ff_job == 'linux-appimage'
+        run: |
+          # 安装 AppImage 所需的 fuse 库（新 Ubuntu 镜像常缺失）
+          sudo apt-get install -y libfuse2 || echo "libfuse2 already present"
+          # 下载官方连续构建版本 appimagetool
+          curl -L -o appimagetool.AppImage https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool.AppImage
+          sudo mv appimagetool.AppImage /usr/local/bin/appimagetool
+          # 输出版本以确认安装成功
+          appimagetool --version || echo "appimagetool installed"
+
+      - name: Activate fastforge
+        run: dart pub global activate fastforge
+
+      - name: Download Dart/Flutter deps
+        run: flutter pub get
+
+      - name: Build (${{ matrix.ff_job }})
+        run: fastforge release --name release --jobs ${{ matrix.ff_job }}
+
+      - name: List dist
+        run: ls -R dist || echo "dist missing"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-${{ matrix.artifact_suffix }}-v${{ env.APP_VERSION }}
+          path: dist/release/*/
+          retention-days: ${{ inputs.retention-days }}
+
+  windows:
+    name: Windows Portable (x64)
+    needs: prepare
+    runs-on: windows-latest
+    env:
+      APP_VERSION: ${{ needs.prepare.outputs.app_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      # Windows 下 pub 缓存目录不同，使用 PUB_CACHE 环境变量的默认位置。
+      - name: Cache pub (Windows)
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\Pub\Cache
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
+      - name: Download dependencies
+        run: flutter pub get
+        shell: pwsh
+
+      - name: Build release
+        run: flutter build windows --release
+        shell: pwsh
+
+      - name: Package zip
+        shell: pwsh
+        run: |
+          $PortableDir = "build/windows/x64/runner/Release"
+          if (!(Test-Path $PortableDir)) { Write-Error "Portable directory not found: $PortableDir" }
+          $ZipName = "SkyPort-portable-win-x64-v$Env:APP_VERSION.zip"
+          Compress-Archive -Path "$PortableDir/*" -DestinationPath $ZipName -Force
+          Write-Host "Created $ZipName"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-windows-x64-portable-v${{ env.APP_VERSION }}
+          path: SkyPort-portable-win-x64-v${{ env.APP_VERSION }}.zip
+          retention-days: ${{ inputs.retention-days }}
+
+  summary:
+    name: Summary
+    needs: [linux, windows]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Build matrix result
+        run: |
+          echo "Linux + Windows jobs finished." \
+            && echo "Version: ${{ needs.prepare.outputs.app_version }}" \
+            && echo "Linux result: ${{ needs.linux.result }}" \
+            && echo "Windows result: ${{ needs.windows.result }}"
