@@ -1,0 +1,115 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            artifact: "sky_port-linux.deb"
+            asset_name: "sky_port-linux-amd64.deb"
+            package_format: "deb"
+          - os: windows-latest
+            platform: windows
+            artifact: "sky_port-windows.exe"
+            asset_name: "sky_port-windows-setup.exe"
+            package_format: "exe"
+          - os: macos-latest
+            platform: macos
+            artifact: "sky_port-macos.dmg"
+            asset_name: "sky_port-macos.dmg"
+            package_format: "dmg"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Install Inno Setup (Windows)
+        if: matrix.platform == 'windows'
+        run: |
+          choco install innosetup
+        shell: powershell
+
+      - name: Build with flutter_distributor
+        run: flutter_distributor release --name release --jobs ${{ matrix.platform }}
+
+      - name: Rename Artifact
+        shell: bash
+        run: |
+          # The output directory is dist/<version>/<platform>/
+          # For example: dist/1.0.0+1/linux/
+          cd dist/*/${{ matrix.platform }}
+          # Find the installer file and rename it
+          find . -name "*.${{ matrix.package_format }}" -exec mv {} ../../../${{ matrix.artifact }} \;
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+
+  build_android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Rename APK
+        run: mv build/app/outputs/flutter-apk/app-release.apk sky_port-android.apk
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: sky_port-android.apk
+          path: sky_port-android.apk
+
+  release:
+    needs: [build, build_android]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+
+      - name: List downloaded artifacts
+        run: ls -R artifacts
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/sky_port-linux.deb/sky_port-linux.deb
+            artifacts/sky_port-windows.exe/sky_port-windows.exe
+            artifacts/sky_port-macos.dmg/sky_port-macos.dmg
+            artifacts/sky_port-android.apk/sky_port-android.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
