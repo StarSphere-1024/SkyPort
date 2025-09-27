@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_libserialport/flutter_libserialport.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -80,7 +80,7 @@ final serialConfigProvider =
 });
 
 // 4. Provider for serial connection management
-enum ConnectionStatus { disconnected, connected }
+enum ConnectionStatus { disconnected, connecting, connected, disconnecting }
 
 class SerialConnection {
   final ConnectionStatus status;
@@ -125,73 +125,139 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
 
   SerialConnectionNotifier(this._ref) : super(SerialConnection());
 
+  @override
+  void dispose() {
+    state.port?.close();
+    state.port?.dispose();
+    super.dispose();
+  }
+
   Future<void> open() async {
+    if (state.status != ConnectionStatus.disconnected) {
+      return;
+    }
+
+    state =
+        state.copyWith(status: ConnectionStatus.connecting, clearError: true);
+
     final config = _ref.read(serialConfigProvider);
     if (config == null) {
-      state = state.copyWith(errorMessage: 'Serial configuration not set.');
+      state = SerialConnection(errorMessage: 'Serial configuration not set.');
       return;
     }
 
     final port = SerialPort(config.portName);
+    final portConfig = SerialPortConfig()
+      ..baudRate = config.baudRate
+      ..bits = config.dataBits
+      ..parity = config.parity
+      ..stopBits = config.stopBits
+      ..xonXoff = SerialPortXonXoff.disabled
+      ..rts = SerialPortRts.off
+      ..cts = SerialPortCts.ignore
+      ..dsr = SerialPortDsr.ignore
+      ..dtr = SerialPortDtr.off;
+
+    bool success = false;
     try {
-      final opened = port.openReadWrite();
-      if (!opened) {
-        final error = SerialPort.lastError;
-        throw SerialPortError('Failed to open port: ${error?.message}');
+      if (!port.openReadWrite()) {
+        throw SerialPortError(
+            'Failed to open port: ${SerialPort.lastError?.message ?? "Unknown error"}');
       }
 
-      // Apply configuration
-      final newConfig = SerialPortConfig();
-      newConfig.baudRate = config.baudRate;
-      newConfig.bits = config.dataBits;
-      newConfig.parity = config.parity;
-      newConfig.stopBits = config.stopBits;
-      port.config = newConfig;
+      port.config = portConfig;
 
       final reader = SerialPortReader(port);
       _dataSubscription = reader.stream.listen((data) {
-        _ref.read(dataLogProvider.notifier).addReceived(data);
-        state = state.copyWith(rxBytes: state.rxBytes + data.length);
+        if (mounted) {
+          _ref.read(dataLogProvider.notifier).addReceived(data);
+          state = state.copyWith(rxBytes: state.rxBytes + data.length);
+        }
+      }, onError: (error) {
+        if (mounted) {
+          close();
+          state = state.copyWith(errorMessage: "Port disconnected: $error");
+        }
       });
 
+      success = true;
       state = state.copyWith(
         status: ConnectionStatus.connected,
         port: port,
         reader: reader,
-        clearError: true,
       );
-    } on SerialPortError catch (e) {
-      state = state.copyWith(errorMessage: 'Error: ${e.message}');
+    } catch (e) {
+      state = SerialConnection(errorMessage: 'Error: $e');
+    } finally {
+      portConfig.dispose();
+      if (!success) {
+        if (port.isOpen) {
+          port.close();
+        }
+        port.dispose();
+      }
     }
   }
 
   Future<void> close() async {
-    await _dataSubscription?.cancel();
-    state.port?.close();
-    state = SerialConnection(); // Reset to initial state
+    if (state.status != ConnectionStatus.connected) {
+      return;
+    }
+
+    state = state.copyWith(status: ConnectionStatus.disconnecting);
+
+    final portToDispose = state.port;
+    final subscriptionToCancel = _dataSubscription;
+    _dataSubscription = null;
+
+    try {
+      await subscriptionToCancel?.cancel();
+
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      portToDispose?.close();
+      portToDispose?.dispose();
+    } catch (e) {
+      if (kDebugMode) {
+        print("Error during serial port cleanup: $e");
+      }
+    } finally {
+      if (mounted) {
+        state = SerialConnection();
+      }
+    }
   }
 
   Future<void> send(String data) async {
-    if (state.port == null) return;
+    if (state.port == null || state.status != ConnectionStatus.connected) {
+      return;
+    }
 
     final useHex = _ref.read(settingsProvider).hexSend;
     Uint8List bytesToSend;
 
-    if (useHex) {
-      try {
+    try {
+      if (useHex) {
         bytesToSend = _hexToBytes(data);
-      } catch (e) {
-        state = state.copyWith(errorMessage: 'Invalid Hex format.');
-        return;
+      } else {
+        bytesToSend = Uint8List.fromList(utf8.encode(data));
       }
-    } else {
-      bytesToSend = Uint8List.fromList(utf8.encode(data));
+    } catch (e) {
+      state = state.copyWith(errorMessage: 'Invalid Hex format.');
+      return;
     }
 
     try {
-      final bytesWritten = state.port!.write(bytesToSend);
-      _ref.read(dataLogProvider.notifier).addSent(bytesToSend);
-      state = state.copyWith(txBytes: state.txBytes + bytesWritten);
+      final bytesWritten = state.port!.write(bytesToSend, timeout: 100);
+      if (bytesWritten > 0) {
+        _ref
+            .read(dataLogProvider.notifier)
+            .addSent(bytesToSend.sublist(0, bytesWritten));
+      }
+      state = state.copyWith(
+        txBytes: state.txBytes + bytesWritten,
+        clearError: true,
+      );
     } on SerialPortError catch (e) {
       state = state.copyWith(errorMessage: 'Error sending data: ${e.message}');
     }
@@ -199,6 +265,7 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
 
   Uint8List _hexToBytes(String hex) {
     hex = hex.replaceAll(RegExp(r'\s+'), '').toUpperCase();
+    if (hex.isEmpty) return Uint8List(0);
     if (hex.length % 2 != 0) {
       hex = '0$hex';
     }

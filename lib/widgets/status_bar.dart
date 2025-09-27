@@ -10,13 +10,29 @@ class StatusBar extends ConsumerWidget {
     final connection = ref.watch(serialConnectionProvider);
     final config = ref.watch(serialConfigProvider);
 
-    String statusText = 'Disconnected';
-    Color statusColor = Colors.red;
+    String statusText;
+    Color statusColor;
 
-    if (connection.status == ConnectionStatus.connected) {
-      statusText = 'Connected to ${config?.portName}@${config?.baudRate}';
-      statusColor = Colors.green;
-    } else if (connection.errorMessage != null) {
+    switch (connection.status) {
+      case ConnectionStatus.connected:
+        statusText = 'Connected to ${config?.portName}@${config?.baudRate}';
+        statusColor = Colors.green;
+        break;
+      case ConnectionStatus.connecting:
+        statusText = 'Connecting...';
+        statusColor = Colors.orange;
+        break;
+      case ConnectionStatus.disconnecting:
+        statusText = 'Disconnecting...';
+        statusColor = Colors.orange;
+        break;
+      case ConnectionStatus.disconnected:
+        statusText = 'Disconnected';
+        statusColor = Colors.red;
+        break;
+    }
+
+    if (connection.errorMessage != null) {
       statusText = connection.errorMessage!;
       statusColor = Theme.of(context).colorScheme.error;
     }

@@ -10,12 +10,35 @@ class LeftPanel extends ConsumerWidget {
     final serialConfig = ref.watch(serialConfigProvider);
     final connection = ref.watch(serialConnectionProvider);
     final isConnected = connection.status == ConnectionStatus.connected;
+    final isBusy = connection.status == ConnectionStatus.connecting ||
+        connection.status == ConnectionStatus.disconnecting;
     final availablePorts = ref.watch(availablePortsProvider);
+
+    Widget connectButtonChild;
+    switch (connection.status) {
+      case ConnectionStatus.connected:
+        connectButtonChild = const Text('Close');
+        break;
+      case ConnectionStatus.connecting:
+      case ConnectionStatus.disconnecting:
+        connectButtonChild = const SizedBox(
+          height: 20,
+          width: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            color: Colors.white,
+          ),
+        );
+        break;
+      case ConnectionStatus.disconnected:
+        connectButtonChild = const Text('Open');
+    }
 
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: SingleChildScrollView(
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
             Card(
               child: Padding(
@@ -77,7 +100,7 @@ class LeftPanel extends ConsumerWidget {
                                           ),
                                         ))
                                     .toList(),
-                                onChanged: isConnected
+                                onChanged: (isConnected || isBusy)
                                     ? null
                                     : (String? value) {
                                         if (value != null) {
@@ -111,22 +134,24 @@ class LeftPanel extends ConsumerWidget {
                         ),
                         const SizedBox(width: 16),
                         FilledButton(
-                          onPressed: () {
-                            if (isConnected) {
-                              ref
-                                  .read(serialConnectionProvider.notifier)
-                                  .close();
-                            } else {
-                              ref
-                                  .read(serialConnectionProvider.notifier)
-                                  .open();
-                            }
-                          },
+                          onPressed: isBusy
+                              ? null
+                              : () {
+                                  if (isConnected) {
+                                    ref
+                                        .read(serialConnectionProvider.notifier)
+                                        .close();
+                                  } else {
+                                    ref
+                                        .read(serialConnectionProvider.notifier)
+                                        .open();
+                                  }
+                                },
                           style: isConnected
                               ? FilledButton.styleFrom(
                                   backgroundColor: Colors.red)
                               : null,
-                          child: Text(isConnected ? 'Close' : 'Open'),
+                          child: connectButtonChild,
                         ),
                       ],
                     ),
@@ -153,7 +178,7 @@ class LeftPanel extends ConsumerWidget {
                             DropdownMenuItem(
                                 value: 115200, child: Text('115200')),
                           ],
-                          onChanged: isConnected
+                          onChanged: (isConnected || isBusy)
                               ? null
                               : (int? value) {
                                   if (value != null) {
@@ -175,7 +200,7 @@ class LeftPanel extends ConsumerWidget {
                             DropdownMenuItem(value: 6, child: Text('6')),
                             DropdownMenuItem(value: 5, child: Text('5')),
                           ],
-                          onChanged: isConnected
+                          onChanged: (isConnected || isBusy)
                               ? null
                               : (int? value) {
                                   if (value != null) {
@@ -196,7 +221,7 @@ class LeftPanel extends ConsumerWidget {
                             DropdownMenuItem(value: 1, child: Text('Odd')),
                             DropdownMenuItem(value: 2, child: Text('Even')),
                           ],
-                          onChanged: isConnected
+                          onChanged: (isConnected || isBusy)
                               ? null
                               : (int? value) {
                                   if (value != null) {
@@ -216,7 +241,7 @@ class LeftPanel extends ConsumerWidget {
                             DropdownMenuItem(value: 1, child: Text('1')),
                             DropdownMenuItem(value: 2, child: Text('2')),
                           ],
-                          onChanged: isConnected
+                          onChanged: (isConnected || isBusy)
                               ? null
                               : (int? value) {
                                   if (value != null) {
@@ -228,11 +253,6 @@ class LeftPanel extends ConsumerWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: Container(),
-                    )
                   ],
                 ),
               ),
@@ -249,7 +269,7 @@ class LeftPanel extends ConsumerWidget {
                     SwitchListTile(
                       title: const Text('Hex Display'),
                       value: ref.watch(settingsProvider).hexDisplay,
-                      onChanged: isConnected
+                      onChanged: (isConnected || isBusy)
                           ? null
                           : (value) {
                               ref
@@ -283,7 +303,7 @@ class LeftPanel extends ConsumerWidget {
                     SwitchListTile(
                       title: const Text('Hex Send'),
                       value: ref.watch(settingsProvider).hexSend,
-                      onChanged: isConnected
+                      onChanged: (isConnected || isBusy)
                           ? null
                           : (value) {
                               ref
