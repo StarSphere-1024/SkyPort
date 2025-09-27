@@ -324,26 +324,65 @@ final serialConnectionProvider = StateNotifierProvider.autoDispose<
 enum LogEntryType { received, sent }
 
 class LogEntry {
-  final Uint8List data;
+  Uint8List data;
   final LogEntryType type;
-  final DateTime timestamp;
+  DateTime timestamp;
 
-  LogEntry(this.data, this.type) : timestamp = DateTime.now();
+  LogEntry(this.data, this.type, this.timestamp);
 }
 
 class DataLogNotifier extends StateNotifier<List<LogEntry>> {
   DataLogNotifier() : super([]);
 
+  Timer? _receiveDebounce;
+  static const _debounceDuration = Duration(milliseconds: 50);
+
   void addReceived(Uint8List data) {
-    state = [...state, LogEntry(data, LogEntryType.received)];
+    if (_receiveDebounce?.isActive ?? false) {
+      _receiveDebounce!.cancel();
+      // Append to the last entry
+      if (state.isNotEmpty && state.last.type == LogEntryType.received) {
+        final lastEntry = state.last;
+        // Create a new list with the updated entry
+        final updatedList = List<LogEntry>.from(state);
+        updatedList[state.length - 1] = LogEntry(
+          Uint8List.fromList([...lastEntry.data, ...data]),
+          lastEntry.type,
+          DateTime.now(), // Update timestamp to the latest received time
+        );
+        state = updatedList;
+      } else {
+        // This case should be rare, but handle it by creating a new entry
+        state = [
+          ...state,
+          LogEntry(data, LogEntryType.received, DateTime.now())
+        ];
+      }
+    } else {
+      // Create a new entry
+      state = [...state, LogEntry(data, LogEntryType.received, DateTime.now())];
+    }
+
+    _receiveDebounce = Timer(_debounceDuration, () {
+      // Debounce finished, next data will create a new entry
+    });
   }
 
   void addSent(Uint8List data) {
-    state = [...state, LogEntry(data, LogEntryType.sent)];
+    // Sent data should always create a new entry and not be debounced
+    _receiveDebounce?.cancel(); // Cancel any pending receive debounce
+    state = [...state, LogEntry(data, LogEntryType.sent, DateTime.now())];
   }
 
   void clear() {
+    _receiveDebounce?.cancel();
     state = [];
+  }
+
+  @override
+  void dispose() {
+    _receiveDebounce?.cancel();
+    super.dispose();
   }
 }
 

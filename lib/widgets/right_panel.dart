@@ -218,7 +218,6 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                                 ref
                                     .read(serialConnectionProvider.notifier)
                                     .send(_sendController.text);
-                                _sendController.clear();
                               }
                             }
                           : null,
