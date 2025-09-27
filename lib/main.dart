@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:sky_port/providers/serial_provider.dart';
+import 'package:sky_port/theme.dart';
 import 'package:sky_port/widgets/left_panel.dart';
 import 'package:sky_port/widgets/right_panel.dart';
 import 'package:sky_port/widgets/status_bar.dart';
@@ -43,17 +44,8 @@ class SerialDebuggerApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'SkyPort',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
+      theme: lightTheme,
+      darkTheme: darkTheme,
       themeMode: ThemeMode.system,
       home: const HomePage(),
     );
