@@ -9,6 +9,7 @@ class StatusBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final connection = ref.watch(serialConnectionProvider);
     final config = ref.watch(serialConfigProvider);
+    final errorMessage = ref.watch(errorProvider);
 
     String statusText;
     Color statusColor;
@@ -32,8 +33,8 @@ class StatusBar extends ConsumerWidget {
         break;
     }
 
-    if (connection.errorMessage != null) {
-      statusText = connection.errorMessage!;
+    if (errorMessage != null) {
+      statusText = errorMessage;
       statusColor = Theme.of(context).colorScheme.error;
     }
 

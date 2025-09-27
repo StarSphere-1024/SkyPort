@@ -6,8 +6,14 @@ import 'package:flutter_libserialport/flutter_libserialport.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // 1. Provider for available serial ports
-final availablePortsProvider = FutureProvider<List<String>>((ref) async {
-  return SerialPort.availablePorts;
+final availablePortsProvider =
+    FutureProvider.autoDispose<List<String>>((ref) async {
+  ref.keepAlive(); // Keep alive for some time after last listener is removed
+  final ports = SerialPort.availablePorts;
+  ref.onDispose(() {
+    // No specific cleanup needed for availablePorts, but good practice
+  });
+  return ports;
 });
 
 // 2. Model for serial port configuration
@@ -74,7 +80,8 @@ class SerialConfigNotifier extends StateNotifier<SerialConfig?> {
 }
 
 final serialConfigProvider =
-    StateNotifierProvider<SerialConfigNotifier, SerialConfig?>((ref) {
+    StateNotifierProvider.autoDispose<SerialConfigNotifier, SerialConfig?>(
+        (ref) {
   final availablePorts = ref.watch(availablePortsProvider).value ?? [];
   return SerialConfigNotifier(availablePorts);
 });
@@ -88,7 +95,6 @@ class SerialConnection {
   final SerialPortReader? reader;
   final int rxBytes;
   final int txBytes;
-  final String? errorMessage;
 
   SerialConnection({
     this.status = ConnectionStatus.disconnected,
@@ -96,7 +102,6 @@ class SerialConnection {
     this.reader,
     this.rxBytes = 0,
     this.txBytes = 0,
-    this.errorMessage,
   });
 
   SerialConnection copyWith({
@@ -105,8 +110,6 @@ class SerialConnection {
     SerialPortReader? reader,
     int? rxBytes,
     int? txBytes,
-    String? errorMessage,
-    bool clearError = false,
   }) {
     return SerialConnection(
       status: status ?? this.status,
@@ -114,7 +117,6 @@ class SerialConnection {
       reader: reader ?? this.reader,
       rxBytes: rxBytes ?? this.rxBytes,
       txBytes: txBytes ?? this.txBytes,
-      errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
     );
   }
 }
@@ -136,13 +138,15 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
     if (state.status != ConnectionStatus.disconnected) {
       return;
     }
-
-    state =
-        state.copyWith(status: ConnectionStatus.connecting, clearError: true);
+    _ref.read(errorProvider.notifier).clear();
+    state = state.copyWith(status: ConnectionStatus.connecting);
 
     final config = _ref.read(serialConfigProvider);
     if (config == null) {
-      state = SerialConnection(errorMessage: 'Serial configuration not set.');
+      _ref
+          .read(errorProvider.notifier)
+          .setError('Serial configuration not set.');
+      state = state.copyWith(status: ConnectionStatus.disconnected);
       return;
     }
 
@@ -176,7 +180,9 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
       }, onError: (error) {
         if (mounted) {
           close();
-          state = state.copyWith(errorMessage: "Port disconnected: $error");
+          _ref
+              .read(errorProvider.notifier)
+              .setError("Port disconnected: $error");
         }
       });
 
@@ -187,7 +193,8 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
         reader: reader,
       );
     } catch (e) {
-      state = SerialConnection(errorMessage: 'Error: $e');
+      _ref.read(errorProvider.notifier).setError('Error: $e');
+      state = state.copyWith(status: ConnectionStatus.disconnected);
     } finally {
       portConfig.dispose();
       if (!success) {
@@ -232,6 +239,7 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
     if (state.port == null || state.status != ConnectionStatus.connected) {
       return;
     }
+    _ref.read(errorProvider.notifier).clear();
 
     final useHex = _ref.read(settingsProvider).hexSend;
     Uint8List bytesToSend;
@@ -243,7 +251,7 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
         bytesToSend = Uint8List.fromList(utf8.encode(data));
       }
     } catch (e) {
-      state = state.copyWith(errorMessage: 'Invalid Hex format.');
+      _ref.read(errorProvider.notifier).setError('Invalid Hex format.');
       return;
     }
 
@@ -256,10 +264,11 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
       }
       state = state.copyWith(
         txBytes: state.txBytes + bytesWritten,
-        clearError: true,
       );
     } on SerialPortError catch (e) {
-      state = state.copyWith(errorMessage: 'Error sending data: ${e.message}');
+      _ref
+          .read(errorProvider.notifier)
+          .setError('Error sending data: ${e.message}');
     }
   }
 
@@ -277,9 +286,13 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
   }
 }
 
-final serialConnectionProvider =
-    StateNotifierProvider<SerialConnectionNotifier, SerialConnection>((ref) {
-  return SerialConnectionNotifier(ref);
+final serialConnectionProvider = StateNotifierProvider.autoDispose<
+    SerialConnectionNotifier, SerialConnection>((ref) {
+  final notifier = SerialConnectionNotifier(ref);
+  ref.onDispose(() {
+    notifier.close(); // Ensure connection is closed when provider is disposed
+  });
+  return notifier;
 });
 
 // 5. Data Log Provider
@@ -310,7 +323,7 @@ class DataLogNotifier extends StateNotifier<List<LogEntry>> {
 }
 
 final dataLogProvider =
-    StateNotifierProvider<DataLogNotifier, List<LogEntry>>((ref) {
+    StateNotifierProvider.autoDispose<DataLogNotifier, List<LogEntry>>((ref) {
   return DataLogNotifier();
 });
 
@@ -342,6 +355,24 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
 }
 
 final settingsProvider =
-    StateNotifierProvider<SettingsNotifier, AppSettings>((ref) {
+    StateNotifierProvider.autoDispose<SettingsNotifier, AppSettings>((ref) {
   return SettingsNotifier();
+});
+
+// 7. Global Error Provider
+class ErrorNotifier extends StateNotifier<String?> {
+  ErrorNotifier() : super(null);
+
+  void setError(String message) {
+    state = message;
+  }
+
+  void clear() {
+    state = null;
+  }
+}
+
+final errorProvider =
+    StateNotifierProvider.autoDispose<ErrorNotifier, String?>((ref) {
+  return ErrorNotifier();
 });
