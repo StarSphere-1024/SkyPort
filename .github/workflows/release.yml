@@ -46,15 +46,14 @@ jobs:
       - name: Build with fastforge
         run: fastforge release --name release --jobs ${{ matrix.platform }}
 
-      - name: Get project version
-        id: get_version
-        run: echo "version=$(grep '^version: ' pubspec.yaml | cut -d ' ' -f 2)" >> $GITHUB_OUTPUT
+      - name: List build artifacts
+        run: ls -R dist
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: artifact-${{ matrix.platform }}
-          path: dist/${{ steps.get_version.outputs.version }}/
+          path: dist/release/*/
 
   release:
     needs: [build]
