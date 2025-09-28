@@ -50,7 +50,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: artifact-${{ matrix.platform }}
-          path: dist/release/${{ matrix.platform }}/*
+          path: dist/release/${{ matrix.platform }}/
 
   release:
     needs: [build]
