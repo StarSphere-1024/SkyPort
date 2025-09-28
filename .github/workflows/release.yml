@@ -46,6 +46,9 @@ jobs:
       - name: Build with fastforge
         run: fastforge release --name release --jobs ${{ matrix.platform }}
 
+      - name: List build artifacts
+        run: ls -R dist
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
