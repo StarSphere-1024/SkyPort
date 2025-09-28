@@ -1,0 +1,14 @@
+script_template: inno_setup.iss
+app_id: 728B3532-C74B-4870-9068-BE70FE12A3E6
+app_name: SkyPort
+publisher: starsphere
+publisher_url: https://github.com/starsphere/SkyPort
+display_name: SkyPort
+executable_name: SkyPort.exe
+output_base_file_name: SkyPort.exe
+setup_icon_file: ..\windows\runner\resources\app_icon.ico
+locales:
+  - lang: zh
+    file: ..\windows\packaging\exe\ChineseSimplified.isl
+  - lang: en
+privileges_required: admin
