@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/serial_provider.dart';
+import 'package:sky_port/l10n/app_localizations.dart';
 
 class LeftPanel extends ConsumerWidget {
   const LeftPanel({super.key});
@@ -15,7 +16,7 @@ class LeftPanel extends ConsumerWidget {
     Widget connectButtonChild;
     switch (connection.status) {
       case ConnectionStatus.connected:
-        connectButtonChild = const Text('Close');
+        connectButtonChild = Text(AppLocalizations.of(context).close);
         break;
       case ConnectionStatus.connecting:
       case ConnectionStatus.disconnecting:
@@ -32,7 +33,7 @@ class LeftPanel extends ConsumerWidget {
         );
         break;
       case ConnectionStatus.disconnected:
-        connectButtonChild = const Text('Open');
+        connectButtonChild = Text(AppLocalizations.of(context).open);
     }
 
     return Padding(
@@ -48,7 +49,7 @@ class LeftPanel extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Serial Port Settings',
+                    Text(AppLocalizations.of(context).serialPortSettings,
                         style: Theme.of(context).textTheme.titleLarge),
                     const SizedBox(height: 16),
                     Row(
@@ -84,22 +85,27 @@ class LeftPanel extends ConsumerWidget {
                                   }
 
                                   if (ports.isEmpty) {
-                                    return const InputDecorator(
+                                    return InputDecorator(
                                       decoration: InputDecoration(
-                                        labelText: 'Port Name',
-                                        border: OutlineInputBorder(),
-                                        contentPadding: EdgeInsets.symmetric(
-                                            horizontal: 12.0, vertical: 16.0),
+                                        labelText: AppLocalizations.of(context)
+                                            .portName,
+                                        border: const OutlineInputBorder(),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 12.0,
+                                                vertical: 16.0),
                                       ),
-                                      child: Text('No ports found'),
+                                      child: Text(AppLocalizations.of(context)
+                                          .noPortsFound),
                                     );
                                   }
 
                                   return DropdownButtonFormField<String>(
                                     isExpanded: true,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Port Name',
-                                      border: OutlineInputBorder(),
+                                    decoration: InputDecoration(
+                                      labelText:
+                                          AppLocalizations.of(context).portName,
+                                      border: const OutlineInputBorder(),
                                     ),
                                     initialValue: selectedPort,
                                     items: ports
@@ -123,23 +129,27 @@ class LeftPanel extends ConsumerWidget {
                                           },
                                   );
                                 },
-                                loading: () => const InputDecorator(
+                                loading: () => InputDecorator(
                                   decoration: InputDecoration(
-                                    labelText: 'Port Name',
-                                    border: OutlineInputBorder(),
-                                    contentPadding: EdgeInsets.symmetric(
+                                    labelText:
+                                        AppLocalizations.of(context).portName,
+                                    border: const OutlineInputBorder(),
+                                    contentPadding: const EdgeInsets.symmetric(
                                         horizontal: 12.0, vertical: 16.0),
                                   ),
-                                  child: Text('Loading ports...'),
+                                  child: Text(AppLocalizations.of(context)
+                                      .loadingPorts),
                                 ),
-                                error: (err, stack) => const InputDecorator(
+                                error: (err, stack) => InputDecorator(
                                   decoration: InputDecoration(
-                                    labelText: 'Port Name',
-                                    border: OutlineInputBorder(),
-                                    contentPadding: EdgeInsets.symmetric(
+                                    labelText:
+                                        AppLocalizations.of(context).portName,
+                                    border: const OutlineInputBorder(),
+                                    contentPadding: const EdgeInsets.symmetric(
                                         horizontal: 12.0, vertical: 16.0),
                                   ),
-                                  child: Text('Error loading ports'),
+                                  child: Text(AppLocalizations.of(context)
+                                      .errorLoadingPorts),
                                 ),
                               );
                             },
@@ -193,9 +203,10 @@ class LeftPanel extends ConsumerWidget {
                           ),
                           children: [
                             DropdownButtonFormField<int>(
-                              decoration: const InputDecoration(
-                                labelText: 'Baud Rate',
-                                border: OutlineInputBorder(),
+                              decoration: InputDecoration(
+                                labelText:
+                                    AppLocalizations.of(context).baudRate,
+                                border: const OutlineInputBorder(),
                               ),
                               initialValue: serialConfig?.baudRate ?? 9600,
                               items: const [
@@ -233,9 +244,10 @@ class LeftPanel extends ConsumerWidget {
                                     },
                             ),
                             DropdownButtonFormField<int>(
-                              decoration: const InputDecoration(
-                                labelText: 'Data Bits',
-                                border: OutlineInputBorder(),
+                              decoration: InputDecoration(
+                                labelText:
+                                    AppLocalizations.of(context).dataBits,
+                                border: const OutlineInputBorder(),
                               ),
                               initialValue: serialConfig?.dataBits ?? 8,
                               items: const [
@@ -255,15 +267,24 @@ class LeftPanel extends ConsumerWidget {
                                     },
                             ),
                             DropdownButtonFormField<int>(
-                              decoration: const InputDecoration(
-                                labelText: 'Parity',
-                                border: OutlineInputBorder(),
+                              decoration: InputDecoration(
+                                labelText: AppLocalizations.of(context).parity,
+                                border: const OutlineInputBorder(),
                               ),
                               initialValue: serialConfig?.parity ?? 0,
-                              items: const [
-                                DropdownMenuItem(value: 0, child: Text('None')),
-                                DropdownMenuItem(value: 1, child: Text('Odd')),
-                                DropdownMenuItem(value: 2, child: Text('Even')),
+                              items: [
+                                DropdownMenuItem(
+                                    value: 0,
+                                    child: Text(AppLocalizations.of(context)
+                                        .parityNone)),
+                                DropdownMenuItem(
+                                    value: 1,
+                                    child: Text(AppLocalizations.of(context)
+                                        .parityOdd)),
+                                DropdownMenuItem(
+                                    value: 2,
+                                    child: Text(AppLocalizations.of(context)
+                                        .parityEven)),
                               ],
                               onChanged: (isConnected || isBusy)
                                   ? null
@@ -276,9 +297,10 @@ class LeftPanel extends ConsumerWidget {
                                     },
                             ),
                             DropdownButtonFormField<int>(
-                              decoration: const InputDecoration(
-                                labelText: 'Stop Bits',
-                                border: OutlineInputBorder(),
+                              decoration: InputDecoration(
+                                labelText:
+                                    AppLocalizations.of(context).stopBits,
+                                border: const OutlineInputBorder(),
                               ),
                               initialValue: serialConfig?.stopBits ?? 1,
                               items: const [
@@ -310,13 +332,13 @@ class LeftPanel extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Receive Settings',
+                    Text(AppLocalizations.of(context).receiveSettings,
                         style: Theme.of(context).textTheme.titleLarge),
                     Consumer(
                       builder: (context, ref, child) {
                         final settings = ref.watch(uiSettingsProvider);
                         return SwitchListTile(
-                          title: const Text('Hex Display'),
+                          title: Text(AppLocalizations.of(context).hexDisplay),
                           value: settings.hexDisplay,
                           onChanged: (isConnected || isBusy)
                               ? null
@@ -335,7 +357,8 @@ class LeftPanel extends ConsumerWidget {
                         onPressed: () {
                           ref.read(dataLogProvider.notifier).clear();
                         },
-                        child: const Text('Clear Receive Area'),
+                        child:
+                            Text(AppLocalizations.of(context).clearReceiveArea),
                       ),
                     )
                   ],
@@ -349,13 +372,13 @@ class LeftPanel extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Send Settings',
+                    Text(AppLocalizations.of(context).sendSettings,
                         style: Theme.of(context).textTheme.titleLarge),
                     Consumer(
                       builder: (context, ref, child) {
                         final settings = ref.watch(uiSettingsProvider);
                         return SwitchListTile(
-                          title: const Text('Hex Send'),
+                          title: Text(AppLocalizations.of(context).hexSend),
                           value: settings.hexSend,
                           onChanged: (isConnected || isBusy)
                               ? null

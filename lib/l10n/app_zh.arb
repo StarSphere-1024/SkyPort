@@ -1,0 +1,47 @@
+{
+  "@@locale": "zh",
+  "appTitle": "SkyPort",
+  "serialPortSettings": "串口设置",
+  "portName": "端口",
+  "noPortsFound": "未发现端口",
+  "loadingPorts": "正在加载端口...",
+  "errorLoadingPorts": "加载端口出错",
+  "open": "打开",
+  "close": "关闭",
+  "baudRate": "波特率",
+  "dataBits": "数据位",
+  "parity": "校验位",
+  "parityNone": "无",
+  "parityOdd": "奇",
+  "parityEven": "偶",
+  "stopBits": "停止位",
+  "receiveSettings": "接收设置",
+  "hexDisplay": "十六进制显示",
+  "clearReceiveArea": "清空接收区",
+  "sendSettings": "发送设置",
+  "hexSend": "十六进制发送",
+  "loadMore": "加载更多",
+  "enterDataToSend": "输入要发送的数据",
+  "invalidHexChars": "字符不合法，仅允许 0-9 与 A-F",
+  "hexEvenLength": "Hex 字符串长度必须为偶数",
+  "send": "发送",
+  "txLabel": "发送",
+  "rxLabel": "接收",
+  "connectedStatus": "已连接 {port}@{baud}",
+  "@connectedStatus": {
+    "placeholders": {
+      "port": {"type": "String"},
+      "baud": {"type": "int"}
+    }
+  },
+  "connecting": "连接中...",
+  "disconnecting": "断开中...",
+  "disconnected": "未连接",
+  "trafficStats": "接收: {rx} | 发送: {tx}",
+  "@trafficStats": {
+    "placeholders": {
+      "rx": {"type": "int"},
+      "tx": {"type": "int"}
+    }
+  }
+}

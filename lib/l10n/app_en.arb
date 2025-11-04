@@ -1,0 +1,47 @@
+{
+  "@@locale": "en",
+  "appTitle": "SkyPort",
+  "serialPortSettings": "Serial Port Settings",
+  "portName": "Port Name",
+  "noPortsFound": "No ports found",
+  "loadingPorts": "Loading ports...",
+  "errorLoadingPorts": "Error loading ports",
+  "open": "Open",
+  "close": "Close",
+  "baudRate": "Baud Rate",
+  "dataBits": "Data Bits",
+  "parity": "Parity",
+  "parityNone": "None",
+  "parityOdd": "Odd",
+  "parityEven": "Even",
+  "stopBits": "Stop Bits",
+  "receiveSettings": "Receive Settings",
+  "hexDisplay": "Hex Display",
+  "clearReceiveArea": "Clear Receive Area",
+  "sendSettings": "Send Settings",
+  "hexSend": "Hex Send",
+  "loadMore": "Load More",
+  "enterDataToSend": "Enter data to send",
+  "invalidHexChars": "Invalid characters. Use 0-9, A-F.",
+  "hexEvenLength": "Hex string must have an even length.",
+  "send": "Send",
+  "txLabel": "TX",
+  "rxLabel": "RX",
+  "connectedStatus": "Connected to {port}@{baud}",
+  "@connectedStatus": {
+    "placeholders": {
+      "port": {"type": "String"},
+      "baud": {"type": "int"}
+    }
+  },
+  "connecting": "Connecting...",
+  "disconnecting": "Disconnecting...",
+  "disconnected": "Disconnected",
+  "trafficStats": "Rx: {rx} | Tx: {tx}",
+  "@trafficStats": {
+    "placeholders": {
+      "rx": {"type": "int"},
+      "tx": {"type": "int"}
+    }
+  }
+}

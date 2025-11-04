@@ -9,6 +9,7 @@ import 'package:sky_port/theme.dart';
 import 'package:sky_port/widgets/left_panel.dart';
 import 'package:sky_port/widgets/right_panel.dart';
 import 'package:sky_port/widgets/status_bar.dart';
+import 'l10n/app_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,10 +44,12 @@ class SerialDebuggerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SkyPort',
+      onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       theme: lightTheme,
       darkTheme: darkTheme,
       themeMode: ThemeMode.system,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: const HomePage(),
     );
   }
@@ -59,7 +62,7 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SkyPort'),
+        title: Text(AppLocalizations.of(context).appTitle),
       ),
       body: const SafeArea(
         child: Row(

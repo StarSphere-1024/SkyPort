@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 
 import '../providers/serial_provider.dart';
+import 'package:sky_port/l10n/app_localizations.dart';
 
 class RightPanel extends ConsumerStatefulWidget {
   const RightPanel({super.key});
@@ -88,6 +89,7 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                         ? _visibleItemCount
                         : dataLog.length;
 
+                    final l10n = AppLocalizations.of(context);
                     return ListView.builder(
                       controller: _scrollController,
                       itemCount: listLength + (showLoadMore ? 1 : 0),
@@ -102,7 +104,7 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                                     _visibleItemCount += 100;
                                   });
                                 },
-                                child: const Text('Load More'),
+                                child: Text(l10n.loadMore),
                               ),
                             ),
                           );
@@ -149,7 +151,7 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                                   ? Alignment.centerRight
                                   : Alignment.centerLeft,
                               child: Text(
-                                '${isSent ? "TX" : "RX"} - $formattedTimestamp',
+                                '${isSent ? l10n.txLabel : l10n.rxLabel} - $formattedTimestamp',
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ),
@@ -179,11 +181,12 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                       child: Consumer(builder: (context, ref, child) {
                         // Rebuild TextFormField when hexSend changes to re-run validator
                         final hexSend = ref.watch(uiSettingsProvider).hexSend;
+                        final l10n = AppLocalizations.of(context);
                         return TextFormField(
                           controller: _sendController,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            labelText: 'Enter data to send',
+                          decoration: InputDecoration(
+                            border: const OutlineInputBorder(),
+                            labelText: l10n.enterDataToSend,
                           ),
                           keyboardType: TextInputType.multiline,
                           maxLines: null,
@@ -200,10 +203,10 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                               }
                               if (!RegExp(r'^[0-9a-fA-F]+$')
                                   .hasMatch(sanitizedValue)) {
-                                return 'Invalid characters. Use 0-9, A-F.';
+                                return l10n.invalidHexChars;
                               }
                               if (sanitizedValue.length % 2 != 0) {
-                                return 'Hex string must have an even length.';
+                                return l10n.hexEvenLength;
                               }
                             }
                             return null;
@@ -218,7 +221,7 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                     const SizedBox(width: 8),
                     FilledButton.icon(
                       icon: const Icon(Icons.send),
-                      label: const Text('Send'),
+                      label: Text(AppLocalizations.of(context).send),
                       onPressed: connection.status == ConnectionStatus.connected
                           ? () {
                               if (_formKey.currentState!.validate()) {
