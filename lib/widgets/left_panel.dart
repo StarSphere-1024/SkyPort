@@ -19,12 +19,15 @@ class LeftPanel extends ConsumerWidget {
         break;
       case ConnectionStatus.connecting:
       case ConnectionStatus.disconnecting:
-        connectButtonChild = const SizedBox(
+        connectButtonChild = SizedBox(
           height: 20,
           width: 20,
           child: CircularProgressIndicator(
             strokeWidth: 2.5,
-            color: Colors.white,
+            // Use appropriate contrasting color from ColorScheme
+            color: isConnected
+                ? Theme.of(context).colorScheme.onError
+                : Theme.of(context).colorScheme.onPrimary,
           ),
         );
         break;
@@ -33,7 +36,8 @@ class LeftPanel extends ConsumerWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.all(8.0),
+      // Use 16dp outer padding to align with design blueprint spacing system
+      padding: const EdgeInsets.all(16.0),
       child: SingleChildScrollView(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
@@ -142,7 +146,7 @@ class LeftPanel extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(width: 16),
-                        FilledButton(
+            FilledButton(
                           onPressed: isBusy
                               ? null
                               : () {
@@ -156,10 +160,19 @@ class LeftPanel extends ConsumerWidget {
                                         .open();
                                   }
                                 },
-                          style: isConnected
-                              ? FilledButton.styleFrom(
-                                  backgroundColor: Colors.red)
-                              : null,
+              style: isConnected
+                ? FilledButton.styleFrom(
+                  backgroundColor:
+                    Theme.of(context).colorScheme.error,
+                  foregroundColor:
+                    Theme.of(context).colorScheme.onError,
+                )
+                : FilledButton.styleFrom(
+                  backgroundColor:
+                    Theme.of(context).colorScheme.primary,
+                  foregroundColor:
+                    Theme.of(context).colorScheme.onPrimary,
+                ),
                           child: connectButtonChild,
                         ),
                       ],

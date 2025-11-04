@@ -11,25 +11,27 @@ class StatusBar extends ConsumerWidget {
     final config = ref.watch(serialConfigProvider);
     final errorMessage = ref.watch(errorProvider);
 
+    final colorScheme = Theme.of(context).colorScheme;
+
     String statusText;
     Color statusColor;
 
     switch (connection.status) {
       case ConnectionStatus.connected:
         statusText = 'Connected to ${config?.portName}@${config?.baudRate}';
-        statusColor = Colors.green;
+        statusColor = colorScheme.primary;
         break;
       case ConnectionStatus.connecting:
         statusText = 'Connecting...';
-        statusColor = Colors.orange;
+        statusColor = colorScheme.tertiary;
         break;
       case ConnectionStatus.disconnecting:
         statusText = 'Disconnecting...';
-        statusColor = Colors.orange;
+        statusColor = colorScheme.tertiary;
         break;
       case ConnectionStatus.disconnected:
         statusText = 'Disconnected';
-        statusColor = Colors.red;
+        statusColor = colorScheme.error;
         break;
     }
 
@@ -38,8 +40,14 @@ class StatusBar extends ConsumerWidget {
       statusColor = Theme.of(context).colorScheme.error;
     }
 
-    return BottomAppBar(
-      height: 40,
+    return Container(
+      height: 32,
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: colorScheme.outlineVariant),
+        ),
+        color: colorScheme.surface,
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Row(
@@ -47,7 +55,8 @@ class StatusBar extends ConsumerWidget {
           children: [
             Text(
               'Rx: ${connection.rxBytes} | Tx: ${connection.txBytes}',
-              style: const TextStyle(fontSize: 12),
+              style:
+                  Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 12),
             ),
             Row(
               children: [
@@ -55,7 +64,10 @@ class StatusBar extends ConsumerWidget {
                 const SizedBox(width: 6),
                 Text(
                   statusText,
-                  style: const TextStyle(fontSize: 12),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(fontSize: 12),
                 ),
               ],
             )

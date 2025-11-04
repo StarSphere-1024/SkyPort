@@ -136,7 +136,14 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                               alignment: isSent
                                   ? Alignment.centerRight
                                   : Alignment.centerLeft,
-                              child: Text(dataText),
+                              child: Text(
+                                dataText,
+                                // Apply monospace style per design blueprint
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(fontFamily: 'monospace'),
+                              ),
                             ),
                             subtitle: Align(
                               alignment: isSent
@@ -162,7 +169,8 @@ class _RightPanelState extends ConsumerState<RightPanel> {
           const SizedBox(height: 8),
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(8.0),
+              // Standardize card internal padding to 16dp per design blueprint
+              padding: const EdgeInsets.all(16.0),
               child: Form(
                 key: _formKey,
                 child: Row(
