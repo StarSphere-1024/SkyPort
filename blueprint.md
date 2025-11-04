@@ -50,17 +50,41 @@
     *   元素之间的标准间距为 `8dp` 或 `12dp`。
 
 ### 3.2 颜色与主题 (Color & Theming)
-*   **主题生成:** 采用 `ColorScheme.fromSeed()` 动态生成完整的 M3 颜色主题。
-    *   **种子颜色 (Seed Color):** 选取一个品牌主色（例如: `Colors.blue` 或 `Colors.deepPurple`）。
-    *   **亮/暗模式:** 自动支持并适配系统的亮/暗模式。
-*   **组件颜色:** 所有组件（按钮、卡片、背景等）的颜色均直接取自 `Theme.of(context).colorScheme`，禁止硬编码颜色值。
+* **主题生成:** 采用 `ColorScheme.fromSeed()` 动态生成完整的 M3 颜色主题。
+    * **种子颜色 (Seed Color):** 选取一个品牌主色（例如: `Colors.blue` 或 `Colors.deepPurple`）。
+    * **亮/暗模式:** 自动支持并适配系统的亮/暗模式。
+* **组件颜色:** 所有组件（按钮、卡片、背景等）的颜色均直接取自 `Theme.of(context).colorScheme`，禁止硬编码颜色值（除了临时语义色，可通过扩展后期统一）。
 
-### 3.3 字体 (Typography)
-*   使用 `Theme.of(context).textTheme` 中预定义的字体样式来建立视觉层级。
-    *   **`titleLarge`:** 用于 Card 的标题。
-    *   **`bodyMedium`:** 用于表单标签和普通文本。
-    *   **`labelLarge`:** 用于按钮文本。
-    *   **`monospace` (自定义):** 用于数据显示区，确保字节对齐。
+### 3.3 卡片层级与风格 (Card Variants)
+层级策略：
+* **FilledCard:** 需要操作与高关注度的控制区域（串口设置 / 接收设置 / 发送设置 / 发送输入区）。
+* **OutlinedCard:** 大体量、滚动型展示（日志列表）。
+* **默认 Card:** 备用场景，当前未使用。
+
+### 3.4 字体 (Typography)
+* 使用 `Theme.of(context).textTheme` 建立层级：
+    * `titleLarge`: 区块标题
+    * `bodyMedium`: 常规正文 / 标签
+    * `labelLarge`: 按钮文本
+    * `code` (扩展): 等宽日志/Hex 显示（通过 `TextTheme` 扩展 `textTheme.code`，底层先用系统 `monospace`，后续可替换 `JetBrainsMono` / `SourceCodePro`）。
+
+### 3.5 日志滚动与加载 (Log Scroll & Paging)
+* **自动滚动:** 仅在用户位于底部时新数据才触发平滑滚动；用户向上浏览历史时保持位置不变。
+* **增量加载:** 初始显示最近 100 条，点击“加载更多”每次追加 100 条，避免一次性构建过长列表。
+* **接收合并节流:** 接收数据在 50ms 窗口内合并到同一条 `received` 记录，降低 UI rebuild 频次；发送数据不合并。
+
+### 3.6 错误提示与状态分离 (Errors & Status Separation)
+* 瞬时错误（打开失败 / 写入失败 / 端口断开）→ SnackBar 一次性提示，并在展示后清空错误状态。
+* 状态栏仅显示持久状态（连接态 + Rx/Tx 统计）。
+* 颜色语义：
+    * 已连接：绿色小圆点
+    * 未连接：灰色小圆点
+    * 过渡（连接中/断开中）：`colorScheme.tertiary`
+
+### 3.7 无可用端口策略 (No Ports Available)
+* 无端口时串口配置保持 `null`，端口下拉呈禁用态并显示“未发现端口”。
+* 不抛出异常，等待后续端口出现自动填充首个值。
+* 可在后续版本加入“刷新”按钮或系统热插拔监听。
 
 ## 4. 组件详细设计
 
@@ -82,7 +106,7 @@
 
 | 区域           | 组件     | 类型               | 样式/行为                                                                                     |
 | :------------- | :------- | :----------------- | :-------------------------------------------------------------------------------------------- |
-| **数据显示区** | 容器     | `Card`             | 填充父容器，内边距 `0`。                                                                      |
+| **数据显示区** | 容器     | `OutlinedCard`     | 填充父容器，内边距 `0`。                                                                      |
 |                | 滚动条   | `Scrollbar`        | 包裹 `ListView`。                                                                             |
 |                | 数据列表 | `ListView.builder` | 数据源: `dataLogProvider`。使用 `monospace` 字体。收/发数据条目使用不同背景色或对齐方式区分。 |
 | **数据输入区** | 容器     | `Padding`          | `padding: EdgeInsets.all(16.0)`。                                                             |
@@ -110,8 +134,8 @@
 2.  **接收数据:**
     *   `SerialPortService` 的 `SerialPortReader` 监听到数据流。
     *   `Service` 将 `Uint8List` 数据通知给 `serialConnectionProvider`。
-    *   `serialConnectionProvider` 更新 Rx 字节数，并将数据（原始及格式化后的字符串）传递给 `dataLogProvider`。
-    *   `dataLogProvider` 将新数据条目添加到列表中，UI 自动刷新。
+    *   `serialConnectionProvider` 更新 Rx 字节数，并把原始字节转交 `dataLogProvider`。
+    *   `dataLogProvider` 使用 50ms 节流合并连续接收块（仅更新最后一条 received 记录的 data 与 timestamp）。
 3.  **发送数据:**
     *   UI 调用 `ref.read(serialConnectionProvider.notifier).send(data)`。
     *   `Notifier` 根据 `uiSettingsProvider` 的 "hexSend" 状态，对数据进行预处理（字符串转 Hex 字节等）。
@@ -119,8 +143,9 @@
     *   `Notifier` 将已发送的数据添加到 `dataLogProvider` 中。
 
 ### 5.2 错误处理
-*   **串口打开失败:** (如端口被占用) `SerialPortService` 捕获 `SerialPortError`，`Notifier` 将错误状态暴露给 UI。UI 层通过 `SnackBar` 或 `AlertDialog` 显示友好的错误信息。
-*   **读写错误/设备断开:** 在数据读写循环中进行 `try-catch`。一旦发生错误，立即更新连接状态为 "disconnected"，并弹出 `SnackBar` 提示用户 "设备已断开或读写错误"。
+* **串口打开失败:** 捕获异常后写入 `errorProvider` → 触发 SnackBar；状态栏仍保留结构。
+* **读写错误/设备断开:** 流监听 `onError` 中断并调用断开逻辑，SnackBar 提示；状态栏显示“未连接”。
+* **输入无效 Hex:** 验证失败只在输入框内提示，不进入错误 Provider。
 
 ## 6. 未来规划 (Roadmap)
 *   **V1.1:** 增加数据日志保存到文件的功能。

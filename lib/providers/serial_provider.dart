@@ -69,10 +69,10 @@ class SerialConfig {
 // 3. Provider for serial port configuration state
 class SerialConfigNotifier extends StateNotifier<SerialConfig?> {
   SerialConfigNotifier(List<String> availablePorts) : super(null) {
-    if (availablePorts.isEmpty) {
-      throw NoPortsAvailableException('No ports available');
+    // 不再抛异常：当无端口时保持 null，UI 负责展示“无端口”提示
+    if (availablePorts.isNotEmpty) {
+      state = SerialConfig(portName: availablePorts.first);
     }
-    state = SerialConfig(portName: availablePorts.first);
   }
 
   void setPort(String portName) {

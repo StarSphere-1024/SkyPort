@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import 'package:sky_port/theme.dart'; // for code text extension
 
 import '../providers/serial_provider.dart';
 import 'package:sky_port/l10n/app_localizations.dart';
@@ -76,7 +77,7 @@ class _RightPanelState extends ConsumerState<RightPanel> {
       child: Column(
         children: [
           Expanded(
-            child: Card(
+            child: Card.outlined(
               child: Scrollbar(
                 controller: _scrollController,
                 child: Consumer(
@@ -140,10 +141,7 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                                   : Alignment.centerLeft,
                               child: Text(
                                 dataText,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(fontFamily: 'monospace'),
+                                style: Theme.of(context).textTheme.code,
                               ),
                             ),
                             subtitle: Align(
@@ -168,7 +166,7 @@ class _RightPanelState extends ConsumerState<RightPanel> {
             ),
           ),
           const SizedBox(height: 8),
-          Card(
+          Card.filled(
             child: Padding(
               // Standardize card internal padding to 16dp per design blueprint
               padding: const EdgeInsets.all(16.0),
