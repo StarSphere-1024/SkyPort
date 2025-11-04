@@ -153,11 +153,11 @@ class LeftPanel extends ConsumerWidget {
                                   if (isConnected) {
                                     ref
                                         .read(serialConnectionProvider.notifier)
-                                        .close();
+                                        .disconnect();
                                   } else {
                                     ref
                                         .read(serialConnectionProvider.notifier)
-                                        .open();
+                                        .connect();
                                   }
                                 },
                           style: isConnected

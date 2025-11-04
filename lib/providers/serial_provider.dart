@@ -143,11 +143,12 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
 
   @override
   void dispose() {
-    close();
+    disconnect();
     super.dispose();
   }
 
-  Future<void> open() async {
+  /// Establish the serial connection. Formerly `open()`.
+  Future<void> connect() async {
     if (state.status != ConnectionStatus.disconnected) {
       return;
     }
@@ -167,11 +168,12 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
       final session = await service.open(config);
       _dataSubscription = session.stream.listen((data) {
         if (!mounted) return;
+        // Forward received data into the debounced log provider
         _ref.read(dataLogProvider.notifier).addReceived(data);
         state = state.copyWith(rxBytes: state.rxBytes + data.length);
       }, onError: (error) {
         if (!mounted) return;
-        close();
+        disconnect();
         _ref.read(errorProvider.notifier).setError("Port disconnected: $error");
       });
       state = state.copyWith(
@@ -185,12 +187,13 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
       _ref.read(errorProvider.notifier).setError(e.message);
       state = state.copyWith(status: ConnectionStatus.disconnected);
     } catch (e) {
-      _ref.read(errorProvider.notifier).setError('Unknown open error: $e');
+      _ref.read(errorProvider.notifier).setError('Unknown connect error: $e');
       state = state.copyWith(status: ConnectionStatus.disconnected);
     }
   }
 
-  Future<void> close() async {
+  /// Tear down the serial connection. Formerly `close()`.
+  Future<void> disconnect() async {
     if (state.status != ConnectionStatus.connected) {
       return;
     }
@@ -210,13 +213,21 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
       if (kDebugMode) {
         print("Error during serial port cleanup: $e");
       }
-      _ref.read(errorProvider.notifier).setError('Error closing port: $e');
+      _ref
+          .read(errorProvider.notifier)
+          .setError('Error disconnecting port: $e');
     } finally {
       if (mounted) {
         state = SerialConnection();
       }
     }
   }
+
+  // Backward compatibility wrappers (can be removed later)
+  @Deprecated('Use connect() instead')
+  Future<void> open() => connect();
+  @Deprecated('Use disconnect() instead')
+  Future<void> close() => disconnect();
 
   Future<void> send(String data) async {
     if (state.session == null || state.status != ConnectionStatus.connected) {
@@ -286,7 +297,8 @@ final serialConnectionProvider = StateNotifierProvider.autoDispose<
     SerialConnectionNotifier, SerialConnection>((ref) {
   final notifier = SerialConnectionNotifier(ref);
   ref.onDispose(() {
-    notifier.close(); // Ensure connection is closed when provider is disposed
+    notifier
+        .disconnect(); // Ensure connection is closed when provider is disposed
   });
   return notifier;
 });
