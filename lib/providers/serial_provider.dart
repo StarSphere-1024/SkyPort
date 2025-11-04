@@ -4,6 +4,12 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_libserialport/flutter_libserialport.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../services/serial_port_service.dart';
+
+// Service provider for dependency injection & testability
+final serialPortServiceProvider = Provider<SerialPortService>((ref) {
+  return SerialPortService();
+});
 
 // Custom Exception for when no serial ports are available
 class NoPortsAvailableException implements Exception {
@@ -103,30 +109,26 @@ enum ConnectionStatus { disconnected, connecting, connected, disconnecting }
 
 class SerialConnection {
   final ConnectionStatus status;
-  final SerialPort? port;
-  final SerialPortReader? reader;
+  final SerialPortSession? session;
   final int rxBytes;
   final int txBytes;
 
   SerialConnection({
     this.status = ConnectionStatus.disconnected,
-    this.port,
-    this.reader,
+    this.session,
     this.rxBytes = 0,
     this.txBytes = 0,
   });
 
   SerialConnection copyWith({
     ConnectionStatus? status,
-    SerialPort? port,
-    SerialPortReader? reader,
+    SerialPortSession? session,
     int? rxBytes,
     int? txBytes,
   }) {
     return SerialConnection(
       status: status ?? this.status,
-      port: port ?? this.port,
-      reader: reader ?? this.reader,
+      session: session ?? this.session,
       rxBytes: rxBytes ?? this.rxBytes,
       txBytes: txBytes ?? this.txBytes,
     );
@@ -160,31 +162,10 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
       state = state.copyWith(status: ConnectionStatus.disconnected);
       return;
     }
-
-    final port = SerialPort(config.portName);
-    final portConfig = SerialPortConfig()
-      ..baudRate = config.baudRate
-      ..bits = config.dataBits
-      ..parity = config.parity
-      ..stopBits = config.stopBits
-      ..xonXoff = SerialPortXonXoff.disabled
-      ..rts = SerialPortRts.off
-      ..cts = SerialPortCts.ignore
-      ..dsr = SerialPortDsr.ignore
-      ..dtr = SerialPortDtr.off;
-
-    bool success = false;
+    final service = _ref.read(serialPortServiceProvider);
     try {
-      if (!await Future.value(port.openReadWrite())
-          .timeout(const Duration(seconds: 5))) {
-        throw SerialPortError(
-            'Failed to open port: ${SerialPort.lastError?.message ?? "Unknown error"}');
-      }
-
-      port.config = portConfig;
-
-      final reader = SerialPortReader(port);
-      _dataSubscription = reader.stream.listen((data) {
+      final session = await service.open(config);
+      _dataSubscription = session.stream.listen((data) {
         if (!mounted) return;
         _ref.read(dataLogProvider.notifier).addReceived(data);
         state = state.copyWith(rxBytes: state.rxBytes + data.length);
@@ -193,29 +174,19 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
         close();
         _ref.read(errorProvider.notifier).setError("Port disconnected: $error");
       });
-
-      success = true;
       state = state.copyWith(
         status: ConnectionStatus.connected,
-        port: port,
-        reader: reader,
+        session: session,
       );
-    } on TimeoutException {
-      _ref
-          .read(errorProvider.notifier)
-          .setError('Error: Port opening timed out.');
+    } on SerialPortOpenTimeoutException catch (e) {
+      _ref.read(errorProvider.notifier).setError('Error: ${e.message}');
+      state = state.copyWith(status: ConnectionStatus.disconnected);
+    } on SerialPortOpenException catch (e) {
+      _ref.read(errorProvider.notifier).setError(e.message);
       state = state.copyWith(status: ConnectionStatus.disconnected);
     } catch (e) {
-      _ref.read(errorProvider.notifier).setError('Error: $e');
+      _ref.read(errorProvider.notifier).setError('Unknown open error: $e');
       state = state.copyWith(status: ConnectionStatus.disconnected);
-    } finally {
-      portConfig.dispose();
-      if (!success) {
-        if (port.isOpen) {
-          port.close();
-        }
-        port.dispose();
-      }
     }
   }
 
@@ -227,14 +198,14 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
     _ref.read(errorProvider.notifier).clear();
     state = state.copyWith(status: ConnectionStatus.disconnecting);
 
-    final portToDispose = state.port;
+    final session = state.session;
     final subscriptionToCancel = _dataSubscription;
     _dataSubscription = null;
 
     try {
       await subscriptionToCancel?.cancel();
       await Future.delayed(const Duration(milliseconds: 200));
-      portToDispose?.close();
+      await _ref.read(serialPortServiceProvider).close(session);
     } catch (e) {
       if (kDebugMode) {
         print("Error during serial port cleanup: $e");
@@ -248,7 +219,7 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
   }
 
   Future<void> send(String data) async {
-    if (state.port == null || state.status != ConnectionStatus.connected) {
+    if (state.session == null || state.status != ConnectionStatus.connected) {
       return;
     }
     _ref.read(errorProvider.notifier).clear();
@@ -268,7 +239,9 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
     }
 
     try {
-      final bytesWritten = state.port!.write(bytesToSend, timeout: 100);
+      final bytesWritten = _ref
+          .read(serialPortServiceProvider)
+          .write(state.session!, bytesToSend, timeoutMs: 100);
       if (bytesWritten > 0) {
         _ref
             .read(dataLogProvider.notifier)
@@ -277,7 +250,7 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
       state = state.copyWith(
         txBytes: state.txBytes + bytesWritten,
       );
-    } on SerialPortError catch (e) {
+    } on SerialPortWriteException catch (e) {
       _ref
           .read(errorProvider.notifier)
           .setError('Error sending data: ${e.message}');
