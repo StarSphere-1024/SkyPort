@@ -10,23 +10,21 @@ class StatusBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final connection = ref.watch(serialConnectionProvider);
     final config = ref.watch(serialConfigProvider);
-    final errorMessage = ref.watch(errorProvider);
-
     final colorScheme = Theme.of(context).colorScheme;
-
     final l10n = AppLocalizations.of(context);
+
+    // 状态文本与颜色（按设计：左侧显示连接状态，颜色：未连接=灰色，已连接=绿色）
     String statusText;
     Color statusColor;
-
     switch (connection.status) {
       case ConnectionStatus.connected:
         statusText = l10n.connectedStatus(
             config?.portName ?? '-', config?.baudRate ?? 0);
-        statusColor = colorScheme.primary;
+        statusColor = Colors.green; // 设计要求绿色
         break;
       case ConnectionStatus.connecting:
         statusText = l10n.connecting;
-        statusColor = colorScheme.tertiary;
+        statusColor = colorScheme.tertiary; // 过渡状态用语义色
         break;
       case ConnectionStatus.disconnecting:
         statusText = l10n.disconnecting;
@@ -34,14 +32,12 @@ class StatusBar extends ConsumerWidget {
         break;
       case ConnectionStatus.disconnected:
         statusText = l10n.disconnected;
-        statusColor = colorScheme.error;
+        statusColor = Colors.grey; // 设计要求灰色
         break;
     }
 
-    if (errorMessage != null) {
-      statusText = errorMessage;
-      statusColor = Theme.of(context).colorScheme.error;
-    }
+    // 统计格式：Rx: 1024 | Tx: 512
+    final statsText = 'Rx: ${connection.rxBytes} | Tx: ${connection.txBytes}';
 
     return Container(
       height: 32,
@@ -54,13 +50,8 @@ class StatusBar extends ConsumerWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              l10n.trafficStats(connection.rxBytes, connection.txBytes),
-              style:
-                  Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 12),
-            ),
+            // 左：连接状态
             Row(
               children: [
                 Icon(Icons.circle, color: statusColor, size: 10),
@@ -73,7 +64,14 @@ class StatusBar extends ConsumerWidget {
                       ?.copyWith(fontSize: 12),
                 ),
               ],
-            )
+            ),
+            const Spacer(),
+            // 右：统计
+            Text(
+              statsText,
+              style:
+                  Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 12),
+            ),
           ],
         ),
       ),
