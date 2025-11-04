@@ -146,7 +146,7 @@ class LeftPanel extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(width: 16),
-            FilledButton(
+                        FilledButton(
                           onPressed: isBusy
                               ? null
                               : () {
@@ -160,19 +160,19 @@ class LeftPanel extends ConsumerWidget {
                                         .open();
                                   }
                                 },
-              style: isConnected
-                ? FilledButton.styleFrom(
-                  backgroundColor:
-                    Theme.of(context).colorScheme.error,
-                  foregroundColor:
-                    Theme.of(context).colorScheme.onError,
-                )
-                : FilledButton.styleFrom(
-                  backgroundColor:
-                    Theme.of(context).colorScheme.primary,
-                  foregroundColor:
-                    Theme.of(context).colorScheme.onPrimary,
-                ),
+                          style: isConnected
+                              ? FilledButton.styleFrom(
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.error,
+                                  foregroundColor:
+                                      Theme.of(context).colorScheme.onError,
+                                )
+                              : FilledButton.styleFrom(
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.primary,
+                                  foregroundColor:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                ),
                           child: connectButtonChild,
                         ),
                       ],
@@ -314,7 +314,7 @@ class LeftPanel extends ConsumerWidget {
                         style: Theme.of(context).textTheme.titleLarge),
                     Consumer(
                       builder: (context, ref, child) {
-                        final settings = ref.watch(settingsProvider);
+                        final settings = ref.watch(uiSettingsProvider);
                         return SwitchListTile(
                           title: const Text('Hex Display'),
                           value: settings.hexDisplay,
@@ -322,7 +322,7 @@ class LeftPanel extends ConsumerWidget {
                               ? null
                               : (value) {
                                   ref
-                                      .read(settingsProvider.notifier)
+                                      .read(uiSettingsProvider.notifier)
                                       .setHexDisplay(value);
                                 },
                         );
@@ -353,7 +353,7 @@ class LeftPanel extends ConsumerWidget {
                         style: Theme.of(context).textTheme.titleLarge),
                     Consumer(
                       builder: (context, ref, child) {
-                        final settings = ref.watch(settingsProvider);
+                        final settings = ref.watch(uiSettingsProvider);
                         return SwitchListTile(
                           title: const Text('Hex Send'),
                           value: settings.hexSend,
@@ -361,7 +361,7 @@ class LeftPanel extends ConsumerWidget {
                               ? null
                               : (value) {
                                   ref
-                                      .read(settingsProvider.notifier)
+                                      .read(uiSettingsProvider.notifier)
                                       .setHexSend(value);
                                 },
                         );

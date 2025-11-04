@@ -30,11 +30,13 @@
 *   **服务层 (Services):** 封装核心的业务逻辑。例如，创建一个 `SerialPortService` 来封装所有与 `flutter_libserialport` 库的直接交互。
 
 ### 2.3 主要 Riverpod Providers 规划
-*   **`availablePortsProvider` (FutureProvider):** 异步获取并缓存当前可用的串口列表。
-*   **`serialSettingsProvider` (StateNotifierProvider):** 管理用户选择的串口配置（端口名、波特率、数据位等）。
-*   **`serialConnectionProvider` (StateNotifierProvider):** 管理串口的连接状态（已连接/未连接）、读写器实例以及收发字节统计。
-*   **`dataLogProvider` (StateNotifierProvider):** 存储所有接收和发送的数据记录，用于驱动主显示区的 `ListView`。
-*   **`uiSettingsProvider` (StateNotifierProvider):** 管理 UI 相关的状态，如“十六进制显示/发送”开关的状态。
+
+* **`availablePortsProvider` (FutureProvider<List<String>>):** 异步获取并缓存当前可用的串口列表。
+* **`serialConfigProvider` (StateNotifierProvider<SerialConfig?>):** 管理串口参数配置（端口名、波特率、数据位、校验位、停止位）。
+* **`serialConnectionProvider` (StateNotifierProvider<SerialConnection>):** 管理连接生命周期（连接/断开/进程中）与端口对象、读写监听、字节统计。
+* **`dataLogProvider` (StateNotifierProvider<List<LogEntry>>):** 存储所有收/发数据条目，驱动右侧数据显示列表，支持接收端节流合并。
+* **`uiSettingsProvider` (StateNotifierProvider<UiSettings>):** 管理界面偏好，如十六进制显示（hexDisplay）与十六进制发送（hexSend）。
+* **`errorProvider` (StateNotifierProvider<String?>):** 暴露最近的错误消息（端口占用、打开超时、发送异常等），UI 层通过 SnackBar 或状态栏展示。
 
 ## 3. UI/UX 设计规范
 
@@ -64,44 +66,44 @@
 
 ### 4.1 左侧控制面板 (Control Panel)
 
-| 区域 | 组件 | 类型 | 样式/行为 |
-| :--- | :--- | :--- | :--- |
-| **串口设置** | 容器 | `FilledCard` 或 `OutlinedCard` | 内边距 `16dp`。 |
-| | 端口名 | `DropdownMenu` | 数据源: `availablePortsProvider`。禁用: 串口连接后。 |
-| | 波特率等 | `DropdownMenu` | 预设值列表。禁用: 串口连接后。 |
-| | 打开/关闭 | `FilledButton` | **未连接时:** 文本 "打开"。 **连接时:** 文本 "关闭", `backgroundColor: colorScheme.error`。 |
-| **接收设置** | 容器 | `FilledCard` 或 `OutlinedCard` | 内边距 `16dp`。 |
-| | 十六进制显示 | `SwitchListTile` | 标题 "十六进制显示"。 |
-| | 清空接收区 | `OutlinedButton` | 文本 "清空"。 |
-| **发送设置** | 容器 | `FilledCard` 或 `OutlinedCard` | 内边距 `16dp`。 |
-| | 十六进制发送 | `SwitchListTile` | 标题 "十六进制发送"。 |
+| 区域         | 组件         | 类型                           | 样式/行为                                                                                   |
+| :----------- | :----------- | :----------------------------- | :------------------------------------------------------------------------------------------ |
+| **串口设置** | 容器         | `FilledCard` 或 `OutlinedCard` | 内边距 `16dp`。                                                                             |
+|              | 端口名       | `DropdownMenu`                 | 数据源: `availablePortsProvider`。禁用: 串口连接后。                                        |
+|              | 波特率等     | `DropdownMenu`                 | 预设值列表。禁用: 串口连接后。                                                              |
+|              | 打开/关闭    | `FilledButton`                 | **未连接时:** 文本 "打开"。 **连接时:** 文本 "关闭", `backgroundColor: colorScheme.error`。 |
+| **接收设置** | 容器         | `FilledCard` 或 `OutlinedCard` | 内边距 `16dp`。                                                                             |
+|              | 十六进制显示 | `SwitchListTile`               | 标题 "十六进制显示"。                                                                       |
+|              | 清空接收区   | `OutlinedButton`               | 文本 "清空"。                                                                               |
+| **发送设置** | 容器         | `FilledCard` 或 `OutlinedCard` | 内边距 `16dp`。                                                                             |
+|              | 十六进制发送 | `SwitchListTile`               | 标题 "十六进制发送"。                                                                       |
 
 ### 4.2 右侧主区域 (Main Area)
 
-| 区域 | 组件 | 类型 | 样式/行为 |
-| :--- | :--- | :--- | :--- |
-| **数据显示区** | 容器 | `Card` | 填充父容器，内边距 `0`。 |
-| | 滚动条 | `Scrollbar` | 包裹 `ListView`。 |
-| | 数据列表 | `ListView.builder` | 数据源: `dataLogProvider`。使用 `monospace` 字体。收/发数据条目使用不同背景色或对齐方式区分。 |
-| **数据输入区** | 容器 | `Padding` | `padding: EdgeInsets.all(16.0)`。 |
-| | 输入框 | `TextField` | `decoration`: 带有 `labelText: '输入发送内容...'`。 |
-| | 发送按钮 | `FilledButton` | 文本 "发送"，`icon: Icons.send`。禁用: 串口未连接时。 |
+| 区域           | 组件     | 类型               | 样式/行为                                                                                     |
+| :------------- | :------- | :----------------- | :-------------------------------------------------------------------------------------------- |
+| **数据显示区** | 容器     | `Card`             | 填充父容器，内边距 `0`。                                                                      |
+|                | 滚动条   | `Scrollbar`        | 包裹 `ListView`。                                                                             |
+|                | 数据列表 | `ListView.builder` | 数据源: `dataLogProvider`。使用 `monospace` 字体。收/发数据条目使用不同背景色或对齐方式区分。 |
+| **数据输入区** | 容器     | `Padding`          | `padding: EdgeInsets.all(16.0)`。                                                             |
+|                | 输入框   | `TextField`        | `decoration`: 带有 `labelText: '输入发送内容...'`。                                           |
+|                | 发送按钮 | `FilledButton`     | 文本 "发送"，`icon: Icons.send`。禁用: 串口未连接时。                                         |
 
 ### 4.3 底部状态栏 (Status Bar)
 
-| 区域 | 组件 | 类型 | 样式/行为 |
-| :--- | :--- | :--- | :--- |
-| **容器** | `Container` | `height: 32dp`，`border: Border(top: BorderSide(color: colorScheme.outlineVariant))`。 |
-| **状态信息** | `Row` | `padding: EdgeInsets.symmetric(horizontal: 16.0)`。 |
-| | 连接状态 | `Row` (含 `Icon` 和 `Text`) | **未连接:** `Icon(Icons.circle, color: Colors.grey)` + `Text("未连接")`。 **连接时:** `Icon(Icons.circle, color: Colors.green)` + `Text("COM3@9600")`。 |
-| | 字节统计 | `Text` | `Spacer()` 将其推到最右侧。格式: `Rx: 1024 | Tx: 512`。 |
+| 区域         | 组件        | 类型                                                                                   | 样式/行为                                                                                                                                               |
+| :----------- | :---------- | :------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **容器**     | `Container` | `height: 32dp`，`border: Border(top: BorderSide(color: colorScheme.outlineVariant))`。 |
+| **状态信息** | `Row`       | `padding: EdgeInsets.symmetric(horizontal: 16.0)`。                                    |
+|              | 连接状态    | `Row` (含 `Icon` 和 `Text`)                                                            | **未连接:** `Icon(Icons.circle, color: Colors.grey)` + `Text("未连接")`。 **连接时:** `Icon(Icons.circle, color: Colors.green)` + `Text("COM3@9600")`。 |
+|              | 字节统计    | `Text`                                                                                 | `Spacer()` 将其推到最右侧。格式: `Rx: 1024                                                                                                              | Tx: 512`。 |
 
 ## 5. 数据流与错误处理
 
 ### 5.1 核心数据流
 1.  **打开串口:**
     *   UI 调用 `ref.read(serialConnectionProvider.notifier).connect(settings)`。
-    *   `Notifier` 从 `serialSettingsProvider` 获取配置。
+    *   `Notifier` 从 `serialConfigProvider` 获取配置。
     *   `Notifier` 调用 `SerialPortService` 的 `open()` 方法。
     *   成功后，更新自身状态为 "connected"，并启动数据监听。
     *   失败后，抛出异常。
@@ -112,7 +114,7 @@
     *   `dataLogProvider` 将新数据条目添加到列表中，UI 自动刷新。
 3.  **发送数据:**
     *   UI 调用 `ref.read(serialConnectionProvider.notifier).send(data)`。
-    *   `Notifier` 根据 `uiSettingsProvider` 的 "Hex发送" 状态，对数据进行预处理（字符串转Hex字节等）。
+    *   `Notifier` 根据 `uiSettingsProvider` 的 "hexSend" 状态，对数据进行预处理（字符串转 Hex 字节等）。
     *   `Notifier` 调用 `SerialPortService` 的 `write()` 方法，并更新 Tx 字节数。
     *   `Notifier` 将已发送的数据添加到 `dataLogProvider` 中。
 

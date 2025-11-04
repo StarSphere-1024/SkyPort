@@ -253,7 +253,7 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
     }
     _ref.read(errorProvider.notifier).clear();
 
-    final useHex = _ref.read(settingsProvider).hexSend;
+    final useHex = _ref.read(uiSettingsProvider).hexSend;
     Uint8List bytesToSend;
 
     try {
@@ -389,23 +389,22 @@ final dataLogProvider =
   return DataLogNotifier();
 });
 
-// 6. Settings provider
-class AppSettings {
+class UiSettings {
   final bool hexDisplay;
   final bool hexSend;
 
-  AppSettings({this.hexDisplay = false, this.hexSend = false});
+  const UiSettings({this.hexDisplay = false, this.hexSend = false});
 
-  AppSettings copyWith({bool? hexDisplay, bool? hexSend}) {
-    return AppSettings(
+  UiSettings copyWith({bool? hexDisplay, bool? hexSend}) {
+    return UiSettings(
       hexDisplay: hexDisplay ?? this.hexDisplay,
       hexSend: hexSend ?? this.hexSend,
     );
   }
 }
 
-class SettingsNotifier extends StateNotifier<AppSettings> {
-  SettingsNotifier() : super(AppSettings());
+class UiSettingsNotifier extends StateNotifier<UiSettings> {
+  UiSettingsNotifier() : super(const UiSettings());
 
   void setHexDisplay(bool value) {
     state = state.copyWith(hexDisplay: value);
@@ -416,9 +415,9 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   }
 }
 
-final settingsProvider =
-    StateNotifierProvider.autoDispose<SettingsNotifier, AppSettings>((ref) {
-  return SettingsNotifier();
+final uiSettingsProvider =
+    StateNotifierProvider.autoDispose<UiSettingsNotifier, UiSettings>((ref) {
+  return UiSettingsNotifier();
 });
 
 // 7. Global Error Provider

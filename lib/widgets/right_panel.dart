@@ -81,7 +81,7 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                 child: Consumer(
                   builder: (context, ref, child) {
                     final dataLog = ref.watch(dataLogProvider);
-                    final settings = ref.watch(settingsProvider);
+                    final settings = ref.watch(uiSettingsProvider);
                     final bool showLoadMore =
                         dataLog.length > _visibleItemCount;
                     final int listLength = (dataLog.length > _visibleItemCount)
@@ -138,7 +138,6 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                                   : Alignment.centerLeft,
                               child: Text(
                                 dataText,
-                                // Apply monospace style per design blueprint
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodyMedium
@@ -179,7 +178,7 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                     Expanded(
                       child: Consumer(builder: (context, ref, child) {
                         // Rebuild TextFormField when hexSend changes to re-run validator
-                        final hexSend = ref.watch(settingsProvider).hexSend;
+                        final hexSend = ref.watch(uiSettingsProvider).hexSend;
                         return TextFormField(
                           controller: _sendController,
                           decoration: const InputDecoration(
