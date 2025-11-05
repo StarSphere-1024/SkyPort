@@ -12,7 +12,7 @@ dependencies:
   flutter_libserialport: ^0.6.0
   flutter_riverpod: ^2.5.1
   cupertino_icons: ^1.0.6
-  intl: any
+  intl: ^0.20.2
   window_manager: ^0.5.1
   flutter_localizations:
     sdk: flutter
