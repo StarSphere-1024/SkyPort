@@ -11,6 +11,7 @@ extension CodeTextTheme on TextTheme {
 final lightTheme = ThemeData(
   colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
   useMaterial3: true,
+  fontFamily: 'Microsoft YaHei',
 );
 
 final darkTheme = ThemeData(
@@ -20,4 +21,5 @@ final darkTheme = ThemeData(
     brightness: Brightness.dark,
   ),
   useMaterial3: true,
+  fontFamily: 'Microsoft YaHei',
 );
