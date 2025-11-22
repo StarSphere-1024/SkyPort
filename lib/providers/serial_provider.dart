@@ -67,12 +67,14 @@ class SerialConfig {
 }
 
 // 3. Provider for serial port configuration state
-class SerialConfigNotifier extends StateNotifier<SerialConfig?> {
-  SerialConfigNotifier(List<String> availablePorts) : super(null) {
-    // 不再抛异常：当无端口时保持 null，UI 负责展示“无端口”提示
+class SerialConfigNotifier extends Notifier<SerialConfig?> {
+  @override
+  SerialConfig? build() {
+    final availablePorts = ref.watch(availablePortsProvider).value ?? [];
     if (availablePorts.isNotEmpty) {
-      state = SerialConfig(portName: availablePorts.first);
+      return SerialConfig(portName: availablePorts.first);
     }
+    return null;
   }
 
   void setPort(String portName) {
@@ -98,11 +100,8 @@ class SerialConfigNotifier extends StateNotifier<SerialConfig?> {
 }
 
 final serialConfigProvider =
-    StateNotifierProvider.autoDispose<SerialConfigNotifier, SerialConfig?>(
-        (ref) {
-  final availablePorts = ref.watch(availablePortsProvider).value ?? [];
-  return SerialConfigNotifier(availablePorts);
-});
+    NotifierProvider.autoDispose<SerialConfigNotifier, SerialConfig?>(
+        SerialConfigNotifier.new);
 
 // 4. Provider for serial connection management
 enum ConnectionStatus { disconnected, connecting, connected, disconnecting }
@@ -135,16 +134,15 @@ class SerialConnection {
   }
 }
 
-class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
-  final Ref _ref;
+class SerialConnectionNotifier extends Notifier<SerialConnection> {
   StreamSubscription<Uint8List>? _dataSubscription;
 
-  SerialConnectionNotifier(this._ref) : super(SerialConnection());
-
   @override
-  void dispose() {
-    disconnect();
-    super.dispose();
+  SerialConnection build() {
+    ref.onDispose(() {
+      disconnect();
+    });
+    return SerialConnection();
   }
 
   /// Establish the serial connection. Formerly `open()`.
@@ -152,42 +150,40 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
     if (state.status != ConnectionStatus.disconnected) {
       return;
     }
-    _ref.read(errorProvider.notifier).clear();
+    ref.read(errorProvider.notifier).clear();
     state = state.copyWith(status: ConnectionStatus.connecting);
 
-    final config = _ref.read(serialConfigProvider);
+    final config = ref.read(serialConfigProvider);
     if (config == null) {
-      _ref
+      ref
           .read(errorProvider.notifier)
           .setError('Serial configuration not set.');
       state = state.copyWith(status: ConnectionStatus.disconnected);
       return;
     }
-    final service = _ref.read(serialPortServiceProvider);
+    final service = ref.read(serialPortServiceProvider);
     try {
       final session = await service.open(config);
       _dataSubscription = session.stream.listen((data) {
-        if (!mounted) return;
         // Forward received data into the debounced log provider
-        _ref.read(dataLogProvider.notifier).addReceived(data);
+        ref.read(dataLogProvider.notifier).addReceived(data);
         state = state.copyWith(rxBytes: state.rxBytes + data.length);
       }, onError: (error) {
-        if (!mounted) return;
         disconnect();
-        _ref.read(errorProvider.notifier).setError("Port disconnected: $error");
+        ref.read(errorProvider.notifier).setError("Port disconnected: $error");
       });
       state = state.copyWith(
         status: ConnectionStatus.connected,
         session: session,
       );
     } on SerialPortOpenTimeoutException catch (e) {
-      _ref.read(errorProvider.notifier).setError('Error: ${e.message}');
+      ref.read(errorProvider.notifier).setError('Error: ${e.message}');
       state = state.copyWith(status: ConnectionStatus.disconnected);
     } on SerialPortOpenException catch (e) {
-      _ref.read(errorProvider.notifier).setError(e.message);
+      ref.read(errorProvider.notifier).setError(e.message);
       state = state.copyWith(status: ConnectionStatus.disconnected);
     } catch (e) {
-      _ref.read(errorProvider.notifier).setError('Unknown connect error: $e');
+      ref.read(errorProvider.notifier).setError('Unknown connect error: $e');
       state = state.copyWith(status: ConnectionStatus.disconnected);
     }
   }
@@ -198,7 +194,7 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
       return;
     }
 
-    _ref.read(errorProvider.notifier).clear();
+    ref.read(errorProvider.notifier).clear();
     state = state.copyWith(status: ConnectionStatus.disconnecting);
 
     final session = state.session;
@@ -208,18 +204,14 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
     try {
       await subscriptionToCancel?.cancel();
       await Future.delayed(const Duration(milliseconds: 200));
-      await _ref.read(serialPortServiceProvider).close(session);
+      await ref.read(serialPortServiceProvider).close(session);
     } catch (e) {
       if (kDebugMode) {
         print("Error during serial port cleanup: $e");
       }
-      _ref
-          .read(errorProvider.notifier)
-          .setError('Error disconnecting port: $e');
+      ref.read(errorProvider.notifier).setError('Error disconnecting port: $e');
     } finally {
-      if (mounted) {
-        state = SerialConnection();
-      }
+      state = SerialConnection();
     }
   }
 
@@ -233,9 +225,9 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
     if (state.session == null || state.status != ConnectionStatus.connected) {
       return;
     }
-    _ref.read(errorProvider.notifier).clear();
+    ref.read(errorProvider.notifier).clear();
 
-    final useHex = _ref.read(uiSettingsProvider).hexSend;
+    final useHex = ref.read(uiSettingsProvider).hexSend;
     Uint8List bytesToSend;
 
     try {
@@ -245,16 +237,16 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
         bytesToSend = Uint8List.fromList(utf8.encode(data));
       }
     } catch (e) {
-      _ref.read(errorProvider.notifier).setError('Invalid Hex format.');
+      ref.read(errorProvider.notifier).setError('Invalid Hex format.');
       return;
     }
 
     try {
-      final bytesWritten = _ref
+      final bytesWritten = ref
           .read(serialPortServiceProvider)
           .write(state.session!, bytesToSend, timeoutMs: 100);
       if (bytesWritten > 0) {
-        _ref
+        ref
             .read(dataLogProvider.notifier)
             .addSent(bytesToSend.sublist(0, bytesWritten));
       }
@@ -262,7 +254,7 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
         txBytes: state.txBytes + bytesWritten,
       );
     } on SerialPortWriteException catch (e) {
-      _ref
+      ref
           .read(errorProvider.notifier)
           .setError('Error sending data: ${e.message}');
     }
@@ -293,15 +285,9 @@ class SerialConnectionNotifier extends StateNotifier<SerialConnection> {
   }
 }
 
-final serialConnectionProvider = StateNotifierProvider.autoDispose<
-    SerialConnectionNotifier, SerialConnection>((ref) {
-  final notifier = SerialConnectionNotifier(ref);
-  ref.onDispose(() {
-    notifier
-        .disconnect(); // Ensure connection is closed when provider is disposed
-  });
-  return notifier;
-});
+final serialConnectionProvider =
+    NotifierProvider.autoDispose<SerialConnectionNotifier, SerialConnection>(
+        SerialConnectionNotifier.new);
 
 // 5. Data Log Provider
 enum LogEntryType { received, sent }
@@ -314,11 +300,17 @@ class LogEntry {
   LogEntry(this.data, this.type, this.timestamp);
 }
 
-class DataLogNotifier extends StateNotifier<List<LogEntry>> {
-  DataLogNotifier() : super([]);
-
+class DataLogNotifier extends Notifier<List<LogEntry>> {
   Timer? _receiveDebounce;
   static const _debounceDuration = Duration(milliseconds: 50);
+
+  @override
+  List<LogEntry> build() {
+    ref.onDispose(() {
+      _receiveDebounce?.cancel();
+    });
+    return [];
+  }
 
   void addReceived(Uint8List data) {
     if (_receiveDebounce?.isActive ?? false) {
@@ -361,18 +353,11 @@ class DataLogNotifier extends StateNotifier<List<LogEntry>> {
     _receiveDebounce?.cancel();
     state = [];
   }
-
-  @override
-  void dispose() {
-    _receiveDebounce?.cancel();
-    super.dispose();
-  }
 }
 
 final dataLogProvider =
-    StateNotifierProvider.autoDispose<DataLogNotifier, List<LogEntry>>((ref) {
-  return DataLogNotifier();
-});
+    NotifierProvider.autoDispose<DataLogNotifier, List<LogEntry>>(
+        DataLogNotifier.new);
 
 class UiSettings {
   final bool hexDisplay;
@@ -388,8 +373,9 @@ class UiSettings {
   }
 }
 
-class UiSettingsNotifier extends StateNotifier<UiSettings> {
-  UiSettingsNotifier() : super(const UiSettings());
+class UiSettingsNotifier extends Notifier<UiSettings> {
+  @override
+  UiSettings build() => const UiSettings();
 
   void setHexDisplay(bool value) {
     state = state.copyWith(hexDisplay: value);
@@ -401,13 +387,13 @@ class UiSettingsNotifier extends StateNotifier<UiSettings> {
 }
 
 final uiSettingsProvider =
-    StateNotifierProvider.autoDispose<UiSettingsNotifier, UiSettings>((ref) {
-  return UiSettingsNotifier();
-});
+    NotifierProvider.autoDispose<UiSettingsNotifier, UiSettings>(
+        UiSettingsNotifier.new);
 
 // 7. Global Error Provider
-class ErrorNotifier extends StateNotifier<String?> {
-  ErrorNotifier() : super(null);
+class ErrorNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
 
   void setError(String message) {
     state = message;
@@ -419,6 +405,4 @@ class ErrorNotifier extends StateNotifier<String?> {
 }
 
 final errorProvider =
-    StateNotifierProvider.autoDispose<ErrorNotifier, String?>((ref) {
-  return ErrorNotifier();
-});
+    NotifierProvider.autoDispose<ErrorNotifier, String?>(ErrorNotifier.new);

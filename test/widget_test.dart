@@ -5,13 +5,18 @@
 // gestures. You can also use WidgetTester to find child widgets in the widget
 // tree, read text, and verify that the values of widget properties are correct.
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sky_port/main.dart';
 
 void main() {
   testWidgets('App title localized (English default)',
       (WidgetTester tester) async {
-    await tester.pumpWidget(const SerialDebuggerApp());
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: SerialDebuggerApp(),
+      ),
+    );
 
     // The app bar title should be SkyPort (English locale fallback)
     expect(find.text('SkyPort'), findsOneWidget);
