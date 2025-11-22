@@ -34,8 +34,7 @@ class ReceiveSettingsWidget extends ConsumerWidget {
         CompactSwitch(
           label: AppLocalizations.of(context).hexDisplay,
           value: settings.hexDisplay,
-          onChanged:
-              (isConnected || isBusy) ? null : (v) => notifier.setHexDisplay(v),
+          onChanged: (v) => notifier.setHexDisplay(v),
         ),
         CompactSwitch(
           label: AppLocalizations.of(context).showTimestamp,

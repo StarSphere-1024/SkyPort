@@ -33,8 +33,7 @@ class SendSettingsWidget extends ConsumerWidget {
         CompactSwitch(
           label: l10n.hexSend,
           value: settings.hexSend,
-          onChanged:
-              (isConnected || isBusy) ? null : (v) => notifier.setHexSend(v),
+          onChanged: (v) => notifier.setHexSend(v),
         ),
         const SizedBox(height: 8),
         Row(
