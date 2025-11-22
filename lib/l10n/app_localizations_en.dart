@@ -60,6 +60,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hexDisplay => 'Hex Display';
 
   @override
+  String get showTimestamp => 'Show Timestamp';
+
+  @override
+  String get frameIntervalMs => 'Frame Interval (ms)';
+
+  @override
   String get clearReceiveArea => 'Clear Receive Area';
 
   @override

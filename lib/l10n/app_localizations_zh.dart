@@ -60,6 +60,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get hexDisplay => '十六进制显示';
 
   @override
+  String get showTimestamp => '显示时间戳';
+
+  @override
+  String get frameIntervalMs => '断帧间隔 (ms)';
+
+  @override
   String get clearReceiveArea => '清空接收区';
 
   @override

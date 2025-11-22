@@ -391,7 +391,6 @@ class LogEntry {
 
 class DataLogNotifier extends Notifier<List<LogEntry>> {
   Timer? _receiveDebounce;
-  static const _debounceDuration = Duration(milliseconds: 50);
 
   @override
   List<LogEntry> build() {
@@ -400,6 +399,9 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
     });
     return [];
   }
+
+  Duration get _debounceDuration =>
+      Duration(milliseconds: ref.read(uiSettingsProvider).frameIntervalMs);
 
   void addReceived(Uint8List data) {
     if (_receiveDebounce?.isActive ?? false) {
@@ -451,13 +453,27 @@ final dataLogProvider =
 class UiSettings {
   final bool hexDisplay;
   final bool hexSend;
+  final bool showTimestamp;
+  final int frameIntervalMs;
 
-  const UiSettings({this.hexDisplay = false, this.hexSend = false});
+  const UiSettings({
+    this.hexDisplay = false,
+    this.hexSend = false,
+    this.showTimestamp = true,
+    this.frameIntervalMs = 20,
+  });
 
-  UiSettings copyWith({bool? hexDisplay, bool? hexSend}) {
+  UiSettings copyWith({
+    bool? hexDisplay,
+    bool? hexSend,
+    bool? showTimestamp,
+    int? frameIntervalMs,
+  }) {
     return UiSettings(
       hexDisplay: hexDisplay ?? this.hexDisplay,
       hexSend: hexSend ?? this.hexSend,
+      showTimestamp: showTimestamp ?? this.showTimestamp,
+      frameIntervalMs: frameIntervalMs ?? this.frameIntervalMs,
     );
   }
 }
@@ -465,6 +481,8 @@ class UiSettings {
 class UiSettingsNotifier extends Notifier<UiSettings> {
   static const _keyHexDisplay = 'ui_hex_display';
   static const _keyHexSend = 'ui_hex_send';
+  static const _keyShowTimestamp = 'ui_show_timestamp';
+  static const _keyFrameIntervalMs = 'ui_frame_interval_ms';
 
   @override
   UiSettings build() {
@@ -472,6 +490,8 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
     return UiSettings(
       hexDisplay: prefs.getBool(_keyHexDisplay) ?? false,
       hexSend: prefs.getBool(_keyHexSend) ?? false,
+      showTimestamp: prefs.getBool(_keyShowTimestamp) ?? true,
+      frameIntervalMs: prefs.getInt(_keyFrameIntervalMs) ?? 20,
     );
   }
 
@@ -483,6 +503,16 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
   void setHexSend(bool value) {
     state = state.copyWith(hexSend: value);
     ref.read(sharedPreferencesProvider).setBool(_keyHexSend, value);
+  }
+
+  void setShowTimestamp(bool value) {
+    state = state.copyWith(showTimestamp: value);
+    ref.read(sharedPreferencesProvider).setBool(_keyShowTimestamp, value);
+  }
+
+  void setFrameIntervalMs(int value) {
+    state = state.copyWith(frameIntervalMs: value);
+    ref.read(sharedPreferencesProvider).setInt(_keyFrameIntervalMs, value);
   }
 }
 

@@ -200,6 +200,18 @@ abstract class AppLocalizations {
   /// **'Hex Display'**
   String get hexDisplay;
 
+  /// No description provided for @showTimestamp.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Timestamp'**
+  String get showTimestamp;
+
+  /// No description provided for @frameIntervalMs.
+  ///
+  /// In en, this message translates to:
+  /// **'Frame Interval (ms)'**
+  String get frameIntervalMs;
+
   /// No description provided for @clearReceiveArea.
   ///
   /// In en, this message translates to:

@@ -17,6 +17,8 @@
   "stopBits": "Stop Bits",
   "receiveSettings": "Receive Settings",
   "hexDisplay": "Hex Display",
+  "showTimestamp": "Show Timestamp",
+  "frameIntervalMs": "Frame Interval (ms)",
   "clearReceiveArea": "Clear Receive Area",
   "sendSettings": "Send Settings",
   "hexSend": "Hex Send",

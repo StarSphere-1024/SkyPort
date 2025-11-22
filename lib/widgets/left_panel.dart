@@ -135,7 +135,7 @@ class LeftPanel extends ConsumerWidget {
                                           : null,
                                       helperText: isUnavailable ? null : ' ',
                                     ),
-                                    value: selectedPort,
+                                    initialValue: selectedPort,
                                     items: dropdownItems,
                                     onChanged: (isConnected || isBusy)
                                         ? null
@@ -393,6 +393,21 @@ class LeftPanel extends ConsumerWidget {
                                       .read(uiSettingsProvider.notifier)
                                       .setHexDisplay(value);
                                 },
+                        );
+                      },
+                    ),
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final settings = ref.watch(uiSettingsProvider);
+                        return SwitchListTile(
+                          title:
+                              Text(AppLocalizations.of(context).showTimestamp),
+                          value: settings.showTimestamp,
+                          onChanged: (value) {
+                            ref
+                                .read(uiSettingsProvider.notifier)
+                                .setShowTimestamp(value);
+                          },
                         );
                       },
                     ),

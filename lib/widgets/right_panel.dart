@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
-import 'package:sky_port/theme.dart'; // for code text extension
 
 import '../providers/serial_provider.dart';
 import 'package:sky_port/l10n/app_localizations.dart';
@@ -48,7 +47,6 @@ class _RightPanelState extends ConsumerState<RightPanel> {
   }
 
   void _scrollToBottom() {
-    // Only scroll if the user is already at the bottom
     if (!_isAtBottom) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -64,9 +62,10 @@ class _RightPanelState extends ConsumerState<RightPanel> {
   @override
   Widget build(BuildContext context) {
     final connection = ref.watch(serialConnectionProvider);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     ref.listen(dataLogProvider, (previous, next) {
-      // If a new item is added, scroll to bottom
       if ((previous?.length ?? 0) < next.length) {
         _scrollToBottom();
       }
@@ -78,97 +77,138 @@ class _RightPanelState extends ConsumerState<RightPanel> {
         children: [
           Expanded(
             child: Card.outlined(
-              child: Scrollbar(
-                controller: _scrollController,
-                child: Consumer(
-                  builder: (context, ref, child) {
-                    final dataLog = ref.watch(dataLogProvider);
-                    final settings = ref.watch(uiSettingsProvider);
-                    final bool showLoadMore =
-                        dataLog.length > _visibleItemCount;
-                    final int listLength = (dataLog.length > _visibleItemCount)
-                        ? _visibleItemCount
-                        : dataLog.length;
+              color: colorScheme.surface,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                child: Scrollbar(
+                  controller: _scrollController,
+                  child: Consumer(
+                    builder: (context, ref, child) {
+                      final dataLog = ref.watch(dataLogProvider);
+                      final settings = ref.watch(uiSettingsProvider);
+                      final bool showLoadMore =
+                          dataLog.length > _visibleItemCount;
+                      final int listLength =
+                          (dataLog.length > _visibleItemCount)
+                              ? _visibleItemCount
+                              : dataLog.length;
 
-                    final l10n = AppLocalizations.of(context);
-                    return ListView.builder(
-                      controller: _scrollController,
-                      itemCount: listLength + (showLoadMore ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (showLoadMore && index == 0) {
-                          return Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: OutlinedButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _visibleItemCount += 100;
-                                  });
-                                },
-                                child: Text(l10n.loadMore),
+                      final l10n = AppLocalizations.of(context);
+
+                      // 定义终端风格的字体样式
+                      final monoStyle = theme.textTheme.bodyMedium!.copyWith(
+                        fontFamily: 'monospace',
+                        fontSize: 14.0,
+                        height: 1.2, // 紧凑行高
+                      );
+
+                      return ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        itemCount: listLength + (showLoadMore ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          if (showLoadMore && index == 0) {
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(4.0),
+                                child: TextButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _visibleItemCount += 100;
+                                    });
+                                  },
+                                  child: Text(l10n.loadMore),
+                                ),
                               ),
+                            );
+                          }
+
+                          final entryIndex = showLoadMore
+                              ? (dataLog.length - listLength) + (index - 1)
+                              : index;
+                          if (entryIndex < 0) return const SizedBox.shrink();
+
+                          final entry = dataLog[entryIndex];
+                          final isSent = entry.type == LogEntryType.sent;
+                          final formattedTimestamp = DateFormat('HH:mm:ss.SSS')
+                              .format(entry.timestamp);
+
+                          String dataText;
+                          if (settings.hexDisplay) {
+                            dataText = entry.data
+                                .map((b) => b
+                                    .toRadixString(16)
+                                    .padLeft(2, '0')
+                                    .toUpperCase())
+                                .join(' ');
+                          } else {
+                            dataText =
+                                utf8.decode(entry.data, allowMalformed: true);
+                          }
+
+                          // 终端式布局：每行极简显示
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 1.0, horizontal: 4.0),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // 1. 时间戳 (可选)
+                                if (settings.showTimestamp)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 8.0),
+                                    child: Text(
+                                      formattedTimestamp,
+                                      style: monoStyle.copyWith(
+                                        color: theme.disabledColor,
+                                      ),
+                                    ),
+                                  ),
+
+                                // 2. 方向指示符 (TX/RX)
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 8.0),
+                                  child: Text(
+                                    isSent ? "TX >" : "RX <",
+                                    style: monoStyle.copyWith(
+                                      color: isSent
+                                          ? colorScheme.primary
+                                          : colorScheme.onSurface,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+
+                                // 3. 数据内容
+                                Expanded(
+                                  child: Text(
+                                    dataText,
+                                    style: monoStyle.copyWith(
+                                      // 接收内容用默认色，发送内容用稍微淡一点的颜色区分，或者保持一致
+                                      color: isSent
+                                          ? colorScheme.primary
+                                              .withValues(alpha: 0.8)
+                                          : colorScheme.onSurface,
+                                      fontSize: 18.0, // 数据内容字体更大
+                                    ),
+                                    softWrap: true,
+                                  ),
+                                ),
+                              ],
                             ),
                           );
-                        }
-
-                        final entryIndex = showLoadMore
-                            ? (dataLog.length - listLength) + (index - 1)
-                            : index;
-                        if (entryIndex < 0) return const SizedBox.shrink();
-
-                        final entry = dataLog[entryIndex];
-                        final isSent = entry.type == LogEntryType.sent;
-                        final formattedTimestamp =
-                            DateFormat('HH:mm:ss.SSS').format(entry.timestamp);
-
-                        String dataText;
-                        if (settings.hexDisplay) {
-                          dataText = entry.data
-                              .map((b) => b
-                                  .toRadixString(16)
-                                  .padLeft(2, '0')
-                                  .toUpperCase())
-                              .join(' ');
-                        } else {
-                          dataText =
-                              utf8.decode(entry.data, allowMalformed: true);
-                        }
-
-                        return ListTile(
-                            title: Align(
-                              alignment: isSent
-                                  ? Alignment.centerRight
-                                  : Alignment.centerLeft,
-                              child: Text(
-                                dataText,
-                                style: Theme.of(context).textTheme.code,
-                              ),
-                            ),
-                            subtitle: Align(
-                              alignment: isSent
-                                  ? Alignment.centerRight
-                                  : Alignment.centerLeft,
-                              child: Text(
-                                '${isSent ? l10n.txLabel : l10n.rxLabel} - $formattedTimestamp',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ),
-                            tileColor: isSent
-                                ? Theme.of(context).colorScheme.primaryContainer
-                                : Theme.of(context)
-                                    .colorScheme
-                                    .secondaryContainer);
-                      },
-                    );
-                  },
+                        },
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
           ),
           const SizedBox(height: 8),
           Card.filled(
+            color: colorScheme.surface,
             child: Padding(
-              // Standardize card internal padding to 16dp per design blueprint
               padding: const EdgeInsets.all(16.0),
               child: Form(
                 key: _formKey,
@@ -177,14 +217,15 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                   children: [
                     Expanded(
                       child: Consumer(builder: (context, ref, child) {
-                        // Rebuild TextFormField when hexSend changes to re-run validator
                         final hexSend = ref.watch(uiSettingsProvider).hexSend;
                         final l10n = AppLocalizations.of(context);
                         return TextFormField(
                           controller: _sendController,
+                          style: const TextStyle(fontFamily: 'monospace'),
                           decoration: InputDecoration(
                             border: const OutlineInputBorder(),
                             labelText: l10n.enterDataToSend,
+                            isDense: true, // 稍微紧凑一点的输入框
                           ),
                           keyboardType: TextInputType.multiline,
                           minLines: 1,
@@ -211,7 +252,6 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                             return null;
                           },
                           onChanged: (value) {
-                            // Trigger validation on change
                             _formKey.currentState?.validate();
                           },
                         );
