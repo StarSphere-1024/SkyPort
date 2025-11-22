@@ -64,6 +64,7 @@ class _RightPanelState extends ConsumerState<RightPanel> {
     final connection = ref.watch(serialConnectionProvider);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final settings = ref.watch(uiSettingsProvider);
 
     ref.listen(dataLogProvider, (previous, next) {
       if ((previous?.length ?? 0) < next.length) {
@@ -85,7 +86,6 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                   child: Consumer(
                     builder: (context, ref, child) {
                       final rawDataLog = ref.watch(dataLogProvider);
-                      final settings = ref.watch(uiSettingsProvider);
                       // 根据设置过滤：当关闭显示发送数据时，仅显示接收的数据
                       final dataLog = settings.showSent
                           ? rawDataLog

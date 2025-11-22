@@ -218,6 +218,18 @@ abstract class AppLocalizations {
   /// **'Frame Interval (ms)'**
   String get frameIntervalMs;
 
+  /// No description provided for @autoFrameBreak.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic frame break'**
+  String get autoFrameBreak;
+
+  /// No description provided for @frameBreakTimeMs.
+  ///
+  /// In en, this message translates to:
+  /// **'Frame break time (ms)'**
+  String get frameBreakTimeMs;
+
   /// No description provided for @clearReceiveArea.
   ///
   /// In en, this message translates to:

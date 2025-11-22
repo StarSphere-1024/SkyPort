@@ -69,6 +69,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get frameIntervalMs => 'Frame Interval (ms)';
 
   @override
+  String get autoFrameBreak => 'Automatic frame break';
+
+  @override
+  String get frameBreakTimeMs => 'Frame break time (ms)';
+
+  @override
   String get clearReceiveArea => 'Clear Receive Area';
 
   @override

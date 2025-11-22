@@ -391,6 +391,8 @@ class LogEntry {
 
 class DataLogNotifier extends Notifier<List<LogEntry>> {
   Timer? _receiveDebounce;
+  // 行模式下用于缓存尚未结束的一行数据（按字节累积，避免中间解码问题）
+  final List<int> _lineBuffer = [];
 
   @override
   List<LogEntry> build() {
@@ -400,38 +402,89 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
     return [];
   }
 
-  Duration get _debounceDuration =>
-      Duration(milliseconds: ref.read(uiSettingsProvider).frameIntervalMs);
-
   void addReceived(Uint8List data) {
-    if (_receiveDebounce?.isActive ?? false) {
-      _receiveDebounce!.cancel();
-      // Append to the last entry
-      if (state.isNotEmpty && state.last.type == LogEntryType.received) {
-        final lastEntry = state.last;
-        // Create a new list with the updated entry
-        final updatedList = List<LogEntry>.from(state);
-        updatedList[state.length - 1] = LogEntry(
-          Uint8List.fromList([...lastEntry.data, ...data]),
-          lastEntry.type,
-          DateTime.now(), // Update timestamp to the latest received time
-        );
-        state = updatedList;
+    final settings = ref.read(uiSettingsProvider);
+
+    if (settings.autoFrameBreak) {
+      // 自动断帧：使用去抖逻辑将短时间内的数据合并为一帧
+      if (_receiveDebounce?.isActive ?? false) {
+        _receiveDebounce!.cancel();
+        // Append to the last entry
+        if (state.isNotEmpty && state.last.type == LogEntryType.received) {
+          final lastEntry = state.last;
+          // Create a new list with the updated entry
+          final updatedList = List<LogEntry>.from(state);
+          updatedList[state.length - 1] = LogEntry(
+            Uint8List.fromList([...lastEntry.data, ...data]),
+            lastEntry.type,
+            DateTime.now(), // Update timestamp to the latest received time
+          );
+          state = updatedList;
+        } else {
+          // This case should be rare, but handle it by creating a new entry
+          state = [
+            ...state,
+            LogEntry(data, LogEntryType.received, DateTime.now())
+          ];
+        }
       } else {
-        // This case should be rare, but handle it by creating a new entry
+        // Create a new entry
         state = [
           ...state,
           LogEntry(data, LogEntryType.received, DateTime.now())
         ];
       }
-    } else {
-      // Create a new entry
-      state = [...state, LogEntry(data, LogEntryType.received, DateTime.now())];
-    }
 
-    _receiveDebounce = Timer(_debounceDuration, () {
-      // Debounce finished, next data will create a new entry
-    });
+      _receiveDebounce =
+          Timer(Duration(milliseconds: settings.autoFrameBreakMs), () {
+        // Debounce finished, next data will create a new entry
+      });
+    } else {
+      // 关闭自动断帧
+      _receiveDebounce?.cancel();
+
+      if (!settings.hexDisplay) {
+        // 文本显示模式下：按行聚合（支持 "\r\n" 和 "\n"）
+        _appendAsLines(data);
+      } else {
+        // HEX 显示模式：保持原样，每块数据一条日志
+        state = [
+          ...state,
+          LogEntry(data, LogEntryType.received, DateTime.now()),
+        ];
+      }
+    }
+  }
+
+  /// 将接收到的字节按行聚合为多条日志；
+  /// - 仅在 autoFrameBreak=false 且 hexDisplay=false 时使用；
+  /// - 行结束符支持 "\n" 和 "\r\n"；
+  /// - 每个完整行作为一个 LogEntry 输出；
+  /// - 时间戳取行结束（换行）时刻。
+  void _appendAsLines(Uint8List data) {
+    for (final byte in data) {
+      // 遇到 '\n' 视为一行结束
+      if (byte == 0x0A) {
+        if (_lineBuffer.isNotEmpty) {
+          // 去掉末尾可能存在的 '\r'
+          if (_lineBuffer.isNotEmpty && _lineBuffer.last == 0x0D) {
+            _lineBuffer.removeLast();
+          }
+
+          final lineBytes = Uint8List.fromList(_lineBuffer);
+          _lineBuffer.clear();
+
+          state = [
+            ...state,
+            LogEntry(lineBytes, LogEntryType.received, DateTime.now()),
+          ];
+        } else {
+          // 空缓冲遇到换行：视为空行，可忽略
+        }
+      } else {
+        _lineBuffer.add(byte);
+      }
+    }
   }
 
   void addSent(Uint8List data) {
@@ -456,6 +509,8 @@ class UiSettings {
   final bool showTimestamp;
   final bool showSent; // 控制是否显示发送的数据
   final int frameIntervalMs;
+  final bool autoFrameBreak; // 是否自动断帧
+  final int autoFrameBreakMs; // 自动断帧时间（毫秒）
 
   const UiSettings({
     this.hexDisplay = false,
@@ -463,6 +518,8 @@ class UiSettings {
     this.showTimestamp = true,
     this.showSent = true,
     this.frameIntervalMs = 20,
+    this.autoFrameBreak = true,
+    this.autoFrameBreakMs = 20,
   });
 
   UiSettings copyWith({
@@ -471,6 +528,8 @@ class UiSettings {
     bool? showTimestamp,
     bool? showSent,
     int? frameIntervalMs,
+    bool? autoFrameBreak,
+    int? autoFrameBreakMs,
   }) {
     return UiSettings(
       hexDisplay: hexDisplay ?? this.hexDisplay,
@@ -478,6 +537,8 @@ class UiSettings {
       showTimestamp: showTimestamp ?? this.showTimestamp,
       showSent: showSent ?? this.showSent,
       frameIntervalMs: frameIntervalMs ?? this.frameIntervalMs,
+      autoFrameBreak: autoFrameBreak ?? this.autoFrameBreak,
+      autoFrameBreakMs: autoFrameBreakMs ?? this.autoFrameBreakMs,
     );
   }
 }
@@ -488,6 +549,8 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
   static const _keyShowTimestamp = 'ui_show_timestamp';
   static const _keyShowSent = 'ui_show_sent';
   static const _keyFrameIntervalMs = 'ui_frame_interval_ms';
+  static const _keyAutoFrameBreak = 'ui_auto_frame_break';
+  static const _keyAutoFrameBreakMs = 'ui_auto_frame_break_ms';
 
   @override
   UiSettings build() {
@@ -498,6 +561,8 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
       showTimestamp: prefs.getBool(_keyShowTimestamp) ?? true,
       showSent: prefs.getBool(_keyShowSent) ?? true,
       frameIntervalMs: prefs.getInt(_keyFrameIntervalMs) ?? 20,
+      autoFrameBreak: prefs.getBool(_keyAutoFrameBreak) ?? true,
+      autoFrameBreakMs: prefs.getInt(_keyAutoFrameBreakMs) ?? 20,
     );
   }
 
@@ -524,6 +589,16 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
   void setFrameIntervalMs(int value) {
     state = state.copyWith(frameIntervalMs: value);
     ref.read(sharedPreferencesProvider).setInt(_keyFrameIntervalMs, value);
+  }
+
+  void setAutoFrameBreak(bool value) {
+    state = state.copyWith(autoFrameBreak: value);
+    ref.read(sharedPreferencesProvider).setBool(_keyAutoFrameBreak, value);
+  }
+
+  void setAutoFrameBreakMs(int value) {
+    state = state.copyWith(autoFrameBreakMs: value);
+    ref.read(sharedPreferencesProvider).setInt(_keyAutoFrameBreakMs, value);
   }
 }
 

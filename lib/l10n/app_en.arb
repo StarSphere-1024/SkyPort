@@ -20,6 +20,8 @@
   "showTimestamp": "Show Timestamp",
   "showSent": "Show Sent Data",
   "frameIntervalMs": "Frame Interval (ms)",
+  "autoFrameBreak": "Automatic frame break",
+  "frameBreakTimeMs": "Frame break time (ms)",
   "clearReceiveArea": "Clear Receive Area",
   "sendSettings": "Send Settings",
   "hexSend": "Hex Send",

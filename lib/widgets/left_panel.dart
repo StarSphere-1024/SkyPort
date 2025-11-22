@@ -425,6 +425,48 @@ class LeftPanel extends ConsumerWidget {
                         );
                       },
                     ),
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final settings = ref.watch(uiSettingsProvider);
+                        return SwitchListTile(
+                          title:
+                              Text(AppLocalizations.of(context).autoFrameBreak),
+                          value: settings.autoFrameBreak,
+                          onChanged: (value) {
+                            ref
+                                .read(uiSettingsProvider.notifier)
+                                .setAutoFrameBreak(value);
+                          },
+                        );
+                      },
+                    ),
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final settings = ref.watch(uiSettingsProvider);
+                        final controller = TextEditingController(
+                            text: settings.autoFrameBreakMs.toString());
+                        return ListTile(
+                          title: Text(
+                              AppLocalizations.of(context).frameBreakTimeMs),
+                          subtitle: TextField(
+                            controller: controller,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                            onSubmitted: (value) {
+                              final v = int.tryParse(value);
+                              if (v != null && v > 0) {
+                                ref
+                                    .read(uiSettingsProvider.notifier)
+                                    .setAutoFrameBreakMs(v);
+                              }
+                            },
+                          ),
+                        );
+                      },
+                    ),
                     const SizedBox(height: 8),
                     SizedBox(
                       width: double.infinity,

@@ -69,6 +69,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get frameIntervalMs => '断帧间隔 (ms)';
 
   @override
+  String get autoFrameBreak => '自动断帧';
+
+  @override
+  String get frameBreakTimeMs => '断帧时间 (ms)';
+
+  @override
   String get clearReceiveArea => '清空接收区';
 
   @override
