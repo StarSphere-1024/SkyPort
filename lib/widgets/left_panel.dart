@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/serial_provider.dart';
 import 'package:sky_port/l10n/app_localizations.dart';
@@ -13,6 +14,70 @@ class LeftPanel extends ConsumerWidget {
     final isBusy = connection.status == ConnectionStatus.connecting ||
         connection.status == ConnectionStatus.disconnecting;
 
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          right: BorderSide(
+            color: Theme.of(context).dividerColor.withAlpha(25),
+          ),
+        ),
+      ),
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionTitle(
+                      context, AppLocalizations.of(context).serialPortSettings),
+                  const SizedBox(height: 12),
+                  _buildPortSelectionRow(context, ref, isConnected, isBusy),
+                  const SizedBox(height: 12),
+                  _buildSerialParamsGrid(context, ref, isConnected, isBusy),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 24),
+                  _buildSectionTitle(
+                      context, AppLocalizations.of(context).receiveSettings),
+                  const SizedBox(height: 8),
+                  _buildReceiveSettings(context, ref, isConnected, isBusy),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 24),
+                  _buildSectionTitle(
+                      context, AppLocalizations.of(context).sendSettings),
+                  const SizedBox(height: 8),
+                  _buildSendSettings(context, ref, isConnected, isBusy),
+                ],
+              ),
+            ),
+          ),
+          _buildBottomAction(context, ref),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(BuildContext context, String title) {
+    return Text(
+      title,
+      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+    );
+  }
+
+  Widget _buildPortSelectionRow(
+    BuildContext context,
+    WidgetRef ref,
+    bool isConnected,
+    bool isBusy,
+  ) {
+    final connection = ref.watch(serialConnectionProvider);
+
     Widget connectButtonChild;
     switch (connection.status) {
       case ConnectionStatus.connected:
@@ -21,11 +86,10 @@ class LeftPanel extends ConsumerWidget {
       case ConnectionStatus.connecting:
       case ConnectionStatus.disconnecting:
         connectButtonChild = SizedBox(
-          height: 20,
-          width: 20,
+          height: 16,
+          width: 16,
           child: CircularProgressIndicator(
-            strokeWidth: 2.5,
-            // Use appropriate contrasting color from ColorScheme
+            strokeWidth: 2,
             color: isConnected
                 ? Theme.of(context).colorScheme.onError
                 : Theme.of(context).colorScheme.onPrimary,
@@ -36,482 +100,383 @@ class LeftPanel extends ConsumerWidget {
         connectButtonChild = Text(AppLocalizations.of(context).open);
     }
 
-    return Padding(
-      // Use 16dp outer padding to align with design blueprint spacing system
-      padding: const EdgeInsets.all(16.0),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(AppLocalizations.of(context).serialPortSettings,
-                        style: Theme.of(context).textTheme.titleLarge),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Consumer(
-                            builder: (context, ref, child) {
-                              final availablePorts =
-                                  ref.watch(availablePortsProvider);
-                              final serialConfig =
-                                  ref.watch(serialConfigProvider);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Consumer(
+            builder: (context, ref, child) {
+              final availablePorts = ref.watch(availablePortsProvider);
+              final serialConfig = ref.watch(serialConfigProvider);
 
-                              return availablePorts.when(
-                                data: (ports) {
-                                  var selectedPort = serialConfig?.portName;
+              return availablePorts.when(
+                data: (ports) {
+                  var selectedPort = serialConfig?.portName;
+                  if (selectedPort == null && ports.isNotEmpty) {
+                    selectedPort = ports.first;
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      ref
+                          .read(serialConfigProvider.notifier)
+                          .setPort(selectedPort!);
+                    });
+                  }
 
-                                  if (selectedPort == null &&
-                                      ports.isNotEmpty) {
-                                    selectedPort = ports.first;
-                                    WidgetsBinding.instance
-                                        .addPostFrameCallback((_) {
-                                      ref
-                                          .read(serialConfigProvider.notifier)
-                                          .setPort(selectedPort!);
-                                    });
-                                  }
+                  final dropdownItems = ports
+                      .map((port) => DropdownMenuItem<String>(
+                            value: port,
+                            child: Text(port, overflow: TextOverflow.ellipsis),
+                          ))
+                      .toList();
 
-                                  final dropdownItems = ports
-                                      .map((port) => DropdownMenuItem<String>(
-                                            value: port,
-                                            child: Text(
-                                              port,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ))
-                                      .toList();
+                  final isUnavailable =
+                      selectedPort != null && !ports.contains(selectedPort);
 
-                                  final isUnavailable = selectedPort != null &&
-                                      !ports.contains(selectedPort);
-
-                                  if (isUnavailable) {
-                                    dropdownItems.add(DropdownMenuItem<String>(
-                                      value: selectedPort,
-                                      child: Text(
-                                        selectedPort,
-                                        style: TextStyle(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .error),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ));
-                                  }
-
-                                  if (dropdownItems.isEmpty) {
-                                    return InputDecorator(
-                                      decoration: InputDecoration(
-                                        labelText: AppLocalizations.of(context)
-                                            .portName,
-                                        border: const OutlineInputBorder(),
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                                horizontal: 12.0,
-                                                vertical: 16.0),
-                                        helperText: ' ',
-                                      ),
-                                      child: Text(AppLocalizations.of(context)
-                                          .noPortsFound),
-                                    );
-                                  }
-
-                                  return DropdownButtonFormField<String>(
-                                    isExpanded: true,
-                                    decoration: InputDecoration(
-                                      labelText:
-                                          AppLocalizations.of(context).portName,
-                                      border: const OutlineInputBorder(),
-                                      errorText: isUnavailable
-                                          ? AppLocalizations.of(context)
-                                              .unavailable
-                                          : null,
-                                      helperText: isUnavailable ? null : ' ',
-                                    ),
-                                    initialValue: selectedPort,
-                                    items: dropdownItems,
-                                    onChanged: (isConnected || isBusy)
-                                        ? null
-                                        : (String? value) {
-                                            if (value != null) {
-                                              ref
-                                                  .read(serialConfigProvider
-                                                      .notifier)
-                                                  .setPort(value);
-                                            }
-                                          },
-                                  );
-                                },
-                                loading: () => InputDecorator(
-                                  decoration: InputDecoration(
-                                    labelText:
-                                        AppLocalizations.of(context).portName,
-                                    border: const OutlineInputBorder(),
-                                    contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 12.0, vertical: 16.0),
-                                    helperText: ' ',
-                                  ),
-                                  child: Text(AppLocalizations.of(context)
-                                      .loadingPorts),
-                                ),
-                                error: (err, stack) => InputDecorator(
-                                  decoration: InputDecoration(
-                                    labelText:
-                                        AppLocalizations.of(context).portName,
-                                    border: const OutlineInputBorder(),
-                                    contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 12.0, vertical: 16.0),
-                                    helperText: ' ',
-                                  ),
-                                  child: Text(AppLocalizations.of(context)
-                                      .errorLoadingPorts),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 24.0),
-                          child: FilledButton(
-                            onPressed: isBusy
-                                ? null
-                                : () {
-                                    if (isConnected) {
-                                      ref
-                                          .read(
-                                              serialConnectionProvider.notifier)
-                                          .disconnect();
-                                    } else {
-                                      final availablePorts = ref
-                                              .read(availablePortsProvider)
-                                              .asData
-                                              ?.value ??
-                                          [];
-                                      final selectedPort = ref
-                                          .read(serialConfigProvider)
-                                          ?.portName;
-
-                                      if (selectedPort == null ||
-                                          !availablePorts
-                                              .contains(selectedPort)) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(SnackBar(
-                                          content: Text(
-                                              "${AppLocalizations.of(context).unavailable}: $selectedPort"),
-                                        ));
-                                        return;
-                                      }
-                                      ref
-                                          .read(
-                                              serialConnectionProvider.notifier)
-                                          .connect();
-                                    }
-                                  },
-                            style: isConnected
-                                ? FilledButton.styleFrom(
-                                    backgroundColor:
-                                        Theme.of(context).colorScheme.error,
-                                    foregroundColor:
-                                        Theme.of(context).colorScheme.onError,
-                                  )
-                                : FilledButton.styleFrom(
-                                    backgroundColor:
-                                        Theme.of(context).colorScheme.primary,
-                                    foregroundColor:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                  ),
-                            child: connectButtonChild,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Consumer(
-                      builder: (context, ref, child) {
-                        final serialConfig = ref.watch(serialConfigProvider);
-                        return GridView(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            mainAxisSpacing: 16,
-                            crossAxisSpacing: 16,
-                            childAspectRatio: 2.8,
-                          ),
-                          children: [
-                            DropdownButtonFormField<int>(
-                              decoration: InputDecoration(
-                                labelText:
-                                    AppLocalizations.of(context).baudRate,
-                                border: const OutlineInputBorder(),
-                              ),
-                              initialValue: serialConfig?.baudRate ?? 9600,
-                              items: const [
-                                DropdownMenuItem(
-                                    value: 1200, child: Text('1200')),
-                                DropdownMenuItem(
-                                    value: 2400, child: Text('2400')),
-                                DropdownMenuItem(
-                                    value: 4800, child: Text('4800')),
-                                DropdownMenuItem(
-                                    value: 9600, child: Text('9600')),
-                                DropdownMenuItem(
-                                    value: 19200, child: Text('19200')),
-                                DropdownMenuItem(
-                                    value: 38400, child: Text('38400')),
-                                DropdownMenuItem(
-                                    value: 57600, child: Text('57600')),
-                                DropdownMenuItem(
-                                    value: 115200, child: Text('115200')),
-                                DropdownMenuItem(
-                                    value: 230400, child: Text('230400')),
-                                DropdownMenuItem(
-                                    value: 460800, child: Text('460800')),
-                                DropdownMenuItem(
-                                    value: 921600, child: Text('921600')),
-                              ],
-                              onChanged: (isConnected || isBusy)
-                                  ? null
-                                  : (int? value) {
-                                      if (value != null) {
-                                        ref
-                                            .read(serialConfigProvider.notifier)
-                                            .setBaudRate(value);
-                                      }
-                                    },
-                            ),
-                            DropdownButtonFormField<int>(
-                              decoration: InputDecoration(
-                                labelText:
-                                    AppLocalizations.of(context).dataBits,
-                                border: const OutlineInputBorder(),
-                              ),
-                              initialValue: serialConfig?.dataBits ?? 8,
-                              items: const [
-                                DropdownMenuItem(value: 8, child: Text('8')),
-                                DropdownMenuItem(value: 7, child: Text('7')),
-                                DropdownMenuItem(value: 6, child: Text('6')),
-                                DropdownMenuItem(value: 5, child: Text('5')),
-                              ],
-                              onChanged: (isConnected || isBusy)
-                                  ? null
-                                  : (int? value) {
-                                      if (value != null) {
-                                        ref
-                                            .read(serialConfigProvider.notifier)
-                                            .setDataBits(value);
-                                      }
-                                    },
-                            ),
-                            DropdownButtonFormField<int>(
-                              decoration: InputDecoration(
-                                labelText: AppLocalizations.of(context).parity,
-                                border: const OutlineInputBorder(),
-                              ),
-                              initialValue: serialConfig?.parity ?? 0,
-                              items: [
-                                DropdownMenuItem(
-                                    value: 0,
-                                    child: Text(AppLocalizations.of(context)
-                                        .parityNone)),
-                                DropdownMenuItem(
-                                    value: 1,
-                                    child: Text(AppLocalizations.of(context)
-                                        .parityOdd)),
-                                DropdownMenuItem(
-                                    value: 2,
-                                    child: Text(AppLocalizations.of(context)
-                                        .parityEven)),
-                              ],
-                              onChanged: (isConnected || isBusy)
-                                  ? null
-                                  : (int? value) {
-                                      if (value != null) {
-                                        ref
-                                            .read(serialConfigProvider.notifier)
-                                            .setParity(value);
-                                      }
-                                    },
-                            ),
-                            DropdownButtonFormField<int>(
-                              decoration: InputDecoration(
-                                labelText:
-                                    AppLocalizations.of(context).stopBits,
-                                border: const OutlineInputBorder(),
-                              ),
-                              initialValue: serialConfig?.stopBits ?? 1,
-                              items: const [
-                                DropdownMenuItem(value: 1, child: Text('1')),
-                                DropdownMenuItem(value: 2, child: Text('2')),
-                              ],
-                              onChanged: (isConnected || isBusy)
-                                  ? null
-                                  : (int? value) {
-                                      if (value != null) {
-                                        ref
-                                            .read(serialConfigProvider.notifier)
-                                            .setStopBits(value);
-                                      }
-                                    },
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(AppLocalizations.of(context).receiveSettings,
-                        style: Theme.of(context).textTheme.titleLarge),
-                    Consumer(
-                      builder: (context, ref, child) {
-                        final settings = ref.watch(uiSettingsProvider);
-                        return SwitchListTile(
-                          title: Text(AppLocalizations.of(context).hexDisplay),
-                          value: settings.hexDisplay,
-                          onChanged: (isConnected || isBusy)
-                              ? null
-                              : (value) {
-                                  ref
-                                      .read(uiSettingsProvider.notifier)
-                                      .setHexDisplay(value);
-                                },
-                        );
-                      },
-                    ),
-                    Consumer(
-                      builder: (context, ref, child) {
-                        final settings = ref.watch(uiSettingsProvider);
-                        return SwitchListTile(
-                          title:
-                              Text(AppLocalizations.of(context).showTimestamp),
-                          value: settings.showTimestamp,
-                          onChanged: (value) {
-                            ref
-                                .read(uiSettingsProvider.notifier)
-                                .setShowTimestamp(value);
-                          },
-                        );
-                      },
-                    ),
-                    Consumer(
-                      builder: (context, ref, child) {
-                        final settings = ref.watch(uiSettingsProvider);
-                        return SwitchListTile(
-                          title: Text(AppLocalizations.of(context).showSent),
-                          value: settings.showSent,
-                          onChanged: (value) {
-                            ref
-                                .read(uiSettingsProvider.notifier)
-                                .setShowSent(value);
-                          },
-                        );
-                      },
-                    ),
-                    Consumer(
-                      builder: (context, ref, child) {
-                        final settings = ref.watch(uiSettingsProvider);
-                        return SwitchListTile(
-                          title:
-                              Text(AppLocalizations.of(context).autoFrameBreak),
-                          value: settings.autoFrameBreak,
-                          onChanged: (value) {
-                            ref
-                                .read(uiSettingsProvider.notifier)
-                                .setAutoFrameBreak(value);
-                          },
-                        );
-                      },
-                    ),
-                    Consumer(
-                      builder: (context, ref, child) {
-                        final settings = ref.watch(uiSettingsProvider);
-                        final controller = TextEditingController(
-                            text: settings.autoFrameBreakMs.toString());
-                        return ListTile(
-                          title: Text(
-                              AppLocalizations.of(context).frameBreakTimeMs),
-                          subtitle: TextField(
-                            controller: controller,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              isDense: true,
-                              border: OutlineInputBorder(),
-                            ),
-                            onSubmitted: (value) {
-                              final v = int.tryParse(value);
-                              if (v != null && v > 0) {
-                                ref
-                                    .read(uiSettingsProvider.notifier)
-                                    .setAutoFrameBreakMs(v);
-                              }
-                            },
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: () {
-                          ref.read(dataLogProvider.notifier).clear();
-                        },
-                        child:
-                            Text(AppLocalizations.of(context).clearReceiveArea),
+                  if (isUnavailable) {
+                    dropdownItems.add(DropdownMenuItem<String>(
+                      value: selectedPort,
+                      child: Text(
+                        selectedPort,
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.error),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    )
-                  ],
+                    ));
+                  }
+
+                  if (dropdownItems.isEmpty) {
+                    return InputDecorator(
+                      decoration: _denseInputDecoration(
+                          context, AppLocalizations.of(context).portName),
+                      child: Text(
+                        AppLocalizations.of(context).noPortsFound,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    );
+                  }
+
+                  return DropdownMenu<String>(
+                    expandedInsets: EdgeInsets.zero,
+                    initialSelection: selectedPort,
+                    dropdownMenuEntries: ports
+                        .map((port) => DropdownMenuEntry<String>(
+                              value: port,
+                              label: port,
+                            ))
+                        .toList(),
+                    onSelected: (isConnected || isBusy)
+                        ? null
+                        : (String? value) {
+                            if (value != null) {
+                              ref
+                                  .read(serialConfigProvider.notifier)
+                                  .setPort(value);
+                            }
+                          },
+                    errorText: isUnavailable
+                        ? AppLocalizations.of(context).unavailable
+                        : null,
+                    label: Text(AppLocalizations.of(context).portName),
+                  );
+                },
+                loading: () => DropdownMenu<String>(
+                  enabled: false,
+                  label: Text(AppLocalizations.of(context).loadingPorts),
+                  dropdownMenuEntries: [],
                 ),
+                error: (err, stack) => DropdownMenu<String>(
+                  enabled: false,
+                  label: Text(AppLocalizations.of(context).errorLoadingPorts),
+                  dropdownMenuEntries: [],
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(width: 12),
+        SizedBox(
+          child: FilledButton(
+            onPressed: isBusy
+                ? null
+                : () {
+                    if (isConnected) {
+                      ref.read(serialConnectionProvider.notifier).disconnect();
+                    } else {
+                      final availablePorts =
+                          ref.read(availablePortsProvider).asData?.value ?? [];
+                      final selectedPort =
+                          ref.read(serialConfigProvider)?.portName;
+
+                      if (selectedPort == null ||
+                          !availablePorts.contains(selectedPort)) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(
+                              "${AppLocalizations.of(context).unavailable}: $selectedPort"),
+                          behavior: SnackBarBehavior.floating,
+                        ));
+                        return;
+                      }
+                      ref.read(serialConnectionProvider.notifier).connect();
+                    }
+                  },
+            child: connectButtonChild,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSerialParamsGrid(
+    BuildContext context,
+    WidgetRef ref,
+    bool isConnected,
+    bool isBusy,
+  ) {
+    final serialConfig = ref.watch(serialConfigProvider);
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: DropdownMenu<int>(
+                expandedInsets: EdgeInsets.zero,
+                initialSelection: serialConfig?.baudRate ?? 9600,
+                dropdownMenuEntries: [
+                  1200,
+                  2400,
+                  4800,
+                  9600,
+                  19200,
+                  38400,
+                  57600,
+                  115200,
+                  230400,
+                  460800,
+                  921600
+                ]
+                    .map((e) => DropdownMenuEntry<int>(
+                          value: e,
+                          label: e.toString(),
+                        ))
+                    .toList(),
+                onSelected: (isConnected || isBusy)
+                    ? null
+                    : (v) => v != null
+                        ? ref.read(serialConfigProvider.notifier).setBaudRate(v)
+                        : null,
+                label: Text(AppLocalizations.of(context).baudRate),
               ),
             ),
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(AppLocalizations.of(context).sendSettings,
-                        style: Theme.of(context).textTheme.titleLarge),
-                    Consumer(
-                      builder: (context, ref, child) {
-                        final settings = ref.watch(uiSettingsProvider);
-                        return SwitchListTile(
-                          title: Text(AppLocalizations.of(context).hexSend),
-                          value: settings.hexSend,
-                          onChanged: (isConnected || isBusy)
-                              ? null
-                              : (value) {
-                                  ref
-                                      .read(uiSettingsProvider.notifier)
-                                      .setHexSend(value);
-                                },
-                        );
-                      },
-                    ),
-                  ],
-                ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: DropdownMenu<int>(
+                expandedInsets: EdgeInsets.zero,
+                initialSelection: serialConfig?.dataBits ?? 8,
+                dropdownMenuEntries: [8, 7, 6, 5]
+                    .map((e) => DropdownMenuEntry<int>(
+                          value: e,
+                          label: e.toString(),
+                        ))
+                    .toList(),
+                onSelected: (isConnected || isBusy)
+                    ? null
+                    : (v) => v != null
+                        ? ref.read(serialConfigProvider.notifier).setDataBits(v)
+                        : null,
+                label: Text(AppLocalizations.of(context).dataBits),
               ),
-            )
+            ),
           ],
         ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: DropdownMenu<int>(
+                expandedInsets: EdgeInsets.zero,
+                initialSelection: serialConfig?.parity ?? 0,
+                dropdownMenuEntries: [
+                  DropdownMenuEntry<int>(
+                      value: 0, label: AppLocalizations.of(context).parityNone),
+                  DropdownMenuEntry<int>(
+                      value: 1, label: AppLocalizations.of(context).parityOdd),
+                  DropdownMenuEntry<int>(
+                      value: 2, label: AppLocalizations.of(context).parityEven),
+                ],
+                onSelected: (isConnected || isBusy)
+                    ? null
+                    : (v) => v != null
+                        ? ref.read(serialConfigProvider.notifier).setParity(v)
+                        : null,
+                label: Text(AppLocalizations.of(context).parity),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: DropdownMenu<int>(
+                expandedInsets: EdgeInsets.zero,
+                initialSelection: serialConfig?.stopBits ?? 1,
+                dropdownMenuEntries: [
+                  DropdownMenuEntry<int>(value: 1, label: '1'),
+                  DropdownMenuEntry<int>(value: 2, label: '2'),
+                ],
+                onSelected: (isConnected || isBusy)
+                    ? null
+                    : (v) => v != null
+                        ? ref.read(serialConfigProvider.notifier).setStopBits(v)
+                        : null,
+                label: Text(AppLocalizations.of(context).stopBits),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReceiveSettings(
+    BuildContext context,
+    WidgetRef ref,
+    bool isConnected,
+    bool isBusy,
+  ) {
+    final settings = ref.watch(uiSettingsProvider);
+    final notifier = ref.read(uiSettingsProvider.notifier);
+
+    return Column(
+      children: [
+        _buildCompactSwitch(
+          context,
+          label: AppLocalizations.of(context).hexDisplay,
+          value: settings.hexDisplay,
+          onChanged:
+              (isConnected || isBusy) ? null : (v) => notifier.setHexDisplay(v),
+        ),
+        _buildCompactSwitch(
+          context,
+          label: AppLocalizations.of(context).showTimestamp,
+          value: settings.showTimestamp,
+          onChanged: (v) => notifier.setShowTimestamp(v),
+        ),
+        _buildCompactSwitch(
+          context,
+          label: AppLocalizations.of(context).showSent,
+          value: settings.showSent,
+          onChanged: (v) => notifier.setShowSent(v),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: _buildCompactSwitch(
+                context,
+                label: AppLocalizations.of(context).autoFrameBreak,
+                value: settings.autoFrameBreak,
+                onChanged: (v) => notifier.setAutoFrameBreak(v),
+                padding: EdgeInsets.zero,
+              ),
+            ),
+            if (settings.autoFrameBreak) ...[
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 80,
+                child: TextField(
+                  controller: TextEditingController(
+                      text: settings.autoFrameBreakMs.toString())
+                    ..selection = TextSelection.fromPosition(TextPosition(
+                        offset: settings.autoFrameBreakMs.toString().length)),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: _denseInputDecoration(context, "ms"),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                  onSubmitted: (value) {
+                    final v = int.tryParse(value);
+                    if (v != null && v > 0) {
+                      notifier.setAutoFrameBreakMs(v);
+                    }
+                  },
+                ),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSendSettings(
+    BuildContext context,
+    WidgetRef ref,
+    bool isConnected,
+    bool isBusy,
+  ) {
+    final settings = ref.watch(uiSettingsProvider);
+    final notifier = ref.read(uiSettingsProvider.notifier);
+
+    return Column(
+      children: [
+        _buildCompactSwitch(
+          context,
+          label: AppLocalizations.of(context).hexSend,
+          value: settings.hexSend,
+          onChanged:
+              (isConnected || isBusy) ? null : (v) => notifier.setHexSend(v),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBottomAction(BuildContext context, WidgetRef ref) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: () {
+            ref.read(dataLogProvider.notifier).clear();
+          },
+          icon: const Icon(Icons.delete_outline, size: 24),
+          label: Text(AppLocalizations.of(context).clearReceiveArea),
+        ),
       ),
+    );
+  }
+
+  Widget _buildCompactSwitch(
+    BuildContext context, {
+    required String label,
+    required bool value,
+    required ValueChanged<bool>? onChanged,
+    EdgeInsetsGeometry? padding,
+  }) {
+    return Padding(
+      padding: padding ?? const EdgeInsets.symmetric(vertical: 2.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.bodyMedium),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
+  }
+
+  InputDecoration _denseInputDecoration(BuildContext context, String label,
+      {String? errorText}) {
+    return InputDecoration(
+      labelText: label,
+      isDense: true,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(4),
+      ),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 12.0, vertical: 14.0),
+      errorText: errorText,
     );
   }
 }
