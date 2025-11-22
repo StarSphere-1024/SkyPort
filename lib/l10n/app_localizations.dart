@@ -221,8 +221,44 @@ abstract class AppLocalizations {
   /// No description provided for @autoFrameBreak.
   ///
   /// In en, this message translates to:
-  /// **'Automatic frame break'**
+  /// **'Block receive mode'**
   String get autoFrameBreak;
+
+  /// No description provided for @receiveMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive mode'**
+  String get receiveMode;
+
+  /// No description provided for @blockReceiveMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Block receive mode'**
+  String get blockReceiveMode;
+
+  /// No description provided for @lineReceiveMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Line receive mode'**
+  String get lineReceiveMode;
+
+  /// No description provided for @blockInterval.
+  ///
+  /// In en, this message translates to:
+  /// **'Block interval'**
+  String get blockInterval;
+
+  /// No description provided for @lineReceiveDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Process data line by line based on newline characters'**
+  String get lineReceiveDescription;
+
+  /// No description provided for @blockReceiveDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Group incoming data into blocks with configurable intervals'**
+  String get blockReceiveDescription;
 
   /// No description provided for @frameBreakTimeMs.
   ///

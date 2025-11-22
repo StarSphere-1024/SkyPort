@@ -69,7 +69,25 @@ class AppLocalizationsZh extends AppLocalizations {
   String get frameIntervalMs => '断帧间隔 (ms)';
 
   @override
-  String get autoFrameBreak => '自动断帧';
+  String get autoFrameBreak => '块接收模式';
+
+  @override
+  String get receiveMode => '接收模式';
+
+  @override
+  String get blockReceiveMode => '块接收模式';
+
+  @override
+  String get lineReceiveMode => '行接收模式';
+
+  @override
+  String get blockInterval => '块间隔';
+
+  @override
+  String get lineReceiveDescription => '基于换行符按行处理数据';
+
+  @override
+  String get blockReceiveDescription => '将接收到的数据按可配置间隔分组为数据块';
 
   @override
   String get frameBreakTimeMs => '断帧时间 (ms)';

@@ -419,11 +419,21 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
     return [];
   }
 
+  void _addLogEntry(LogEntry entry) {
+    final newList = List<LogEntry>.from(state)..add(entry);
+    state = newList;
+  }
+
   void addReceived(Uint8List data) {
     final settings = ref.read(uiSettingsProvider);
 
-    if (settings.autoFrameBreak) {
-      // Auto frame break: debounce short bursts of data into a single frame.
+    // Determine receive mode:
+    // - If hexDisplay is true: always use block receive mode
+    // - If hexDisplay is false: use line mode if enabled, otherwise block mode
+    final useBlockMode = settings.hexDisplay || !settings.lineMode;
+
+    if (useBlockMode) {
+      // Block receive mode: debounce short bursts of data into a single frame.
       if (_receiveDebounce?.isActive ?? false) {
         _receiveDebounce!.cancel();
         // Append to the last entry
@@ -438,34 +448,21 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
           );
           state = updatedList;
         } else {
-          state = [
-            ...state,
-            LogEntry(data, LogEntryType.received, DateTime.now())
-          ];
+          _addLogEntry(LogEntry(data, LogEntryType.received, DateTime.now()));
         }
       } else {
         // Create a new entry
-        state = [
-          ...state,
-          LogEntry(data, LogEntryType.received, DateTime.now())
-        ];
+        _addLogEntry(LogEntry(data, LogEntryType.received, DateTime.now()));
       }
 
       _receiveDebounce =
-          Timer(Duration(milliseconds: settings.autoFrameBreakMs), () {
+          Timer(Duration(milliseconds: settings.blockIntervalMs), () {
         // Debounce finished, next data will create a new entry
       });
     } else {
+      // Line receive mode: process as lines
       _receiveDebounce?.cancel();
-
-      if (!settings.hexDisplay) {
-        _appendAsLines(data);
-      } else {
-        state = [
-          ...state,
-          LogEntry(data, LogEntryType.received, DateTime.now()),
-        ];
-      }
+      _appendAsLines(data);
     }
   }
 
@@ -480,10 +477,8 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
           final lineBytes = Uint8List.fromList(_lineBuffer);
           _lineBuffer.clear();
 
-          state = [
-            ...state,
-            LogEntry(lineBytes, LogEntryType.received, DateTime.now()),
-          ];
+          _addLogEntry(
+              LogEntry(lineBytes, LogEntryType.received, DateTime.now()));
         } else {}
       } else {
         _lineBuffer.add(byte);
@@ -493,7 +488,7 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
 
   void addSent(Uint8List data) {
     _receiveDebounce?.cancel();
-    state = [...state, LogEntry(data, LogEntryType.sent, DateTime.now())];
+    _addLogEntry(LogEntry(data, LogEntryType.sent, DateTime.now()));
   }
 
   void clear() {
@@ -511,9 +506,12 @@ class UiSettings {
   final bool hexSend;
   final bool showTimestamp;
   final bool showSent; // Whether to display sent data in the log
-  final int frameIntervalMs;
-  final bool autoFrameBreak; // Whether to auto-merge frames using debounce
-  final int autoFrameBreakMs; // Auto frame break interval in milliseconds
+  final int
+      blockIntervalMs; // Block interval in milliseconds for block receive mode
+  final bool
+      lineMode; // Whether to use line-based receive mode (only available in text mode)
+  final bool
+      preferredReceiveMode; // User's preferred receive mode in text mode (true=line, false=block)
   // Sending new line settings
   final bool appendNewline; // Whether to append a newline when sending text
   final NewlineMode newlineMode; // Which newline sequence to append
@@ -523,9 +521,9 @@ class UiSettings {
     this.hexSend = false,
     this.showTimestamp = true,
     this.showSent = true,
-    this.frameIntervalMs = 20,
-    this.autoFrameBreak = true,
-    this.autoFrameBreakMs = 20,
+    this.blockIntervalMs = 20,
+    this.lineMode = false, // Default to block receive mode
+    this.preferredReceiveMode = false, // Default to block receive mode
     this.appendNewline = false,
     this.newlineMode = NewlineMode.lf,
   });
@@ -535,9 +533,9 @@ class UiSettings {
     bool? hexSend,
     bool? showTimestamp,
     bool? showSent,
-    int? frameIntervalMs,
-    bool? autoFrameBreak,
-    int? autoFrameBreakMs,
+    int? blockIntervalMs,
+    bool? lineMode,
+    bool? preferredReceiveMode,
     bool? appendNewline,
     NewlineMode? newlineMode,
   }) {
@@ -546,9 +544,9 @@ class UiSettings {
       hexSend: hexSend ?? this.hexSend,
       showTimestamp: showTimestamp ?? this.showTimestamp,
       showSent: showSent ?? this.showSent,
-      frameIntervalMs: frameIntervalMs ?? this.frameIntervalMs,
-      autoFrameBreak: autoFrameBreak ?? this.autoFrameBreak,
-      autoFrameBreakMs: autoFrameBreakMs ?? this.autoFrameBreakMs,
+      blockIntervalMs: blockIntervalMs ?? this.blockIntervalMs,
+      lineMode: lineMode ?? this.lineMode,
+      preferredReceiveMode: preferredReceiveMode ?? this.preferredReceiveMode,
       appendNewline: appendNewline ?? this.appendNewline,
       newlineMode: newlineMode ?? this.newlineMode,
     );
@@ -567,9 +565,9 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
   static const _keyHexSend = 'ui_hex_send';
   static const _keyShowTimestamp = 'ui_show_timestamp';
   static const _keyShowSent = 'ui_show_sent';
-  static const _keyFrameIntervalMs = 'ui_frame_interval_ms';
-  static const _keyAutoFrameBreak = 'ui_auto_frame_break';
-  static const _keyAutoFrameBreakMs = 'ui_auto_frame_break_ms';
+  static const _keyBlockIntervalMs = 'ui_block_interval_ms';
+  static const _keyLineMode = 'ui_line_mode';
+  static const _keyPreferredReceiveMode = 'ui_preferred_receive_mode';
   // Newline settings keys
   static const _keyAppendNewline = 'ui_append_newline';
   static const _keyNewlineMode = 'ui_newline_mode';
@@ -582,9 +580,9 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
       hexSend: prefs.getBool(_keyHexSend) ?? false,
       showTimestamp: prefs.getBool(_keyShowTimestamp) ?? true,
       showSent: prefs.getBool(_keyShowSent) ?? true,
-      frameIntervalMs: prefs.getInt(_keyFrameIntervalMs) ?? 20,
-      autoFrameBreak: prefs.getBool(_keyAutoFrameBreak) ?? true,
-      autoFrameBreakMs: prefs.getInt(_keyAutoFrameBreakMs) ?? 20,
+      blockIntervalMs: prefs.getInt(_keyBlockIntervalMs) ?? 20,
+      lineMode: prefs.getBool(_keyLineMode) ?? false,
+      preferredReceiveMode: prefs.getBool(_keyPreferredReceiveMode) ?? false,
       appendNewline: prefs.getBool(_keyAppendNewline) ?? false,
       newlineMode: NewlineMode
           .values[prefs.getInt(_keyNewlineMode) ?? NewlineMode.lf.index],
@@ -592,8 +590,31 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
   }
 
   void setHexDisplay(bool value) {
-    state = state.copyWith(hexDisplay: value);
-    ref.read(sharedPreferencesProvider).setBool(_keyHexDisplay, value);
+    final newHexDisplay = value;
+    final currentLineMode = state.lineMode;
+
+    if (newHexDisplay) {
+      // Switching to HEX mode: save current preference and force block mode
+      state = state.copyWith(
+        hexDisplay: true,
+        lineMode: false,
+        preferredReceiveMode: currentLineMode, // Save user's preference
+      );
+      ref.read(sharedPreferencesProvider).setBool(_keyHexDisplay, true);
+      ref.read(sharedPreferencesProvider).setBool(_keyLineMode, false);
+      ref
+          .read(sharedPreferencesProvider)
+          .setBool(_keyPreferredReceiveMode, currentLineMode);
+    } else {
+      // Switching to text mode: restore user's preference
+      final preferredMode = state.preferredReceiveMode;
+      state = state.copyWith(
+        hexDisplay: false,
+        lineMode: preferredMode,
+      );
+      ref.read(sharedPreferencesProvider).setBool(_keyHexDisplay, false);
+      ref.read(sharedPreferencesProvider).setBool(_keyLineMode, preferredMode);
+    }
   }
 
   void setHexSend(bool value) {
@@ -612,18 +633,19 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
   }
 
   void setFrameIntervalMs(int value) {
-    state = state.copyWith(frameIntervalMs: value);
-    ref.read(sharedPreferencesProvider).setInt(_keyFrameIntervalMs, value);
+    state = state.copyWith(blockIntervalMs: value);
+    ref.read(sharedPreferencesProvider).setInt(_keyBlockIntervalMs, value);
   }
 
-  void setAutoFrameBreak(bool value) {
-    state = state.copyWith(autoFrameBreak: value);
-    ref.read(sharedPreferencesProvider).setBool(_keyAutoFrameBreak, value);
-  }
-
-  void setAutoFrameBreakMs(int value) {
-    state = state.copyWith(autoFrameBreakMs: value);
-    ref.read(sharedPreferencesProvider).setInt(_keyAutoFrameBreakMs, value);
+  void setReceiveMode(bool isLineMode) {
+    state = state.copyWith(
+      lineMode: isLineMode,
+      preferredReceiveMode: isLineMode,
+    );
+    ref.read(sharedPreferencesProvider).setBool(_keyLineMode, isLineMode);
+    ref
+        .read(sharedPreferencesProvider)
+        .setBool(_keyPreferredReceiveMode, isLineMode);
   }
 
   void setAppendNewline(bool value) {
@@ -641,7 +663,6 @@ final uiSettingsProvider =
     NotifierProvider.autoDispose<UiSettingsNotifier, UiSettings>(
         UiSettingsNotifier.new);
 
-// 7. Global Error Provider
 class ErrorNotifier extends Notifier<String?> {
   @override
   String? build() => null;

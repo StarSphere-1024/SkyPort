@@ -69,7 +69,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get frameIntervalMs => 'Frame Interval (ms)';
 
   @override
-  String get autoFrameBreak => 'Automatic frame break';
+  String get autoFrameBreak => 'Block receive mode';
+
+  @override
+  String get receiveMode => 'Receive mode';
+
+  @override
+  String get blockReceiveMode => 'Block receive mode';
+
+  @override
+  String get lineReceiveMode => 'Line receive mode';
+
+  @override
+  String get blockInterval => 'Block interval';
+
+  @override
+  String get lineReceiveDescription =>
+      'Process data line by line based on newline characters';
+
+  @override
+  String get blockReceiveDescription =>
+      'Group incoming data into blocks with configurable intervals';
 
   @override
   String get frameBreakTimeMs => 'Frame break time (ms)';
