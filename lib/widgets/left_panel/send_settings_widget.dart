@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/serial_provider.dart';
 import 'package:sky_port/l10n/app_localizations.dart';
+import '../shared/compact_switch.dart';
 
 class SendSettingsWidget extends ConsumerWidget {
   const SendSettingsWidget({super.key});
@@ -29,8 +30,7 @@ class SendSettingsWidget extends ConsumerWidget {
 
     return Column(
       children: [
-        _buildCompactSwitch(
-          context,
+        CompactSwitch(
           label: l10n.hexSend,
           value: settings.hexSend,
           onChanged:
@@ -96,28 +96,6 @@ class SendSettingsWidget extends ConsumerWidget {
           ],
         ),
       ],
-    );
-  }
-
-  Widget _buildCompactSwitch(
-    BuildContext context, {
-    required String label,
-    required bool value,
-    required ValueChanged<bool>? onChanged,
-    EdgeInsetsGeometry? padding,
-  }) {
-    return Padding(
-      padding: padding ?? const EdgeInsets.symmetric(vertical: 2.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: Theme.of(context).textTheme.bodyMedium),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-          ),
-        ],
-      ),
     );
   }
 }

@@ -23,7 +23,8 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final connection = ref.watch(serialConnectionProvider);
+    final connectionStatus =
+        ref.watch(serialConnectionProvider.select((c) => c.status));
     final colorScheme = Theme.of(context).colorScheme;
 
     return Card.filled(
@@ -78,7 +79,7 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
               FilledButton.icon(
                 icon: const Icon(Icons.send),
                 label: Text(AppLocalizations.of(context).send),
-                onPressed: connection.status == ConnectionStatus.connected
+                onPressed: connectionStatus == ConnectionStatus.connected
                     ? () {
                         if (_formKey.currentState!.validate()) {
                           ref

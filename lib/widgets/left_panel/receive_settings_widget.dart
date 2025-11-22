@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/serial_provider.dart';
 import 'package:sky_port/l10n/app_localizations.dart';
+import '../shared/compact_switch.dart';
+import '../shared/input_decorations.dart';
 
 class ReceiveSettingsWidget extends ConsumerWidget {
   const ReceiveSettingsWidget({super.key});
@@ -29,21 +31,18 @@ class ReceiveSettingsWidget extends ConsumerWidget {
 
     return Column(
       children: [
-        _buildCompactSwitch(
-          context,
+        CompactSwitch(
           label: AppLocalizations.of(context).hexDisplay,
           value: settings.hexDisplay,
           onChanged:
               (isConnected || isBusy) ? null : (v) => notifier.setHexDisplay(v),
         ),
-        _buildCompactSwitch(
-          context,
+        CompactSwitch(
           label: AppLocalizations.of(context).showTimestamp,
           value: settings.showTimestamp,
           onChanged: (v) => notifier.setShowTimestamp(v),
         ),
-        _buildCompactSwitch(
-          context,
+        CompactSwitch(
           label: AppLocalizations.of(context).showSent,
           value: settings.showSent,
           onChanged: (v) => notifier.setShowSent(v),
@@ -67,14 +66,10 @@ class ReceiveSettingsWidget extends ConsumerWidget {
                           offset: settings.autoFrameBreakMs.toString().length)),
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: InputDecoration(
+                    decoration: AppInputDecorations.dense(
+                      context: context,
+                      label: '',
                       suffixText: 'ms',
-                      suffixStyle: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.6),
-                      ),
                       filled: true,
                       fillColor: settings.autoFrameBreak
                           ? Theme.of(context).colorScheme.surface
@@ -82,33 +77,7 @@ class ReceiveSettingsWidget extends ConsumerWidget {
                               .colorScheme
                               .surface
                               .withValues(alpha: 0.5),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(
-                            color: Theme.of(context).colorScheme.outline),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(
-                            color: Theme.of(context).colorScheme.outline),
-                      ),
-                      disabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .outline
-                                .withValues(alpha: 0.5)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(
-                            color: Theme.of(context).colorScheme.primary,
-                            width: 2),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12.0, vertical: 12.0),
-                      isDense: true,
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     style: Theme.of(context).textTheme.bodyMedium,
                     textAlign: TextAlign.center,
@@ -130,28 +99,6 @@ class ReceiveSettingsWidget extends ConsumerWidget {
           ],
         ),
       ],
-    );
-  }
-
-  Widget _buildCompactSwitch(
-    BuildContext context, {
-    required String label,
-    required bool value,
-    required ValueChanged<bool>? onChanged,
-    EdgeInsetsGeometry? padding,
-  }) {
-    return Padding(
-      padding: padding ?? const EdgeInsets.symmetric(vertical: 2.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: Theme.of(context).textTheme.bodyMedium),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-          ),
-        ],
-      ),
     );
   }
 }
