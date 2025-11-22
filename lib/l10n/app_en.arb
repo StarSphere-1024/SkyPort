@@ -37,6 +37,7 @@
   "connecting": "Connecting...",
   "disconnecting": "Disconnecting...",
   "disconnected": "Disconnected",
+  "unavailable": "Unavailable",
   "trafficStats": "Rx: {rx} | Tx: {tx}",
   "@trafficStats": {
     "placeholders": {

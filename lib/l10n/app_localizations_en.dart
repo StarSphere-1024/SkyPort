@@ -104,6 +104,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get disconnected => 'Disconnected';
 
   @override
+  String get unavailable => 'Unavailable';
+
+  @override
   String trafficStats(int rx, int tx) {
     return 'Rx: $rx | Tx: $tx';
   }

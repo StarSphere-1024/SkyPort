@@ -111,27 +111,17 @@ class SerialConfigNotifier extends Notifier<SerialConfig?> {
         // If nothing selected and ports become available, select the first one
         // Or try to restore saved port if available
         final savedPort = prefs.getString(_keyPortName);
-        if (savedPort != null && newPorts.contains(savedPort)) {
+        if (savedPort != null) {
+          // Always try to restore saved port, even if not currently available
           state = _loadConfigFromPrefs(prefs, savedPort);
         } else if (newPorts.isNotEmpty) {
           // If saved port not available, use first available but keep other saved settings
           state = _loadConfigFromPrefs(prefs, newPorts.first);
         }
       } else {
-        // If currently selected port is gone
-        if (!newPorts.contains(currentConfig.portName)) {
-          if (newPorts.isNotEmpty) {
-            // Switch to first available
-            state = currentConfig.copyWith(portName: newPorts.first);
-            // We don't save the auto-switch immediately to avoid overwriting user preference
-            // if the device is just temporarily disconnected?
-            // Actually, for simplicity, let's just update state.
-          } else {
-            // No ports left
-            state = null;
-          }
-        }
-        // Else: selected port still exists, do nothing (keep selection)
+        // If currently selected port is gone, we DO NOT switch automatically.
+        // We keep the current selection so the user sees it as "unavailable".
+        // Only if the user had no selection (handled above) do we auto-select.
       }
     });
 
@@ -139,7 +129,8 @@ class SerialConfigNotifier extends Notifier<SerialConfig?> {
     final initialPorts = SerialPort.availablePorts;
     final savedPort = prefs.getString(_keyPortName);
 
-    if (savedPort != null && initialPorts.contains(savedPort)) {
+    if (savedPort != null) {
+      // Always restore saved port if it exists
       return _loadConfigFromPrefs(prefs, savedPort);
     } else if (initialPorts.isNotEmpty) {
       return _loadConfigFromPrefs(prefs, initialPorts.first);

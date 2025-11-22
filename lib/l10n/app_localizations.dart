@@ -284,6 +284,12 @@ abstract class AppLocalizations {
   /// **'Disconnected'**
   String get disconnected;
 
+  /// No description provided for @unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable'**
+  String get unavailable;
+
   /// No description provided for @trafficStats.
   ///
   /// In en, this message translates to:

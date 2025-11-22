@@ -37,6 +37,7 @@
   "connecting": "连接中...",
   "disconnecting": "断开中...",
   "disconnected": "未连接",
+  "unavailable": "不可用",
   "trafficStats": "接收: {rx} | 发送: {tx}",
   "@trafficStats": {
     "placeholders": {

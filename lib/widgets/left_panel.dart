@@ -64,27 +64,49 @@ class LeftPanel extends ConsumerWidget {
 
                               return availablePorts.when(
                                 data: (ports) {
-                                  // Ensure the selected port is valid, otherwise default to null (or the first port)
-                                  final selectedPort = (serialConfig
-                                                  ?.portName !=
-                                              null &&
-                                          ports
-                                              .contains(serialConfig?.portName))
-                                      ? serialConfig?.portName
-                                      : (ports.isNotEmpty ? ports.first : null);
+                                  var selectedPort = serialConfig?.portName;
 
-                                  // If the config is not set and we have a port, set it.
-                                  if (selectedPort != null &&
-                                      serialConfig?.portName == null) {
+                                  // If selectedPort is null, try to select first available
+                                  if (selectedPort == null &&
+                                      ports.isNotEmpty) {
+                                    selectedPort = ports.first;
                                     WidgetsBinding.instance
                                         .addPostFrameCallback((_) {
                                       ref
                                           .read(serialConfigProvider.notifier)
-                                          .setPort(selectedPort);
+                                          .setPort(selectedPort!);
                                     });
                                   }
 
-                                  if (ports.isEmpty) {
+                                  final dropdownItems = ports
+                                      .map((port) => DropdownMenuItem<String>(
+                                            value: port,
+                                            child: Text(
+                                              port,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ))
+                                      .toList();
+
+                                  final isUnavailable = selectedPort != null &&
+                                      !ports.contains(selectedPort);
+
+                                  // If we have a selected port but it's not in the list, add it as unavailable
+                                  if (isUnavailable) {
+                                    dropdownItems.add(DropdownMenuItem<String>(
+                                      value: selectedPort,
+                                      child: Text(
+                                        selectedPort,
+                                        style: TextStyle(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .error),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ));
+                                  }
+
+                                  if (dropdownItems.isEmpty) {
                                     return InputDecorator(
                                       decoration: InputDecoration(
                                         labelText: AppLocalizations.of(context)
@@ -94,6 +116,7 @@ class LeftPanel extends ConsumerWidget {
                                             const EdgeInsets.symmetric(
                                                 horizontal: 12.0,
                                                 vertical: 16.0),
+                                        helperText: ' ',
                                       ),
                                       child: Text(AppLocalizations.of(context)
                                           .noPortsFound),
@@ -106,17 +129,14 @@ class LeftPanel extends ConsumerWidget {
                                       labelText:
                                           AppLocalizations.of(context).portName,
                                       border: const OutlineInputBorder(),
+                                      errorText: isUnavailable
+                                          ? AppLocalizations.of(context)
+                                              .unavailable
+                                          : null,
+                                      helperText: isUnavailable ? null : ' ',
                                     ),
-                                    initialValue: selectedPort,
-                                    items: ports
-                                        .map((port) => DropdownMenuItem<String>(
-                                              value: port,
-                                              child: Text(
-                                                port,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ))
-                                        .toList(),
+                                    value: selectedPort,
+                                    items: dropdownItems,
                                     onChanged: (isConnected || isBusy)
                                         ? null
                                         : (String? value) {
@@ -136,6 +156,7 @@ class LeftPanel extends ConsumerWidget {
                                     border: const OutlineInputBorder(),
                                     contentPadding: const EdgeInsets.symmetric(
                                         horizontal: 12.0, vertical: 16.0),
+                                    helperText: ' ',
                                   ),
                                   child: Text(AppLocalizations.of(context)
                                       .loadingPorts),
@@ -147,6 +168,7 @@ class LeftPanel extends ConsumerWidget {
                                     border: const OutlineInputBorder(),
                                     contentPadding: const EdgeInsets.symmetric(
                                         horizontal: 12.0, vertical: 16.0),
+                                    helperText: ' ',
                                   ),
                                   child: Text(AppLocalizations.of(context)
                                       .errorLoadingPorts),
@@ -156,34 +178,58 @@ class LeftPanel extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(width: 16),
-                        FilledButton(
-                          onPressed: isBusy
-                              ? null
-                              : () {
-                                  if (isConnected) {
-                                    ref
-                                        .read(serialConnectionProvider.notifier)
-                                        .disconnect();
-                                  } else {
-                                    ref
-                                        .read(serialConnectionProvider.notifier)
-                                        .connect();
-                                  }
-                                },
-                          style: isConnected
-                              ? FilledButton.styleFrom(
-                                  backgroundColor:
-                                      Theme.of(context).colorScheme.error,
-                                  foregroundColor:
-                                      Theme.of(context).colorScheme.onError,
-                                )
-                              : FilledButton.styleFrom(
-                                  backgroundColor:
-                                      Theme.of(context).colorScheme.primary,
-                                  foregroundColor:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                ),
-                          child: connectButtonChild,
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 24.0),
+                          child: FilledButton(
+                            onPressed: isBusy
+                                ? null
+                                : () {
+                                    if (isConnected) {
+                                      ref
+                                          .read(
+                                              serialConnectionProvider.notifier)
+                                          .disconnect();
+                                    } else {
+                                      final availablePorts = ref
+                                              .read(availablePortsProvider)
+                                              .asData
+                                              ?.value ??
+                                          [];
+                                      final selectedPort = ref
+                                          .read(serialConfigProvider)
+                                          ?.portName;
+
+                                      if (selectedPort == null ||
+                                          !availablePorts
+                                              .contains(selectedPort)) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(SnackBar(
+                                          content: Text(
+                                              "${AppLocalizations.of(context).unavailable}: $selectedPort"),
+                                        ));
+                                        return;
+                                      }
+                                      ref
+                                          .read(
+                                              serialConnectionProvider.notifier)
+                                          .connect();
+                                    }
+                                  },
+                            style: isConnected
+                                ? FilledButton.styleFrom(
+                                    backgroundColor:
+                                        Theme.of(context).colorScheme.error,
+                                    foregroundColor:
+                                        Theme.of(context).colorScheme.onError,
+                                  )
+                                : FilledButton.styleFrom(
+                                    backgroundColor:
+                                        Theme.of(context).colorScheme.primary,
+                                    foregroundColor:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                  ),
+                            child: connectButtonChild,
+                          ),
                         ),
                       ],
                     ),
