@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import 'package:flutter/gestures.dart';
 
 import '../providers/serial_provider.dart';
 import 'package:sky_port/l10n/app_localizations.dart';
@@ -81,123 +82,135 @@ class _RightPanelState extends ConsumerState<RightPanel> {
               color: colorScheme.surfaceContainerLow,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                child: Scrollbar(
-                  controller: _scrollController,
-                  child: Consumer(
-                    builder: (context, ref, child) {
-                      final rawDataLog = ref.watch(dataLogProvider);
-                      final dataLog = settings.showSent
-                          ? rawDataLog
-                          : rawDataLog
-                              .where((e) => e.type == LogEntryType.received)
-                              .toList();
-                      final bool showLoadMore =
-                          dataLog.length > _visibleItemCount;
-                      final int listLength =
-                          (dataLog.length > _visibleItemCount)
-                              ? _visibleItemCount
-                              : dataLog.length;
-
-                      final l10n = AppLocalizations.of(context);
-                      final monoStyle = theme.textTheme.bodyMedium!.copyWith(
-                        fontFamily: 'monospace',
-                        fontSize: 14.0,
-                        height: 1.2, // 紧凑行高
-                      );
-
-                      return ListView.builder(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return Scrollbar(
+                      controller: _scrollController,
+                      child: SingleChildScrollView(
                         controller: _scrollController,
                         padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        itemCount: listLength + (showLoadMore ? 1 : 0),
-                        itemBuilder: (context, index) {
-                          if (showLoadMore && index == 0) {
-                            return Center(
-                              child: Padding(
-                                padding: const EdgeInsets.all(4.0),
-                                child: TextButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _visibleItemCount += 100;
-                                    });
-                                  },
-                                  child: Text(l10n.loadMore),
-                                ),
-                              ),
-                            );
-                          }
+                        child: SizedBox(
+                          width: constraints.maxWidth,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Consumer(
+                              builder: (context, ref, child) {
+                                final rawDataLog = ref.watch(dataLogProvider);
+                                final dataLog = settings.showSent
+                                    ? rawDataLog
+                                    : rawDataLog
+                                        .where((e) =>
+                                            e.type == LogEntryType.received)
+                                        .toList();
+                                final bool showLoadMore =
+                                    dataLog.length > _visibleItemCount;
+                                final int listLength =
+                                    (dataLog.length > _visibleItemCount)
+                                        ? _visibleItemCount
+                                        : dataLog.length;
 
-                          final entryIndex = showLoadMore
-                              ? (dataLog.length - listLength) + (index - 1)
-                              : index;
-                          if (entryIndex < 0) return const SizedBox.shrink();
+                                final l10n = AppLocalizations.of(context);
+                                final monoStyle =
+                                    theme.textTheme.bodyMedium!.copyWith(
+                                  fontFamily: 'monospace',
+                                  fontSize: 15.0,
+                                  height: 1.2, // Compact line height
+                                );
 
-                          final entry = dataLog[entryIndex];
-                          final isSent = entry.type == LogEntryType.sent;
-                          final formattedTimestamp = DateFormat('HH:mm:ss.SSS')
-                              .format(entry.timestamp);
+                                final dataTextStyle = monoStyle.copyWith(
+                                  fontSize: 18.0,
+                                );
 
-                          String dataText;
-                          if (settings.hexDisplay) {
-                            dataText = entry.data
-                                .map((b) => b
-                                    .toRadixString(16)
-                                    .padLeft(2, '0')
-                                    .toUpperCase())
-                                .join(' ');
-                          } else {
-                            dataText =
-                                utf8.decode(entry.data, allowMalformed: true);
-                          }
+                                List<TextSpan> allSpans = [];
 
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 1.0, horizontal: 4.0),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (settings.showTimestamp)
-                                  Padding(
-                                    padding: const EdgeInsets.only(right: 8.0),
-                                    child: Text(
-                                      formattedTimestamp,
-                                      style: monoStyle.copyWith(
-                                        color: theme.disabledColor,
+                                if (showLoadMore) {
+                                  allSpans.add(
+                                    TextSpan(
+                                      text: '${l10n.loadMore}\n',
+                                      recognizer: TapGestureRecognizer()
+                                        ..onTap = () {
+                                          setState(() {
+                                            _visibleItemCount += 100;
+                                          });
+                                        },
+                                      style: theme.textTheme.labelMedium,
+                                    ),
+                                  );
+                                }
+
+                                final startIndex = dataLog.length - listLength;
+                                for (int i = startIndex;
+                                    i < dataLog.length;
+                                    i++) {
+                                  final entry = dataLog[i];
+                                  final isSent =
+                                      entry.type == LogEntryType.sent;
+                                  final formattedTimestamp =
+                                      DateFormat('HH:mm:ss.SSS')
+                                          .format(entry.timestamp);
+
+                                  String dataText;
+                                  if (settings.hexDisplay) {
+                                    dataText = entry.data
+                                        .map((b) => b
+                                            .toRadixString(16)
+                                            .padLeft(2, '0')
+                                            .toUpperCase())
+                                        .join(' ');
+                                  } else {
+                                    dataText = utf8.decode(entry.data,
+                                        allowMalformed: true);
+                                  }
+
+                                  // Split dataText into lines for unified formatting
+                                  final lines = dataText.split('\n');
+
+                                  for (int j = 0; j < lines.length; j++) {
+                                    final lineText = lines[j];
+
+                                    allSpans.addAll([
+                                      if (j == 0 && settings.showTimestamp)
+                                        TextSpan(
+                                          text: '$formattedTimestamp ',
+                                          style: monoStyle.copyWith(
+                                            color: theme.disabledColor,
+                                          ),
+                                        ),
+                                      if (j == 0 && settings.showSent)
+                                        TextSpan(
+                                          text: isSent ? "TX > " : "RX < ",
+                                          style: monoStyle.copyWith(
+                                            color: isSent
+                                                ? colorScheme.primary
+                                                : colorScheme.onSurface,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      TextSpan(
+                                        text: '$lineText\n',
+                                        style: dataTextStyle.copyWith(
+                                          color: isSent
+                                              ? colorScheme.primary
+                                                  .withValues(alpha: 0.8)
+                                              : colorScheme.onSurface,
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                if (settings.showSent)
-                                  Padding(
-                                    padding: const EdgeInsets.only(right: 8.0),
-                                    child: Text(
-                                      isSent ? "TX >" : "RX <",
-                                      style: monoStyle.copyWith(
-                                        color: isSent
-                                            ? colorScheme.primary
-                                            : colorScheme.onSurface,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                Expanded(
-                                  child: Text(
-                                    dataText,
-                                    style: monoStyle.copyWith(
-                                      color: isSent
-                                          ? colorScheme.primary
-                                              .withValues(alpha: 0.8)
-                                          : colorScheme.onSurface,
-                                      fontSize: 18.0, // 数据内容字体更大
-                                    ),
-                                    softWrap: true,
-                                  ),
-                                ),
-                              ],
+                                    ]);
+                                  }
+                                }
+
+                                return SelectableText.rich(
+                                  TextSpan(children: allSpans),
+                                  textAlign: TextAlign.left,
+                                  style: monoStyle,
+                                );
+                              },
                             ),
-                          );
-                        },
-                      );
-                    },
-                  ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
