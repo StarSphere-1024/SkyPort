@@ -18,8 +18,6 @@ class SerialPortSession {
         port.close();
       }
     } catch (_) {}
-    // SerialPortReader doesn't expose dispose; allow GC to reclaim.
-    port.dispose();
   }
 }
 
