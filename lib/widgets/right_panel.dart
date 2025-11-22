@@ -248,9 +248,6 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                             }
                             return null;
                           },
-                          onChanged: (value) {
-                            _formKey.currentState?.validate();
-                          },
                         );
                       }),
                     ),
