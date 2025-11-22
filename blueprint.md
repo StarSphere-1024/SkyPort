@@ -70,8 +70,9 @@
 
 ### 3.5 日志滚动与加载 (Log Scroll & Paging)
 * **自动滚动:** 仅在用户位于底部时新数据才触发平滑滚动；用户向上浏览历史时保持位置不变。
-* **增量加载:** 初始显示最近 100 条，点击“加载更多”每次追加 100 条，避免一次性构建过长列表。
-* **接收合并节流:** 接收数据在 50ms 窗口内合并到同一条 `received` 记录，降低 UI rebuild 频次；发送数据不合并。
+* **增量加载:** 初始显示最近 N 条（例如 100 条），后续可根据需要扩展“加载更多”/分页能力，避免一次性构建过长列表。
+* **接收合并节流:** 在“按帧模式”下，接收数据在可配置时间窗口（默认 20ms）内合并到同一条 `received` 记录，降低 UI rebuild 频次；发送数据不合并。
+* **按行接收模式:** 在“文本模式”下可选择按行接收（基于 `\n`/`\r\n` 拆分），适合日志类输出，单行结束后立即落一条记录。
 
 ### 3.6 错误提示与状态分离 (Errors & Status Separation)
 * 瞬时错误（打开失败 / 写入失败 / 端口断开）→ SnackBar 一次性提示，并在展示后清空错误状态。
@@ -126,31 +127,29 @@
 
 ### 5.1 核心数据流
 1.  **打开串口:**
-    *   UI 调用 `ref.read(serialConnectionProvider.notifier).connect(settings)`。
-    *   `Notifier` 从 `serialConfigProvider` 获取配置。
-    *   `Notifier` 调用 `SerialPortService` 的 `open()` 方法。
-    *   成功后，更新自身状态为 "connected"，并启动数据监听。
-    *   失败后，抛出异常。
+    *   UI 调用 `ref.read(serialConnectionProvider.notifier).connect()`。
+    *   `Notifier` 从 `serialConfigProvider` 获取配置（包括最近一次使用的端口和串口参数，如果存在）。
+    *   `Notifier` 调用 `SerialPortService` 的 `open()` 方法，并在超时/失败时区分不同异常类型。
+    *   成功后，更新自身状态为 `ConnectionStatus.connected`，并启动数据监听。
+    *   失败后，将错误信息写入 `errorProvider`，由 UI 以 SnackBar 展示。
 2.  **接收数据:**
     *   `SerialPortService` 的 `SerialPortReader` 监听到数据流。
     *   `Service` 将 `Uint8List` 数据通知给 `serialConnectionProvider`。
     *   `serialConnectionProvider` 更新 Rx 字节数，并把原始字节转交 `dataLogProvider`。
-    *   `dataLogProvider` 使用 50ms 节流合并连续接收块（仅更新最后一条 received 记录的 data 与 timestamp）。
+    *   `dataLogProvider` 根据当前 UI 设置选择：
+        * **按帧模式（block）：** 在节流窗口内将多次接收合并为一条记录，并更新时间戳；
+        * **按行模式（line）：** 以行结束符为界拆分成多条 `received` 记录。
 3.  **发送数据:**
     *   UI 调用 `ref.read(serialConnectionProvider.notifier).send(data)`。
-    *   `Notifier` 根据 `uiSettingsProvider` 的 "hexSend" 状态，对数据进行预处理（字符串转 Hex 字节等）。
+    *   `Notifier` 根据 `uiSettingsProvider` 的 "hexSend" 状态，对数据进行预处理（字符串转 Hex 字节或 UTF-8 文本，并在配置为追加换行时附加 LF/CR/CRLF）。
     *   `Notifier` 调用 `SerialPortService` 的 `write()` 方法，并更新 Tx 字节数。
     *   `Notifier` 将已发送的数据添加到 `dataLogProvider` 中。
 
 ### 5.2 错误处理
-* **串口打开失败:** 捕获异常后写入 `errorProvider` → 触发 SnackBar；状态栏仍保留结构。
+* **串口打开失败:** 捕获 `SerialPortOpenTimeoutException` / `SerialPortOpenException` 等异常后写入 `errorProvider` → 触发 SnackBar；状态栏仍保留结构并显示“未连接”。
 * **读写错误/设备断开:** 流监听 `onError` 中断并调用断开逻辑，SnackBar 提示；状态栏显示“未连接”。
+* **发送失败:** 捕获 `SerialPortWriteException` 并写入 `errorProvider`，不影响已显示的历史日志。
 * **输入无效 Hex:** 验证失败只在输入框内提示，不进入错误 Provider。
 
-## 6. 未来规划 (Roadmap)
-*   **V1.1:** 增加数据日志保存到文件的功能。
-*   **V1.2:** 支持自定义波特率和其他高级串口参数（流控等）。
-*   **V1.3:** 增加简单的图表绘制功能，可视化接收到的数据。
-*   **V2.0:** 引入脚本支持（如 Lua 或 JavaScript），实现自动化测试和发送。
 
 ---
