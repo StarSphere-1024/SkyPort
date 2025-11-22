@@ -33,13 +33,29 @@ migrate_working_dir/
 /build/
 /coverage/
 
-# Symbolication related
+.metadata
+
+windows/flutter/ephemeral/
+linux/flutter/ephemeral/
+
+*.AppImage
+*.deb
+*.rpm
+*.exe
+*.msi
+*.zip
+*.tar.gz
+
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+
 app.*.symbols
 
-# Obfuscation related
+
 app.*.map.json
 
-# Android Studio will place build artifacts here
 /android/app/debug
 /android/app/profile
 /android/app/release
