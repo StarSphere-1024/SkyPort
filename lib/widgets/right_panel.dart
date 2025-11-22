@@ -173,7 +173,7 @@ class _RightPanelState extends ConsumerState<RightPanel> {
               child: Form(
                 key: _formKey,
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Expanded(
                       child: Consumer(builder: (context, ref, child) {
@@ -187,7 +187,8 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                             labelText: l10n.enterDataToSend,
                           ),
                           keyboardType: TextInputType.multiline,
-                          maxLines: null,
+                          minLines: 1,
+                          maxLines: 5,
                           autovalidateMode: AutovalidateMode.onUserInteraction,
                           validator: (value) {
                             if (hexSend) {
