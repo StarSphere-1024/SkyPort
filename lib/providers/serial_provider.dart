@@ -454,12 +454,14 @@ class UiSettings {
   final bool hexDisplay;
   final bool hexSend;
   final bool showTimestamp;
+  final bool showSent; // 控制是否显示发送的数据
   final int frameIntervalMs;
 
   const UiSettings({
     this.hexDisplay = false,
     this.hexSend = false,
     this.showTimestamp = true,
+    this.showSent = true,
     this.frameIntervalMs = 20,
   });
 
@@ -467,12 +469,14 @@ class UiSettings {
     bool? hexDisplay,
     bool? hexSend,
     bool? showTimestamp,
+    bool? showSent,
     int? frameIntervalMs,
   }) {
     return UiSettings(
       hexDisplay: hexDisplay ?? this.hexDisplay,
       hexSend: hexSend ?? this.hexSend,
       showTimestamp: showTimestamp ?? this.showTimestamp,
+      showSent: showSent ?? this.showSent,
       frameIntervalMs: frameIntervalMs ?? this.frameIntervalMs,
     );
   }
@@ -482,6 +486,7 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
   static const _keyHexDisplay = 'ui_hex_display';
   static const _keyHexSend = 'ui_hex_send';
   static const _keyShowTimestamp = 'ui_show_timestamp';
+  static const _keyShowSent = 'ui_show_sent';
   static const _keyFrameIntervalMs = 'ui_frame_interval_ms';
 
   @override
@@ -491,6 +496,7 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
       hexDisplay: prefs.getBool(_keyHexDisplay) ?? false,
       hexSend: prefs.getBool(_keyHexSend) ?? false,
       showTimestamp: prefs.getBool(_keyShowTimestamp) ?? true,
+      showSent: prefs.getBool(_keyShowSent) ?? true,
       frameIntervalMs: prefs.getInt(_keyFrameIntervalMs) ?? 20,
     );
   }
@@ -508,6 +514,11 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
   void setShowTimestamp(bool value) {
     state = state.copyWith(showTimestamp: value);
     ref.read(sharedPreferencesProvider).setBool(_keyShowTimestamp, value);
+  }
+
+  void setShowSent(bool value) {
+    state = state.copyWith(showSent: value);
+    ref.read(sharedPreferencesProvider).setBool(_keyShowSent, value);
   }
 
   void setFrameIntervalMs(int value) {

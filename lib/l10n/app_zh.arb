@@ -18,6 +18,7 @@
   "receiveSettings": "接收设置",
   "hexDisplay": "十六进制显示",
   "showTimestamp": "显示时间戳",
+  "showSent": "显示发送数据",
   "frameIntervalMs": "断帧间隔 (ms)",
   "clearReceiveArea": "清空接收区",
   "sendSettings": "发送设置",

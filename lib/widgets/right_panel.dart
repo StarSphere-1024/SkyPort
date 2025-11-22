@@ -84,8 +84,14 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                   controller: _scrollController,
                   child: Consumer(
                     builder: (context, ref, child) {
-                      final dataLog = ref.watch(dataLogProvider);
+                      final rawDataLog = ref.watch(dataLogProvider);
                       final settings = ref.watch(uiSettingsProvider);
+                      // 根据设置过滤：当关闭显示发送数据时，仅显示接收的数据
+                      final dataLog = settings.showSent
+                          ? rawDataLog
+                          : rawDataLog
+                              .where((e) => e.type == LogEntryType.received)
+                              .toList();
                       final bool showLoadMore =
                           dataLog.length > _visibleItemCount;
                       final int listLength =
@@ -166,18 +172,19 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                                   ),
 
                                 // 2. 方向指示符 (TX/RX)
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 8.0),
-                                  child: Text(
-                                    isSent ? "TX >" : "RX <",
-                                    style: monoStyle.copyWith(
-                                      color: isSent
-                                          ? colorScheme.primary
-                                          : colorScheme.onSurface,
-                                      fontWeight: FontWeight.bold,
+                                if (settings.showSent)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 8.0),
+                                    child: Text(
+                                      isSent ? "TX >" : "RX <",
+                                      style: monoStyle.copyWith(
+                                        color: isSent
+                                            ? colorScheme.primary
+                                            : colorScheme.onSurface,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
-                                ),
 
                                 // 3. 数据内容
                                 Expanded(

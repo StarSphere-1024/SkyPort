@@ -18,6 +18,7 @@
   "receiveSettings": "Receive Settings",
   "hexDisplay": "Hex Display",
   "showTimestamp": "Show Timestamp",
+  "showSent": "Show Sent Data",
   "frameIntervalMs": "Frame Interval (ms)",
   "clearReceiveArea": "Clear Receive Area",
   "sendSettings": "Send Settings",

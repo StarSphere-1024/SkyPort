@@ -206,6 +206,12 @@ abstract class AppLocalizations {
   /// **'Show Timestamp'**
   String get showTimestamp;
 
+  /// No description provided for @showSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Sent Data'**
+  String get showSent;
+
   /// No description provided for @frameIntervalMs.
   ///
   /// In en, this message translates to:

@@ -411,6 +411,20 @@ class LeftPanel extends ConsumerWidget {
                         );
                       },
                     ),
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final settings = ref.watch(uiSettingsProvider);
+                        return SwitchListTile(
+                          title: Text(AppLocalizations.of(context).showSent),
+                          value: settings.showSent,
+                          onChanged: (value) {
+                            ref
+                                .read(uiSettingsProvider.notifier)
+                                .setShowSent(value);
+                          },
+                        );
+                      },
+                    ),
                     const SizedBox(height: 8),
                     SizedBox(
                       width: double.infinity,

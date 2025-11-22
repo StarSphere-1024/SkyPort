@@ -63,6 +63,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get showTimestamp => 'Show Timestamp';
 
   @override
+  String get showSent => 'Show Sent Data';
+
+  @override
   String get frameIntervalMs => 'Frame Interval (ms)';
 
   @override

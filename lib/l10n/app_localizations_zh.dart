@@ -63,6 +63,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get showTimestamp => '显示时间戳';
 
   @override
+  String get showSent => '显示发送数据';
+
+  @override
   String get frameIntervalMs => '断帧间隔 (ms)';
 
   @override
