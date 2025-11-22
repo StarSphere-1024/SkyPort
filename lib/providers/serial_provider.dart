@@ -22,15 +22,34 @@ class NoPortsAvailableException implements Exception {
   }
 }
 
+// Helper to compare port lists
+bool _arePortListsEqual(List<String> a, List<String> b) {
+  if (a.length != b.length) return false;
+  final setA = Set.of(a);
+  final setB = Set.of(b);
+  return setA.length == setB.length && setA.containsAll(setB);
+}
+
 // 1. Provider for available serial ports
 final availablePortsProvider =
-    FutureProvider.autoDispose<List<String>>((ref) async {
+    StreamProvider.autoDispose<List<String>>((ref) async* {
   ref.keepAlive(); // Keep alive for some time after last listener is removed
-  final ports = SerialPort.availablePorts;
-  ref.onDispose(() {
-    // No specific cleanup needed for availablePorts, but good practice
+
+  // Initial fetch
+  List<String> currentPorts = SerialPort.availablePorts;
+  yield currentPorts;
+
+  // Poll every 1 second
+  final timer = Stream.periodic(const Duration(seconds: 1), (_) {
+    return SerialPort.availablePorts;
   });
-  return ports;
+
+  await for (final newPorts in timer) {
+    if (!_arePortListsEqual(currentPorts, newPorts)) {
+      currentPorts = newPorts;
+      yield currentPorts;
+    }
+  }
 });
 
 // 2. Model for serial port configuration
@@ -70,9 +89,35 @@ class SerialConfig {
 class SerialConfigNotifier extends Notifier<SerialConfig?> {
   @override
   SerialConfig? build() {
-    final availablePorts = ref.watch(availablePortsProvider).value ?? [];
-    if (availablePorts.isNotEmpty) {
-      return SerialConfig(portName: availablePorts.first);
+    // Listen to port changes to update selection intelligently
+    ref.listen(availablePortsProvider, (previous, next) {
+      final newPorts = next.asData?.value ?? [];
+      final currentConfig = state;
+
+      if (currentConfig == null) {
+        // If nothing selected and ports become available, select the first one
+        if (newPorts.isNotEmpty) {
+          state = SerialConfig(portName: newPorts.first);
+        }
+      } else {
+        // If currently selected port is gone
+        if (!newPorts.contains(currentConfig.portName)) {
+          if (newPorts.isNotEmpty) {
+            // Switch to first available
+            state = currentConfig.copyWith(portName: newPorts.first);
+          } else {
+            // No ports left
+            state = null;
+          }
+        }
+        // Else: selected port still exists, do nothing (keep selection)
+      }
+    });
+
+    // Initial state
+    final initialPorts = SerialPort.availablePorts;
+    if (initialPorts.isNotEmpty) {
+      return SerialConfig(portName: initialPorts.first);
     }
     return null;
   }

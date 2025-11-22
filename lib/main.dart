@@ -29,7 +29,6 @@ void main() async {
   }
 
   final container = ProviderContainer();
-  await container.read(availablePortsProvider.future);
   runApp(
     UncontrolledProviderScope(
       container: container,
