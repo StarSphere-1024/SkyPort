@@ -77,7 +77,7 @@ class _RightPanelState extends ConsumerState<RightPanel> {
         children: [
           Expanded(
             child: Card.outlined(
-              color: colorScheme.surface,
+              color: colorScheme.surfaceContainerLow,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4.0),
                 child: Scrollbar(
@@ -207,7 +207,7 @@ class _RightPanelState extends ConsumerState<RightPanel> {
           ),
           const SizedBox(height: 8),
           Card.filled(
-            color: colorScheme.surface,
+            color: colorScheme.surfaceContainerLow,
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Form(
