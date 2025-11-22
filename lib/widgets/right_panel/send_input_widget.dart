@@ -14,6 +14,7 @@ class SendInputWidget extends ConsumerStatefulWidget {
 class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _sendController = TextEditingController();
+  bool _canSend = false;
 
   @override
   void dispose() {
@@ -52,6 +53,31 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
                     minLines: 1,
                     maxLines: 5,
                     autovalidateMode: AutovalidateMode.onUserInteraction,
+                    onChanged: (value) {
+                      setState(() {
+                        if (!hexSend) {
+                          _canSend = value.isNotEmpty;
+                          return;
+                        }
+
+                        if (value.isEmpty) {
+                          _canSend = false;
+                          return;
+                        }
+
+                        final sanitizedValue =
+                            value.replaceAll(RegExp(r'\s+'), '');
+
+                        if (sanitizedValue.isEmpty) {
+                          _canSend = true;
+                        } else {
+                          final isHex = RegExp(r'^[0-9a-fA-F]+$')
+                              .hasMatch(sanitizedValue);
+                          final evenLength = sanitizedValue.length % 2 == 0;
+                          _canSend = isHex && evenLength;
+                        }
+                      });
+                    },
                     validator: (value) {
                       if (hexSend) {
                         if (value == null || value.isEmpty) {
@@ -79,15 +105,16 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
               FilledButton.icon(
                 icon: const Icon(Icons.send),
                 label: Text(AppLocalizations.of(context).send),
-                onPressed: connectionStatus == ConnectionStatus.connected
-                    ? () {
-                        if (_formKey.currentState!.validate()) {
-                          ref
-                              .read(serialConnectionProvider.notifier)
-                              .send(_sendController.text);
-                        }
-                      }
-                    : null,
+                onPressed:
+                    connectionStatus == ConnectionStatus.connected && _canSend
+                        ? () {
+                            if (_formKey.currentState!.validate()) {
+                              ref
+                                  .read(serialConnectionProvider.notifier)
+                                  .send(_sendController.text);
+                            }
+                          }
+                        : null,
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
                       vertical: 16.0, horizontal: 24.0),
