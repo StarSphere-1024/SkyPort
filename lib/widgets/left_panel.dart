@@ -368,38 +368,81 @@ class LeftPanel extends ConsumerWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Expanded(
-              child: _buildCompactSwitch(
-                context,
-                label: AppLocalizations.of(context).autoFrameBreak,
-                value: settings.autoFrameBreak,
-                onChanged: (v) => notifier.setAutoFrameBreak(v),
-                padding: EdgeInsets.zero,
-              ),
-            ),
-            if (settings.autoFrameBreak) ...[
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 80,
-                child: TextField(
-                  controller: TextEditingController(
-                      text: settings.autoFrameBreakMs.toString())
-                    ..selection = TextSelection.fromPosition(TextPosition(
-                        offset: settings.autoFrameBreakMs.toString().length)),
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: _denseInputDecoration(context, "ms"),
-                  style: Theme.of(context).textTheme.bodyMedium,
-                  textAlign: TextAlign.center,
-                  onSubmitted: (value) {
-                    final v = int.tryParse(value);
-                    if (v != null && v > 0) {
-                      notifier.setAutoFrameBreakMs(v);
-                    }
-                  },
+            Text(AppLocalizations.of(context).autoFrameBreak,
+                style: Theme.of(context).textTheme.bodyMedium),
+            const Spacer(),
+            Row(
+              children: [
+                SizedBox(
+                  width: 80,
+                  child: TextField(
+                    enabled: settings.autoFrameBreak,
+                    controller: TextEditingController(
+                        text: settings.autoFrameBreakMs.toString())
+                      ..selection = TextSelection.fromPosition(TextPosition(
+                          offset: settings.autoFrameBreakMs.toString().length)),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: InputDecoration(
+                      suffixText: 'ms',
+                      suffixStyle: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.6),
+                      ),
+                      filled: true,
+                      fillColor: settings.autoFrameBreak
+                          ? Theme.of(context).colorScheme.surface
+                          : Theme.of(context)
+                              .colorScheme
+                              .surface
+                              .withValues(alpha: 0.5),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.outline),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.outline),
+                      ),
+                      disabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .outline
+                                .withValues(alpha: 0.5)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.primary,
+                            width: 2),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12.0, vertical: 12.0),
+                      isDense: true,
+                    ),
+                    style: Theme.of(context).textTheme.bodyMedium,
+                    textAlign: TextAlign.center,
+                    onSubmitted: (value) {
+                      final v = int.tryParse(value);
+                      if (v != null && v > 0) {
+                        notifier.setAutoFrameBreakMs(v);
+                      }
+                    },
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 5),
+                Switch(
+                  value: settings.autoFrameBreak,
+                  onChanged: (v) => notifier.setAutoFrameBreak(v),
+                ),
+              ],
+            ),
           ],
         ),
       ],
@@ -426,55 +469,61 @@ class LeftPanel extends ConsumerWidget {
               (isConnected || isBusy) ? null : (v) => notifier.setHexSend(v),
         ),
         const SizedBox(height: 8),
-        _buildCompactSwitch(
-          context,
-          label: l10n.appendNewline,
-          value: settings.appendNewline,
-          onChanged: settings.hexSend
-              ? null
-              : (v) {
-                  notifier.setAppendNewline(v);
-                },
-        ),
-        const SizedBox(height: 4),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Expanded(
-              child: DropdownMenu<int>(
-                expandedInsets: EdgeInsets.zero,
-                initialSelection: settings.newlineMode.index,
-                dropdownMenuEntries: [
-                  DropdownMenuEntry<int>(
-                    value: 0,
-                    label: r"\n",
+            Text(l10n.appendNewline,
+                style: Theme.of(context).textTheme.bodyMedium),
+            const Spacer(),
+            Row(
+              children: [
+                SizedBox(
+                  width: 100,
+                  child: DropdownMenu<int>(
+                    enabled: settings.appendNewline,
+                    expandedInsets: EdgeInsets.zero,
+                    initialSelection: settings.newlineMode.index,
+                    dropdownMenuEntries: [
+                      DropdownMenuEntry<int>(
+                        value: 0,
+                        label: r"\n",
+                      ),
+                      DropdownMenuEntry<int>(
+                        value: 1,
+                        label: r"\r",
+                      ),
+                      DropdownMenuEntry<int>(
+                        value: 2,
+                        label: r"\r\n",
+                      ),
+                    ],
+                    onSelected: (!settings.appendNewline || settings.hexSend)
+                        ? null
+                        : (v) {
+                            if (v == null) return;
+                            switch (v) {
+                              case 0:
+                                notifier.setNewlineMode(NewlineMode.lf);
+                                break;
+                              case 1:
+                                notifier.setNewlineMode(NewlineMode.cr);
+                                break;
+                              case 2:
+                                notifier.setNewlineMode(NewlineMode.crlf);
+                                break;
+                            }
+                          },
+                    label: Text(l10n.newlineMode),
                   ),
-                  DropdownMenuEntry<int>(
-                    value: 1,
-                    label: r"\r",
-                  ),
-                  DropdownMenuEntry<int>(
-                    value: 2,
-                    label: r"\r\n",
-                  ),
-                ],
-                onSelected: (!settings.appendNewline || settings.hexSend)
-                    ? null
-                    : (v) {
-                        if (v == null) return;
-                        switch (v) {
-                          case 0:
-                            notifier.setNewlineMode(NewlineMode.lf);
-                            break;
-                          case 1:
-                            notifier.setNewlineMode(NewlineMode.cr);
-                            break;
-                          case 2:
-                            notifier.setNewlineMode(NewlineMode.crlf);
-                            break;
-                        }
-                      },
-                label: Text(l10n.newlineMode),
-              ),
+                ),
+                const SizedBox(width: 5),
+                Switch(
+                  value: settings.appendNewline,
+                  onChanged: settings.hexSend
+                      ? null
+                      : (v) => notifier.setAppendNewline(v),
+                ),
+              ],
             ),
           ],
         ),
