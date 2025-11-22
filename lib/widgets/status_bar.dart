@@ -13,18 +13,17 @@ class StatusBar extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context);
 
-    // 状态文本与颜色（按设计：左侧显示连接状态，颜色：未连接=灰色，已连接=绿色）
     String statusText;
     Color statusColor;
     switch (connection.status) {
       case ConnectionStatus.connected:
         statusText = l10n.connectedStatus(
             config?.portName ?? '-', config?.baudRate ?? 0);
-        statusColor = Colors.green; // 设计要求绿色
+        statusColor = Colors.green;
         break;
       case ConnectionStatus.connecting:
         statusText = l10n.connecting;
-        statusColor = colorScheme.tertiary; // 过渡状态用语义色
+        statusColor = colorScheme.tertiary;
         break;
       case ConnectionStatus.disconnecting:
         statusText = l10n.disconnecting;
@@ -32,11 +31,10 @@ class StatusBar extends ConsumerWidget {
         break;
       case ConnectionStatus.disconnected:
         statusText = l10n.disconnected;
-        statusColor = Colors.grey; // 设计要求灰色
+        statusColor = Colors.grey;
         break;
     }
 
-    // 统计格式：Rx: 1024 | Tx: 512
     final statsText = 'Rx: ${connection.rxBytes} | Tx: ${connection.txBytes}';
 
     return Container(
@@ -51,7 +49,6 @@ class StatusBar extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Row(
           children: [
-            // 左：连接状态
             Row(
               children: [
                 Icon(Icons.circle, color: statusColor, size: 10),
@@ -66,7 +63,6 @@ class StatusBar extends ConsumerWidget {
               ],
             ),
             const Spacer(),
-            // 右：统计
             Text(
               statsText,
               style:

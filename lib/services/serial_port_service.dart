@@ -91,7 +91,7 @@ class SerialPortService {
     try {
       session.dispose();
     } catch (e) {
-      // swallow, provider will decide if surfacing needed later
+      // Intentionally ignore: provider decides whether to surface the error.
     }
   }
 

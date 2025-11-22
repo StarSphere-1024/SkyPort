@@ -391,7 +391,7 @@ class LogEntry {
 
 class DataLogNotifier extends Notifier<List<LogEntry>> {
   Timer? _receiveDebounce;
-  // 行模式下用于缓存尚未结束的一行数据（按字节累积，避免中间解码问题）
+  // Buffer for accumulating bytes of the current line in line-mode text display.
   final List<int> _lineBuffer = [];
 
   @override
@@ -406,7 +406,7 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
     final settings = ref.read(uiSettingsProvider);
 
     if (settings.autoFrameBreak) {
-      // 自动断帧：使用去抖逻辑将短时间内的数据合并为一帧
+      // Auto frame break: debounce short bursts of data into a single frame.
       if (_receiveDebounce?.isActive ?? false) {
         _receiveDebounce!.cancel();
         // Append to the last entry
@@ -421,7 +421,6 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
           );
           state = updatedList;
         } else {
-          // This case should be rare, but handle it by creating a new entry
           state = [
             ...state,
             LogEntry(data, LogEntryType.received, DateTime.now())
@@ -440,14 +439,11 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
         // Debounce finished, next data will create a new entry
       });
     } else {
-      // 关闭自动断帧
       _receiveDebounce?.cancel();
 
       if (!settings.hexDisplay) {
-        // 文本显示模式下：按行聚合（支持 "\r\n" 和 "\n"）
         _appendAsLines(data);
       } else {
-        // HEX 显示模式：保持原样，每块数据一条日志
         state = [
           ...state,
           LogEntry(data, LogEntryType.received, DateTime.now()),
@@ -456,17 +452,10 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
     }
   }
 
-  /// 将接收到的字节按行聚合为多条日志；
-  /// - 仅在 autoFrameBreak=false 且 hexDisplay=false 时使用；
-  /// - 行结束符支持 "\n" 和 "\r\n"；
-  /// - 每个完整行作为一个 LogEntry 输出；
-  /// - 时间戳取行结束（换行）时刻。
   void _appendAsLines(Uint8List data) {
     for (final byte in data) {
-      // 遇到 '\n' 视为一行结束
       if (byte == 0x0A) {
         if (_lineBuffer.isNotEmpty) {
-          // 去掉末尾可能存在的 '\r'
           if (_lineBuffer.isNotEmpty && _lineBuffer.last == 0x0D) {
             _lineBuffer.removeLast();
           }
@@ -478,9 +467,7 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
             ...state,
             LogEntry(lineBytes, LogEntryType.received, DateTime.now()),
           ];
-        } else {
-          // 空缓冲遇到换行：视为空行，可忽略
-        }
+        } else {}
       } else {
         _lineBuffer.add(byte);
       }
@@ -488,8 +475,7 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
   }
 
   void addSent(Uint8List data) {
-    // Sent data should always create a new entry and not be debounced
-    _receiveDebounce?.cancel(); // Cancel any pending receive debounce
+    _receiveDebounce?.cancel();
     state = [...state, LogEntry(data, LogEntryType.sent, DateTime.now())];
   }
 
@@ -507,10 +493,10 @@ class UiSettings {
   final bool hexDisplay;
   final bool hexSend;
   final bool showTimestamp;
-  final bool showSent; // 控制是否显示发送的数据
+  final bool showSent; // Whether to display sent data in the log
   final int frameIntervalMs;
-  final bool autoFrameBreak; // 是否自动断帧
-  final int autoFrameBreakMs; // 自动断帧时间（毫秒）
+  final bool autoFrameBreak; // Whether to auto-merge frames using debounce
+  final int autoFrameBreakMs; // Auto frame break interval in milliseconds
 
   const UiSettings({
     this.hexDisplay = false,

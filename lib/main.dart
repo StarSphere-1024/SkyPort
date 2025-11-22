@@ -67,10 +67,8 @@ class HomePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 错误监听：出现错误时弹出 SnackBar，不覆盖状态栏文本
     ref.listen<String?>(errorProvider, (prev, next) {
       if (next != null && next.isNotEmpty) {
-        // 显示后清空，避免重复
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(next)));
         ref.read(errorProvider.notifier).clear();

@@ -86,7 +86,6 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                   child: Consumer(
                     builder: (context, ref, child) {
                       final rawDataLog = ref.watch(dataLogProvider);
-                      // 根据设置过滤：当关闭显示发送数据时，仅显示接收的数据
                       final dataLog = settings.showSent
                           ? rawDataLog
                           : rawDataLog
@@ -100,8 +99,6 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                               : dataLog.length;
 
                       final l10n = AppLocalizations.of(context);
-
-                      // 定义终端风格的字体样式
                       final monoStyle = theme.textTheme.bodyMedium!.copyWith(
                         fontFamily: 'monospace',
                         fontSize: 14.0,
@@ -152,14 +149,12 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                                 utf8.decode(entry.data, allowMalformed: true);
                           }
 
-                          // 终端式布局：每行极简显示
                           return Padding(
                             padding: const EdgeInsets.symmetric(
                                 vertical: 1.0, horizontal: 4.0),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // 1. 时间戳 (可选)
                                 if (settings.showTimestamp)
                                   Padding(
                                     padding: const EdgeInsets.only(right: 8.0),
@@ -170,8 +165,6 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                                       ),
                                     ),
                                   ),
-
-                                // 2. 方向指示符 (TX/RX)
                                 if (settings.showSent)
                                   Padding(
                                     padding: const EdgeInsets.only(right: 8.0),
@@ -185,13 +178,10 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                                       ),
                                     ),
                                   ),
-
-                                // 3. 数据内容
                                 Expanded(
                                   child: Text(
                                     dataText,
                                     style: monoStyle.copyWith(
-                                      // 接收内容用默认色，发送内容用稍微淡一点的颜色区分，或者保持一致
                                       color: isSent
                                           ? colorScheme.primary
                                               .withValues(alpha: 0.8)
@@ -232,7 +222,7 @@ class _RightPanelState extends ConsumerState<RightPanel> {
                           decoration: InputDecoration(
                             border: const OutlineInputBorder(),
                             labelText: l10n.enterDataToSend,
-                            isDense: true, // 稍微紧凑一点的输入框
+                            isDense: true,
                           ),
                           keyboardType: TextInputType.multiline,
                           minLines: 1,

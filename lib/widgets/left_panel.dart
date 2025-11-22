@@ -66,7 +66,6 @@ class LeftPanel extends ConsumerWidget {
                                 data: (ports) {
                                   var selectedPort = serialConfig?.portName;
 
-                                  // If selectedPort is null, try to select first available
                                   if (selectedPort == null &&
                                       ports.isNotEmpty) {
                                     selectedPort = ports.first;
@@ -91,7 +90,6 @@ class LeftPanel extends ConsumerWidget {
                                   final isUnavailable = selectedPort != null &&
                                       !ports.contains(selectedPort);
 
-                                  // If we have a selected port but it's not in the list, add it as unavailable
                                   if (isUnavailable) {
                                     dropdownItems.add(DropdownMenuItem<String>(
                                       value: selectedPort,
