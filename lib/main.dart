@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sky_port/providers/serial_provider.dart';
 import 'package:sky_port/theme.dart';
 import 'package:sky_port/widgets/left_panel.dart';
@@ -13,6 +14,8 @@ import 'l10n/app_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  final prefs = await SharedPreferences.getInstance();
 
   // For desktop platforms, initialize window manager.
   // For mobile, you might want to use packages like usb_serial.
@@ -28,7 +31,11 @@ void main() async {
     });
   }
 
-  final container = ProviderContainer();
+  final container = ProviderContainer(
+    overrides: [
+      sharedPreferencesProvider.overrideWithValue(prefs),
+    ],
+  );
   runApp(
     UncontrolledProviderScope(
       container: container,

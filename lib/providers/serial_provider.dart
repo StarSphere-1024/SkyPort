@@ -4,11 +4,16 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_libserialport/flutter_libserialport.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/serial_port_service.dart';
 
 // Service provider for dependency injection & testability
 final serialPortServiceProvider = Provider<SerialPortService>((ref) {
   return SerialPortService();
+});
+
+final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
+  throw UnimplementedError();
 });
 
 // Custom Exception for when no serial ports are available
@@ -87,8 +92,16 @@ class SerialConfig {
 
 // 3. Provider for serial port configuration state
 class SerialConfigNotifier extends Notifier<SerialConfig?> {
+  static const _keyPortName = 'serial_port_name';
+  static const _keyBaudRate = 'serial_baud_rate';
+  static const _keyDataBits = 'serial_data_bits';
+  static const _keyParity = 'serial_parity';
+  static const _keyStopBits = 'serial_stop_bits';
+
   @override
   SerialConfig? build() {
+    final prefs = ref.read(sharedPreferencesProvider);
+
     // Listen to port changes to update selection intelligently
     ref.listen(availablePortsProvider, (previous, next) {
       final newPorts = next.asData?.value ?? [];
@@ -96,8 +109,13 @@ class SerialConfigNotifier extends Notifier<SerialConfig?> {
 
       if (currentConfig == null) {
         // If nothing selected and ports become available, select the first one
-        if (newPorts.isNotEmpty) {
-          state = SerialConfig(portName: newPorts.first);
+        // Or try to restore saved port if available
+        final savedPort = prefs.getString(_keyPortName);
+        if (savedPort != null && newPorts.contains(savedPort)) {
+          state = _loadConfigFromPrefs(prefs, savedPort);
+        } else if (newPorts.isNotEmpty) {
+          // If saved port not available, use first available but keep other saved settings
+          state = _loadConfigFromPrefs(prefs, newPorts.first);
         }
       } else {
         // If currently selected port is gone
@@ -105,6 +123,9 @@ class SerialConfigNotifier extends Notifier<SerialConfig?> {
           if (newPorts.isNotEmpty) {
             // Switch to first available
             state = currentConfig.copyWith(portName: newPorts.first);
+            // We don't save the auto-switch immediately to avoid overwriting user preference
+            // if the device is just temporarily disconnected?
+            // Actually, for simplicity, let's just update state.
           } else {
             // No ports left
             state = null;
@@ -116,31 +137,63 @@ class SerialConfigNotifier extends Notifier<SerialConfig?> {
 
     // Initial state
     final initialPorts = SerialPort.availablePorts;
-    if (initialPorts.isNotEmpty) {
-      return SerialConfig(portName: initialPorts.first);
+    final savedPort = prefs.getString(_keyPortName);
+
+    if (savedPort != null && initialPorts.contains(savedPort)) {
+      return _loadConfigFromPrefs(prefs, savedPort);
+    } else if (initialPorts.isNotEmpty) {
+      return _loadConfigFromPrefs(prefs, initialPorts.first);
     }
+
     return null;
+  }
+
+  SerialConfig _loadConfigFromPrefs(SharedPreferences prefs, String portName) {
+    return SerialConfig(
+      portName: portName,
+      baudRate: prefs.getInt(_keyBaudRate) ?? 9600,
+      dataBits: prefs.getInt(_keyDataBits) ?? 8,
+      parity: prefs.getInt(_keyParity) ?? SerialPortParity.none,
+      stopBits: prefs.getInt(_keyStopBits) ?? 1,
+    );
+  }
+
+  void _saveConfig() {
+    final config = state;
+    if (config != null) {
+      final prefs = ref.read(sharedPreferencesProvider);
+      prefs.setString(_keyPortName, config.portName);
+      prefs.setInt(_keyBaudRate, config.baudRate);
+      prefs.setInt(_keyDataBits, config.dataBits);
+      prefs.setInt(_keyParity, config.parity);
+      prefs.setInt(_keyStopBits, config.stopBits);
+    }
   }
 
   void setPort(String portName) {
     state =
         state?.copyWith(portName: portName) ?? SerialConfig(portName: portName);
+    _saveConfig();
   }
 
   void setBaudRate(int baudRate) {
     state = state?.copyWith(baudRate: baudRate);
+    _saveConfig();
   }
 
   void setDataBits(int dataBits) {
     state = state?.copyWith(dataBits: dataBits);
+    _saveConfig();
   }
 
   void setParity(int parity) {
     state = state?.copyWith(parity: parity);
+    _saveConfig();
   }
 
   void setStopBits(int stopBits) {
     state = state?.copyWith(stopBits: stopBits);
+    _saveConfig();
   }
 }
 
@@ -419,15 +472,26 @@ class UiSettings {
 }
 
 class UiSettingsNotifier extends Notifier<UiSettings> {
+  static const _keyHexDisplay = 'ui_hex_display';
+  static const _keyHexSend = 'ui_hex_send';
+
   @override
-  UiSettings build() => const UiSettings();
+  UiSettings build() {
+    final prefs = ref.read(sharedPreferencesProvider);
+    return UiSettings(
+      hexDisplay: prefs.getBool(_keyHexDisplay) ?? false,
+      hexSend: prefs.getBool(_keyHexSend) ?? false,
+    );
+  }
 
   void setHexDisplay(bool value) {
     state = state.copyWith(hexDisplay: value);
+    ref.read(sharedPreferencesProvider).setBool(_keyHexDisplay, value);
   }
 
   void setHexSend(bool value) {
     state = state.copyWith(hexSend: value);
+    ref.read(sharedPreferencesProvider).setBool(_keyHexSend, value);
   }
 }
 
