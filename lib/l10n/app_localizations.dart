@@ -248,6 +248,18 @@ abstract class AppLocalizations {
   /// **'Hex Send'**
   String get hexSend;
 
+  /// No description provided for @appendNewline.
+  ///
+  /// In en, this message translates to:
+  /// **'Append newline'**
+  String get appendNewline;
+
+  /// No description provided for @newlineMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Newline'**
+  String get newlineMode;
+
   /// No description provided for @loadMore.
   ///
   /// In en, this message translates to:

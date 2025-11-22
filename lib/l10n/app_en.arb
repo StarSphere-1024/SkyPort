@@ -25,6 +25,8 @@
   "clearReceiveArea": "Clear Receive Area",
   "sendSettings": "Send Settings",
   "hexSend": "Hex Send",
+  "appendNewline": "Append newline",
+  "newlineMode": "Newline",
   "loadMore": "Load More",
   "enterDataToSend": "Enter data to send",
   "invalidHexChars": "Invalid characters. Use 0-9, A-F.",

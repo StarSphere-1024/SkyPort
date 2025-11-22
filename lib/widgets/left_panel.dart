@@ -414,15 +414,69 @@ class LeftPanel extends ConsumerWidget {
   ) {
     final settings = ref.watch(uiSettingsProvider);
     final notifier = ref.read(uiSettingsProvider.notifier);
+    final l10n = AppLocalizations.of(context);
 
     return Column(
       children: [
         _buildCompactSwitch(
           context,
-          label: AppLocalizations.of(context).hexSend,
+          label: l10n.hexSend,
           value: settings.hexSend,
           onChanged:
               (isConnected || isBusy) ? null : (v) => notifier.setHexSend(v),
+        ),
+        const SizedBox(height: 8),
+        _buildCompactSwitch(
+          context,
+          label: l10n.appendNewline,
+          value: settings.appendNewline,
+          onChanged: settings.hexSend
+              ? null
+              : (v) {
+                  notifier.setAppendNewline(v);
+                },
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Expanded(
+              child: DropdownMenu<int>(
+                expandedInsets: EdgeInsets.zero,
+                initialSelection: settings.newlineMode.index,
+                dropdownMenuEntries: [
+                  DropdownMenuEntry<int>(
+                    value: 0,
+                    label: r"\n",
+                  ),
+                  DropdownMenuEntry<int>(
+                    value: 1,
+                    label: r"\r",
+                  ),
+                  DropdownMenuEntry<int>(
+                    value: 2,
+                    label: r"\r\n",
+                  ),
+                ],
+                onSelected: (!settings.appendNewline || settings.hexSend)
+                    ? null
+                    : (v) {
+                        if (v == null) return;
+                        switch (v) {
+                          case 0:
+                            notifier.setNewlineMode(NewlineMode.lf);
+                            break;
+                          case 1:
+                            notifier.setNewlineMode(NewlineMode.cr);
+                            break;
+                          case 2:
+                            notifier.setNewlineMode(NewlineMode.crlf);
+                            break;
+                        }
+                      },
+                label: Text(l10n.newlineMode),
+              ),
+            ),
+          ],
         ),
       ],
     );

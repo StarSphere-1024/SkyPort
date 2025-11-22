@@ -317,13 +317,30 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
     ref.read(errorProvider.notifier).clear();
 
     final useHex = ref.read(uiSettingsProvider).hexSend;
+    final uiSettings = ref.read(uiSettingsProvider);
     Uint8List bytesToSend;
 
     try {
       if (useHex) {
         bytesToSend = _hexToBytes(data);
       } else {
-        bytesToSend = Uint8List.fromList(utf8.encode(data));
+        var textToSend = data;
+        if (uiSettings.appendNewline) {
+          String newline;
+          switch (uiSettings.newlineMode) {
+            case NewlineMode.lf:
+              newline = '\n';
+              break;
+            case NewlineMode.cr:
+              newline = '\r';
+              break;
+            case NewlineMode.crlf:
+              newline = '\r\n';
+              break;
+          }
+          textToSend = '$textToSend$newline';
+        }
+        bytesToSend = Uint8List.fromList(utf8.encode(textToSend));
       }
     } catch (e) {
       ref.read(errorProvider.notifier).setError('Invalid Hex format.');
@@ -497,6 +514,9 @@ class UiSettings {
   final int frameIntervalMs;
   final bool autoFrameBreak; // Whether to auto-merge frames using debounce
   final int autoFrameBreakMs; // Auto frame break interval in milliseconds
+  // Sending new line settings
+  final bool appendNewline; // Whether to append a newline when sending text
+  final NewlineMode newlineMode; // Which newline sequence to append
 
   const UiSettings({
     this.hexDisplay = false,
@@ -506,6 +526,8 @@ class UiSettings {
     this.frameIntervalMs = 20,
     this.autoFrameBreak = true,
     this.autoFrameBreakMs = 20,
+    this.appendNewline = false,
+    this.newlineMode = NewlineMode.lf,
   });
 
   UiSettings copyWith({
@@ -516,6 +538,8 @@ class UiSettings {
     int? frameIntervalMs,
     bool? autoFrameBreak,
     int? autoFrameBreakMs,
+    bool? appendNewline,
+    NewlineMode? newlineMode,
   }) {
     return UiSettings(
       hexDisplay: hexDisplay ?? this.hexDisplay,
@@ -525,8 +549,17 @@ class UiSettings {
       frameIntervalMs: frameIntervalMs ?? this.frameIntervalMs,
       autoFrameBreak: autoFrameBreak ?? this.autoFrameBreak,
       autoFrameBreakMs: autoFrameBreakMs ?? this.autoFrameBreakMs,
+      appendNewline: appendNewline ?? this.appendNewline,
+      newlineMode: newlineMode ?? this.newlineMode,
     );
   }
+}
+
+/// Mode for which newline sequence to append when sending text data.
+enum NewlineMode {
+  lf, // "\n"
+  cr, // "\r"
+  crlf, // "\r\n"
 }
 
 class UiSettingsNotifier extends Notifier<UiSettings> {
@@ -537,6 +570,9 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
   static const _keyFrameIntervalMs = 'ui_frame_interval_ms';
   static const _keyAutoFrameBreak = 'ui_auto_frame_break';
   static const _keyAutoFrameBreakMs = 'ui_auto_frame_break_ms';
+  // Newline settings keys
+  static const _keyAppendNewline = 'ui_append_newline';
+  static const _keyNewlineMode = 'ui_newline_mode';
 
   @override
   UiSettings build() {
@@ -549,6 +585,9 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
       frameIntervalMs: prefs.getInt(_keyFrameIntervalMs) ?? 20,
       autoFrameBreak: prefs.getBool(_keyAutoFrameBreak) ?? true,
       autoFrameBreakMs: prefs.getInt(_keyAutoFrameBreakMs) ?? 20,
+      appendNewline: prefs.getBool(_keyAppendNewline) ?? false,
+      newlineMode: NewlineMode
+          .values[prefs.getInt(_keyNewlineMode) ?? NewlineMode.lf.index],
     );
   }
 
@@ -585,6 +624,16 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
   void setAutoFrameBreakMs(int value) {
     state = state.copyWith(autoFrameBreakMs: value);
     ref.read(sharedPreferencesProvider).setInt(_keyAutoFrameBreakMs, value);
+  }
+
+  void setAppendNewline(bool value) {
+    state = state.copyWith(appendNewline: value);
+    ref.read(sharedPreferencesProvider).setBool(_keyAppendNewline, value);
+  }
+
+  void setNewlineMode(NewlineMode mode) {
+    state = state.copyWith(newlineMode: mode);
+    ref.read(sharedPreferencesProvider).setInt(_keyNewlineMode, mode.index);
   }
 }
 

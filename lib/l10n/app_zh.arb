@@ -25,6 +25,8 @@
   "clearReceiveArea": "清空接收区",
   "sendSettings": "发送设置",
   "hexSend": "十六进制发送",
+  "appendNewline": "添加换行符",
+  "newlineMode": "换行符",
   "loadMore": "加载更多",
   "enterDataToSend": "输入要发送的数据",
   "invalidHexChars": "字符不合法，仅允许 0-9 与 A-F",

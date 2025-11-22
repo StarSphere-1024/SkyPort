@@ -84,6 +84,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get hexSend => '十六进制发送';
 
   @override
+  String get appendNewline => '添加换行符';
+
+  @override
+  String get newlineMode => '换行符';
+
+  @override
   String get loadMore => '加载更多';
 
   @override

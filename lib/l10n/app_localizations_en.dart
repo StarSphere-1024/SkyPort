@@ -84,6 +84,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hexSend => 'Hex Send';
 
   @override
+  String get appendNewline => 'Append newline';
+
+  @override
+  String get newlineMode => 'Newline';
+
+  @override
   String get loadMore => 'Load More';
 
   @override
