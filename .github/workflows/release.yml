@@ -35,26 +35,14 @@ jobs:
           pattern: '*'
           merge-multiple: true
 
-      - name: Generate changelog snippet
-        id: changelog
-        run: |
-          echo "notes<<EOF" >> "$GITHUB_OUTPUT"
-          git log -n 20 --pretty=format:"* %h %s" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
-
       - name: List artifacts
         run: ls -R artifacts
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/*
+          files: artifacts/**/*
           body: |
-            SkyPort v${{ needs.build.outputs.app_version }} 发布
-
-            若版本输出为空，可能是复用工作流尚未更新；可检查 build-matrix.yml。
-
-            最近 20 条提交:
-            ${{ steps.changelog.outputs.notes }}
+            SkyPort v${{ needs.build.outputs.app_version }} released.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
