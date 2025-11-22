@@ -82,6 +82,7 @@ class HomePage extends ConsumerWidget {
       ),
       body: const SafeArea(
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
               width: 350,
