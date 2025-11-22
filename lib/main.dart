@@ -69,8 +69,13 @@ class HomePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     ref.listen<String?>(errorProvider, (prev, next) {
       if (next != null && next.isNotEmpty) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(next)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: SelectableText(
+              next,
+            ),
+          ),
+        );
         ref.read(errorProvider.notifier).clear();
       }
     });
