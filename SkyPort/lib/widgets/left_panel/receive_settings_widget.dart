@@ -143,7 +143,21 @@ class ReceiveSettingsWidget extends ConsumerWidget {
                             decoration: InputDecoration(
                               suffixText: 'ms',
                               isDense: true,
-                              border: const OutlineInputBorder(),
+                              border: OutlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: Theme.of(context).colorScheme.outline,
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: Theme.of(context).colorScheme.outline,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: Theme.of(context).colorScheme.outline,
+                                ),
+                              ),
                               filled: true,
                               fillColor: Theme.of(context).colorScheme.surface,
                             ),

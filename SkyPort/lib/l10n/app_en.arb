@@ -50,7 +50,7 @@
       "tx": {"type": "int"}
     }
   },
-  "timeoutLabel": "Timeout",
+  "timeoutLabel": "Block Interval",
   "receiveModeTooltip": "Line: Split data when newline is received\nBlock: Split data when no data received for set time",
   "receiveModeTooltipHex": "Line mode not available in Hex display\nBlock: Split data when no data received for set time",
   "lineModeLabel": "Line",

@@ -127,7 +127,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get timeoutLabel => '超时时间';
+  String get timeoutLabel => '块间隔';
 
   @override
   String get receiveModeTooltip => '按行：收到换行符时分包\n按块：超过设定时间未收到数据时分包';

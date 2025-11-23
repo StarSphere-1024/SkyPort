@@ -329,7 +329,7 @@ abstract class AppLocalizations {
   /// No description provided for @timeoutLabel.
   ///
   /// In en, this message translates to:
-  /// **'Timeout'**
+  /// **'Block Interval'**
   String get timeoutLabel;
 
   /// No description provided for @receiveModeTooltip.

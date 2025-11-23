@@ -127,7 +127,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get timeoutLabel => 'Timeout';
+  String get timeoutLabel => 'Block Interval';
 
   @override
   String get receiveModeTooltip =>
