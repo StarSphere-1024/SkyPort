@@ -7,7 +7,7 @@
 
 ## 📸 界面预览
 
-<img src="docs/images/main_interface.png" alt="SkyPort 主界面" width="75%">
+<img src="static/images/main_interface.png" alt="SkyPort 主界面" width="75%">
 
 ## ✨ 功能特性
 
