@@ -16,7 +16,7 @@ class ThemeModeNotifier extends Notifier<ThemeMode> {
     final themeString = prefs.getString(_themeKey);
     if (themeString == 'light') return ThemeMode.light;
     if (themeString == 'dark') return ThemeMode.dark;
-    return ThemeMode.system; // 默认跟随系统
+    return ThemeMode.system; // Default to follow system
   }
 
   void toggleTheme() {
@@ -25,7 +25,6 @@ class ThemeModeNotifier extends Notifier<ThemeMode> {
     } else if (state == ThemeMode.dark) {
       state = ThemeMode.light;
     } else {
-      // 如果是system，默认切换到light
       state = ThemeMode.light;
     }
     _saveThemeMode();
