@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/serial_provider.dart';
+import 'providers/theme_provider.dart';
 import 'theme.dart';
 import 'widgets/left_panel.dart';
 import 'widgets/right_panel.dart';
@@ -45,16 +46,17 @@ void main() async {
   );
 }
 
-class SerialDebuggerApp extends StatelessWidget {
+class SerialDebuggerApp extends ConsumerWidget {
   const SerialDebuggerApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
     return MaterialApp(
       onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       theme: lightTheme,
       darkTheme: darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: themeMode,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: const HomePage(),
@@ -83,6 +85,21 @@ class HomePage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(AppLocalizations.of(context).appTitle),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: IconButton(
+              icon: Icon(
+                Theme.of(context).brightness == Brightness.dark
+                    ? Icons.dark_mode
+                    : Icons.light_mode,
+              ),
+              onPressed: () {
+                ref.read(themeModeProvider.notifier).toggleTheme();
+              },
+            ),
+          ),
+        ],
       ),
       body: const SafeArea(
         child: Row(
