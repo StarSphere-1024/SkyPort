@@ -43,7 +43,7 @@
 ## 🚀 如何构建
 
 ### 环境准备
-确保你已安装 Flutter SDK 和 Dart SDK。详情请参考 [Flutter 官方文档](https://flutter.dev/docs/get-started/install)。
+确保你已安装 Flutter SDK 和 Dart SDK。详情请参考 [Flutter 官方文档](https://flutter.dev/static/get-started/install)。
 
 ### 构建步骤
 
