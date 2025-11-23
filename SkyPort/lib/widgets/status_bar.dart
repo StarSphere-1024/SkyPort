@@ -35,7 +35,7 @@ class StatusBar extends ConsumerWidget {
         break;
     }
 
-    final statsText = 'Rx: ${connection.rxBytes} | Tx: ${connection.txBytes}';
+    final statsText = l10n.trafficStats(connection.rxBytes, connection.txBytes);
 
     return Container(
       height: 32,

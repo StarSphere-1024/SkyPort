@@ -212,59 +212,11 @@ abstract class AppLocalizations {
   /// **'Show Sent Data'**
   String get showSent;
 
-  /// No description provided for @frameIntervalMs.
-  ///
-  /// In en, this message translates to:
-  /// **'Frame Interval (ms)'**
-  String get frameIntervalMs;
-
-  /// No description provided for @autoFrameBreak.
-  ///
-  /// In en, this message translates to:
-  /// **'Block receive mode'**
-  String get autoFrameBreak;
-
   /// No description provided for @receiveMode.
   ///
   /// In en, this message translates to:
   /// **'Receive mode'**
   String get receiveMode;
-
-  /// No description provided for @blockReceiveMode.
-  ///
-  /// In en, this message translates to:
-  /// **'Block receive mode'**
-  String get blockReceiveMode;
-
-  /// No description provided for @lineReceiveMode.
-  ///
-  /// In en, this message translates to:
-  /// **'Line receive mode'**
-  String get lineReceiveMode;
-
-  /// No description provided for @blockInterval.
-  ///
-  /// In en, this message translates to:
-  /// **'Block interval'**
-  String get blockInterval;
-
-  /// No description provided for @lineReceiveDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Process data line by line based on newline characters'**
-  String get lineReceiveDescription;
-
-  /// No description provided for @blockReceiveDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Group incoming data into blocks with configurable intervals'**
-  String get blockReceiveDescription;
-
-  /// No description provided for @frameBreakTimeMs.
-  ///
-  /// In en, this message translates to:
-  /// **'Frame break time (ms)'**
-  String get frameBreakTimeMs;
 
   /// No description provided for @clearReceiveArea.
   ///
@@ -373,6 +325,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Rx: {rx} | Tx: {tx}'**
   String trafficStats(int rx, int tx);
+
+  /// No description provided for @timeoutLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Timeout'**
+  String get timeoutLabel;
+
+  /// No description provided for @receiveModeTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Line: Split data when newline is received\nBlock: Split data when no data received for set time'**
+  String get receiveModeTooltip;
+
+  /// No description provided for @receiveModeTooltipHex.
+  ///
+  /// In en, this message translates to:
+  /// **'Line mode not available in Hex display\nBlock: Split data when no data received for set time'**
+  String get receiveModeTooltipHex;
+
+  /// No description provided for @lineModeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Line'**
+  String get lineModeLabel;
+
+  /// No description provided for @blockModeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Block'**
+  String get blockModeLabel;
 }
 
 class _AppLocalizationsDelegate

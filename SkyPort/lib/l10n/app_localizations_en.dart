@@ -66,33 +66,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get showSent => 'Show Sent Data';
 
   @override
-  String get frameIntervalMs => 'Frame Interval (ms)';
-
-  @override
-  String get autoFrameBreak => 'Block receive mode';
-
-  @override
   String get receiveMode => 'Receive mode';
-
-  @override
-  String get blockReceiveMode => 'Block receive mode';
-
-  @override
-  String get lineReceiveMode => 'Line receive mode';
-
-  @override
-  String get blockInterval => 'Block interval';
-
-  @override
-  String get lineReceiveDescription =>
-      'Process data line by line based on newline characters';
-
-  @override
-  String get blockReceiveDescription =>
-      'Group incoming data into blocks with configurable intervals';
-
-  @override
-  String get frameBreakTimeMs => 'Frame break time (ms)';
 
   @override
   String get clearReceiveArea => 'Clear Receive Area';
@@ -151,4 +125,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String trafficStats(int rx, int tx) {
     return 'Rx: $rx | Tx: $tx';
   }
+
+  @override
+  String get timeoutLabel => 'Timeout';
+
+  @override
+  String get receiveModeTooltip =>
+      'Line: Split data when newline is received\nBlock: Split data when no data received for set time';
+
+  @override
+  String get receiveModeTooltipHex =>
+      'Line mode not available in Hex display\nBlock: Split data when no data received for set time';
+
+  @override
+  String get lineModeLabel => 'Line';
+
+  @override
+  String get blockModeLabel => 'Block';
 }

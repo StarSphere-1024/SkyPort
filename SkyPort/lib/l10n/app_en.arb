@@ -19,15 +19,7 @@
   "hexDisplay": "Hex Display",
   "showTimestamp": "Show Timestamp",
   "showSent": "Show Sent Data",
-  "frameIntervalMs": "Frame Interval (ms)",
-  "autoFrameBreak": "Block receive mode",
   "receiveMode": "Receive mode",
-  "blockReceiveMode": "Block receive mode",
-  "lineReceiveMode": "Line receive mode",
-  "blockInterval": "Block interval",
-  "lineReceiveDescription": "Process data line by line based on newline characters",
-  "blockReceiveDescription": "Group incoming data into blocks with configurable intervals",
-  "frameBreakTimeMs": "Frame break time (ms)",
   "clearReceiveArea": "Clear Receive Area",
   "sendSettings": "Send Settings",
   "hexSend": "Hex Send",
@@ -57,5 +49,10 @@
       "rx": {"type": "int"},
       "tx": {"type": "int"}
     }
-  }
+  },
+  "timeoutLabel": "Timeout",
+  "receiveModeTooltip": "Line: Split data when newline is received\nBlock: Split data when no data received for set time",
+  "receiveModeTooltipHex": "Line mode not available in Hex display\nBlock: Split data when no data received for set time",
+  "lineModeLabel": "Line",
+  "blockModeLabel": "Block"
 }

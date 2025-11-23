@@ -19,15 +19,7 @@
   "hexDisplay": "十六进制显示",
   "showTimestamp": "显示时间戳",
   "showSent": "显示发送数据",
-  "frameIntervalMs": "断帧间隔 (ms)",
-  "autoFrameBreak": "块接收模式",
   "receiveMode": "接收模式",
-  "blockReceiveMode": "块接收模式",
-  "lineReceiveMode": "行接收模式",
-  "blockInterval": "块间隔",
-  "lineReceiveDescription": "基于换行符按行处理数据",
-  "blockReceiveDescription": "将接收到的数据按可配置间隔分组为数据块",
-  "frameBreakTimeMs": "断帧时间 (ms)",
   "clearReceiveArea": "清空接收区",
   "sendSettings": "发送设置",
   "hexSend": "十六进制发送",
@@ -57,5 +49,10 @@
       "rx": {"type": "int"},
       "tx": {"type": "int"}
     }
-  }
+  },
+  "timeoutLabel": "超时时间",
+  "receiveModeTooltip": "按行：收到换行符时分包\n按块：超过设定时间未收到数据时分包",
+  "receiveModeTooltipHex": "十六进制显示模式下按行不可用\n按块：超过设定时间未收到数据时分包",
+  "lineModeLabel": "按行",
+  "blockModeLabel": "按块"
 }

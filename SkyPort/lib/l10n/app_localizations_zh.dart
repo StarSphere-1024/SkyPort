@@ -66,31 +66,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get showSent => '显示发送数据';
 
   @override
-  String get frameIntervalMs => '断帧间隔 (ms)';
-
-  @override
-  String get autoFrameBreak => '块接收模式';
-
-  @override
   String get receiveMode => '接收模式';
-
-  @override
-  String get blockReceiveMode => '块接收模式';
-
-  @override
-  String get lineReceiveMode => '行接收模式';
-
-  @override
-  String get blockInterval => '块间隔';
-
-  @override
-  String get lineReceiveDescription => '基于换行符按行处理数据';
-
-  @override
-  String get blockReceiveDescription => '将接收到的数据按可配置间隔分组为数据块';
-
-  @override
-  String get frameBreakTimeMs => '断帧时间 (ms)';
 
   @override
   String get clearReceiveArea => '清空接收区';
@@ -149,4 +125,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String trafficStats(int rx, int tx) {
     return '接收: $rx | 发送: $tx';
   }
+
+  @override
+  String get timeoutLabel => '超时时间';
+
+  @override
+  String get receiveModeTooltip => '按行：收到换行符时分包\n按块：超过设定时间未收到数据时分包';
+
+  @override
+  String get receiveModeTooltipHex => '十六进制显示模式下按行不可用\n按块：超过设定时间未收到数据时分包';
+
+  @override
+  String get lineModeLabel => '按行';
+
+  @override
+  String get blockModeLabel => '按块';
 }

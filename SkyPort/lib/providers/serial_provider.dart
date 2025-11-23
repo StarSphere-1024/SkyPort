@@ -430,7 +430,8 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
     // Determine receive mode:
     // - If hexDisplay is true: always use block receive mode
     // - If hexDisplay is false: use line mode if enabled, otherwise block mode
-    final useBlockMode = settings.hexDisplay || !settings.lineMode;
+    final useBlockMode =
+        settings.hexDisplay || settings.receiveMode == ReceiveMode.block;
 
     if (useBlockMode) {
       // Block receive mode: debounce short bursts of data into a single frame.
@@ -508,10 +509,9 @@ class UiSettings {
   final bool showSent; // Whether to display sent data in the log
   final int
       blockIntervalMs; // Block interval in milliseconds for block receive mode
-  final bool
-      lineMode; // Whether to use line-based receive mode (only available in text mode)
-  final bool
-      preferredReceiveMode; // User's preferred receive mode in text mode (true=line, false=block)
+  final ReceiveMode receiveMode; // Receive mode: line or block
+  final ReceiveMode
+      preferredReceiveMode; // User's preferred receive mode in text mode
   // Sending new line settings
   final bool appendNewline; // Whether to append a newline when sending text
   final NewlineMode newlineMode; // Which newline sequence to append
@@ -522,8 +522,9 @@ class UiSettings {
     this.showTimestamp = true,
     this.showSent = true,
     this.blockIntervalMs = 20,
-    this.lineMode = false, // Default to block receive mode
-    this.preferredReceiveMode = false, // Default to block receive mode
+    this.receiveMode = ReceiveMode.block, // Default to block receive mode
+    this.preferredReceiveMode =
+        ReceiveMode.block, // Default to block receive mode
     this.appendNewline = false,
     this.newlineMode = NewlineMode.lf,
   });
@@ -534,8 +535,8 @@ class UiSettings {
     bool? showTimestamp,
     bool? showSent,
     int? blockIntervalMs,
-    bool? lineMode,
-    bool? preferredReceiveMode,
+    ReceiveMode? receiveMode,
+    ReceiveMode? preferredReceiveMode,
     bool? appendNewline,
     NewlineMode? newlineMode,
   }) {
@@ -545,7 +546,7 @@ class UiSettings {
       showTimestamp: showTimestamp ?? this.showTimestamp,
       showSent: showSent ?? this.showSent,
       blockIntervalMs: blockIntervalMs ?? this.blockIntervalMs,
-      lineMode: lineMode ?? this.lineMode,
+      receiveMode: receiveMode ?? this.receiveMode,
       preferredReceiveMode: preferredReceiveMode ?? this.preferredReceiveMode,
       appendNewline: appendNewline ?? this.appendNewline,
       newlineMode: newlineMode ?? this.newlineMode,
@@ -558,6 +559,12 @@ enum NewlineMode {
   lf, // "\n"
   cr, // "\r"
   crlf, // "\r\n"
+}
+
+/// Receive mode for data reception.
+enum ReceiveMode {
+  line,
+  block,
 }
 
 class UiSettingsNotifier extends Notifier<UiSettings> {
@@ -581,8 +588,12 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
       showTimestamp: prefs.getBool(_keyShowTimestamp) ?? true,
       showSent: prefs.getBool(_keyShowSent) ?? true,
       blockIntervalMs: prefs.getInt(_keyBlockIntervalMs) ?? 20,
-      lineMode: prefs.getBool(_keyLineMode) ?? false,
-      preferredReceiveMode: prefs.getBool(_keyPreferredReceiveMode) ?? false,
+      receiveMode: (prefs.getBool(_keyLineMode) ?? false)
+          ? ReceiveMode.line
+          : ReceiveMode.block,
+      preferredReceiveMode: (prefs.getBool(_keyPreferredReceiveMode) ?? false)
+          ? ReceiveMode.line
+          : ReceiveMode.block,
       appendNewline: prefs.getBool(_keyAppendNewline) ?? false,
       newlineMode: NewlineMode
           .values[prefs.getInt(_keyNewlineMode) ?? NewlineMode.lf.index],
@@ -591,29 +602,30 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
 
   void setHexDisplay(bool value) {
     final newHexDisplay = value;
-    final currentLineMode = state.lineMode;
+    final currentReceiveMode = state.receiveMode;
 
     if (newHexDisplay) {
       // Switching to HEX mode: save current preference and force block mode
       state = state.copyWith(
         hexDisplay: true,
-        lineMode: false,
-        preferredReceiveMode: currentLineMode, // Save user's preference
+        receiveMode: ReceiveMode.block,
+        preferredReceiveMode: currentReceiveMode, // Save user's preference
       );
       ref.read(sharedPreferencesProvider).setBool(_keyHexDisplay, true);
       ref.read(sharedPreferencesProvider).setBool(_keyLineMode, false);
-      ref
-          .read(sharedPreferencesProvider)
-          .setBool(_keyPreferredReceiveMode, currentLineMode);
+      ref.read(sharedPreferencesProvider).setBool(
+          _keyPreferredReceiveMode, currentReceiveMode == ReceiveMode.line);
     } else {
       // Switching to text mode: restore user's preference
       final preferredMode = state.preferredReceiveMode;
       state = state.copyWith(
         hexDisplay: false,
-        lineMode: preferredMode,
+        receiveMode: preferredMode,
       );
       ref.read(sharedPreferencesProvider).setBool(_keyHexDisplay, false);
-      ref.read(sharedPreferencesProvider).setBool(_keyLineMode, preferredMode);
+      ref
+          .read(sharedPreferencesProvider)
+          .setBool(_keyLineMode, preferredMode == ReceiveMode.line);
     }
   }
 
@@ -637,15 +649,17 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
     ref.read(sharedPreferencesProvider).setInt(_keyBlockIntervalMs, value);
   }
 
-  void setReceiveMode(bool isLineMode) {
+  void setReceiveMode(ReceiveMode mode) {
     state = state.copyWith(
-      lineMode: isLineMode,
-      preferredReceiveMode: isLineMode,
+      receiveMode: mode,
+      preferredReceiveMode: mode,
     );
-    ref.read(sharedPreferencesProvider).setBool(_keyLineMode, isLineMode);
     ref
         .read(sharedPreferencesProvider)
-        .setBool(_keyPreferredReceiveMode, isLineMode);
+        .setBool(_keyLineMode, mode == ReceiveMode.line);
+    ref
+        .read(sharedPreferencesProvider)
+        .setBool(_keyPreferredReceiveMode, mode == ReceiveMode.line);
   }
 
   void setAppendNewline(bool value) {

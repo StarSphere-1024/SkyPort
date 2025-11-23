@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/serial_provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../shared/compact_switch.dart';
-import '../shared/input_decorations.dart';
 
 class ReceiveSettingsWidget extends ConsumerWidget {
   const ReceiveSettingsWidget({super.key});
@@ -31,6 +30,8 @@ class ReceiveSettingsWidget extends ConsumerWidget {
 
     return Column(
       children: [
+        _buildReceiveModeSelector(context, settings, notifier),
+        const SizedBox(height: 8),
         CompactSwitch(
           label: AppLocalizations.of(context).hexDisplay,
           value: settings.hexDisplay,
@@ -46,10 +47,6 @@ class ReceiveSettingsWidget extends ConsumerWidget {
           value: settings.showSent,
           onChanged: (v) => notifier.setShowSent(v),
         ),
-        const SizedBox(height: 8),
-        _buildReceiveModeSelector(context, settings, notifier),
-        const SizedBox(height: 8),
-        _buildReceiveModeContent(context, settings, notifier),
       ],
     );
   }
@@ -59,136 +56,114 @@ class ReceiveSettingsWidget extends ConsumerWidget {
     UiSettings settings,
     UiSettingsNotifier notifier,
   ) {
-    final currentValue = settings.hexDisplay ? false : settings.lineMode;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+    return Column(
       children: [
-        Text(
-          AppLocalizations.of(context).receiveMode,
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        const Spacer(),
-        SizedBox(
-          width: 160, // Provide sufficient width for DropdownMenu
-          child: DropdownMenu<bool>(
-            initialSelection: currentValue,
-            dropdownMenuEntries: [
-              DropdownMenuEntry<bool>(
-                value: false,
-                label: AppLocalizations.of(context).blockReceiveMode,
-                trailingIcon: Tooltip(
-                  message: AppLocalizations.of(context).blockReceiveDescription,
-                  child: Icon(
-                    Icons.info_outline,
-                    size: 16,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.5),
-                  ),
-                ),
-              ),
-              DropdownMenuEntry<bool>(
-                value: true,
-                label: AppLocalizations.of(context).lineReceiveMode,
-                enabled:
-                    !settings.hexDisplay, // Disable line mode in HEX display
-                trailingIcon: Tooltip(
-                  message: AppLocalizations.of(context).lineReceiveDescription,
-                  child: Icon(
-                    Icons.info_outline,
-                    size: 16,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.5),
-                  ),
-                ),
-              ),
-            ],
-            onSelected: (bool? value) {
-              if (value != null && (!settings.hexDisplay || value == false)) {
-                notifier.setReceiveMode(value);
-              }
-            },
-            enableFilter: false,
-            enableSearch: false,
-            textStyle: Theme.of(context).textTheme.bodyMedium,
-            menuStyle: MenuStyle(
-              backgroundColor: WidgetStateProperty.all(
-                Theme.of(context).colorScheme.surface,
-              ),
-              surfaceTintColor: WidgetStateProperty.all(
-                Theme.of(context).colorScheme.surfaceTint,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildReceiveModeContent(
-    BuildContext context,
-    UiSettings settings,
-    UiSettingsNotifier notifier,
-  ) {
-    final currentMode = settings.hexDisplay ? false : settings.lineMode;
-
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 200),
-      child: currentMode
-          ? const SizedBox.shrink() // Line mode: no additional content
-          : _buildBlockIntervalInput(
-              context, settings, notifier), // Block mode: show interval input
-    );
-  }
-
-  Widget _buildBlockIntervalInput(
-    BuildContext context,
-    UiSettings settings,
-    UiSettingsNotifier notifier,
-  ) {
-    return Container(
-      key: const ValueKey('blockInterval'),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            AppLocalizations.of(context).blockInterval,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const Spacer(),
-          SizedBox(
-            width: 80,
-            child: TextField(
-              controller: TextEditingController(
-                  text: settings.blockIntervalMs.toString())
-                ..selection = TextSelection.fromPosition(TextPosition(
-                    offset: settings.blockIntervalMs.toString().length)),
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: AppInputDecorations.dense(
-                context: context,
-                label: '',
-                suffixText: 'ms',
-                filled: true,
-                fillColor: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(8),
-              ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              AppLocalizations.of(context).receiveMode,
               style: Theme.of(context).textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-              onSubmitted: (value) {
-                final v = int.tryParse(value);
-                if (v != null && v > 0) {
-                  notifier.setFrameIntervalMs(v);
+            ),
+            IconButton(
+              icon: Icon(Icons.help_outline, size: 16),
+              onPressed: null,
+              tooltip: settings.hexDisplay
+                  ? AppLocalizations.of(context).receiveModeTooltipHex
+                  : AppLocalizations.of(context).receiveModeTooltip,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+            const Spacer(),
+            SegmentedButton<ReceiveMode>(
+              segments: [
+                ButtonSegment<ReceiveMode>(
+                  value: ReceiveMode.line,
+                  label: Text(AppLocalizations.of(context).lineModeLabel),
+                  icon: Icon(Icons.wrap_text),
+                  enabled: !settings.hexDisplay,
+                ),
+                ButtonSegment<ReceiveMode>(
+                  value: ReceiveMode.block,
+                  label: Text(AppLocalizations.of(context).blockModeLabel),
+                  icon: Icon(Icons.timer_outlined),
+                ),
+              ],
+              selected: {settings.receiveMode},
+              onSelectionChanged: (Set<ReceiveMode> selected) {
+                if (selected.isNotEmpty) {
+                  final mode = selected.first;
+                  if (mode == ReceiveMode.line && settings.hexDisplay) {
+                    // Don't allow line mode in hex display
+                    return;
+                  }
+                  notifier.setReceiveMode(mode);
                 }
               },
+              style: SegmentedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                backgroundColor: Theme.of(context).colorScheme.surface,
+                selectedBackgroundColor:
+                    Theme.of(context).colorScheme.secondaryContainer,
+                foregroundColor: Theme.of(context).colorScheme.onSurface,
+                selectedForegroundColor:
+                    Theme.of(context).colorScheme.onSecondaryContainer,
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          child: settings.receiveMode == ReceiveMode.block
+              ? Column(
+                  children: [
+                    const SizedBox(height: 8),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          AppLocalizations.of(context).timeoutLabel,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const Spacer(),
+                        SizedBox(
+                          width: 80,
+                          child: TextField(
+                            controller: TextEditingController(
+                                text: settings.blockIntervalMs.toString())
+                              ..selection = TextSelection.fromPosition(
+                                  TextPosition(
+                                      offset: settings.blockIntervalMs
+                                          .toString()
+                                          .length)),
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly
+                            ],
+                            decoration: InputDecoration(
+                              suffixText: 'ms',
+                              isDense: true,
+                              border: const OutlineInputBorder(),
+                              filled: true,
+                              fillColor: Theme.of(context).colorScheme.surface,
+                            ),
+                            style: Theme.of(context).textTheme.bodyMedium,
+                            textAlign: TextAlign.center,
+                            onSubmitted: (value) {
+                              final v = int.tryParse(value);
+                              if (v != null && v > 0) {
+                                notifier.setFrameIntervalMs(v);
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                )
+              : const SizedBox.shrink(),
+        ),
+      ],
     );
   }
 }
