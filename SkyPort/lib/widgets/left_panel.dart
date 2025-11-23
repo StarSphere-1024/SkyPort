@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/serial_provider.dart';
-import 'package:sky_port/l10n/app_localizations.dart';
+import '../l10n/app_localizations.dart';
 import 'left_panel/port_selection_widget.dart';
 import 'left_panel/serial_params_widget.dart';
 import 'left_panel/receive_settings_widget.dart';

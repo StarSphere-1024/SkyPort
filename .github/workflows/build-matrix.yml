@@ -1,6 +1,5 @@
 name: Build (Linux packages + Windows portable)
 
-# 可被其它工作流复用（workflow_call）。
 on:
   workflow_call:
     inputs:
@@ -13,7 +12,6 @@ on:
         description: Extracted application version
         value: ${{ jobs.prepare.outputs.app_version }}
 
-# 同一分支同时触发多次时聚合（避免资源浪费）。
 concurrency:
   group: build-${{ github.workflow }}-${{ github.ref_name }}
   cancel-in-progress: true
@@ -21,12 +19,10 @@ concurrency:
 permissions:
   contents: read
 
-# 统一可复用的环境变量（版本值在 prepare 后注入下游）。
 env:
   FLUTTER_CHANNEL: stable
 
 jobs:
-  # 仅做 Checkout + 版本提取，减少在多个矩阵实例里重复解析。
   prepare:
     name: Prepare / Extract Version
     runs-on: ubuntu-latest
@@ -41,6 +37,7 @@ jobs:
       - name: Extract version
         id: version
         shell: bash
+        working-directory: SkyPort
         run: |
           if grep -q '^version:' pubspec.yaml; then
             RAW_LINE=$(grep '^version:' pubspec.yaml | head -n1 | cut -d ' ' -f2)
@@ -85,32 +82,32 @@ jobs:
       - name: Install AppImage tool (appimagetool)
         if: matrix.ff_job == 'linux-appimage'
         run: |
-          # 安装 AppImage 所需的 fuse 库（新 Ubuntu 镜像常缺失）
           sudo apt-get install -y libfuse2 || echo "libfuse2 already present"
-          # 下载官方连续构建版本 appimagetool
           curl -L -o appimagetool.AppImage https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool.AppImage
           sudo mv appimagetool.AppImage /usr/local/bin/appimagetool
-          # 输出版本以确认安装成功
           appimagetool --version || echo "appimagetool installed"
 
       - name: Activate fastforge
         run: dart pub global activate fastforge
 
       - name: Download Dart/Flutter deps
+        working-directory: SkyPort
         run: flutter pub get
 
       - name: Build (${{ matrix.ff_job }})
+        working-directory: SkyPort
         run: fastforge release --name release --jobs ${{ matrix.ff_job }}
 
       - name: List dist
+        working-directory: SkyPort
         run: ls -R dist || echo "dist missing"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: artifact-${{ matrix.artifact_suffix }}-v${{ env.APP_VERSION }}
-          path: dist/release/*/
+          path: SkyPort/dist/release/*/
           retention-days: ${{ inputs.retention-days }}
 
   windows:
@@ -131,7 +128,6 @@ jobs:
           channel: ${{ env.FLUTTER_CHANNEL }}
           cache: true
 
-      # Windows 下 pub 缓存目录不同，使用 PUB_CACHE 环境变量的默认位置。
       - name: Cache pub (Windows)
         uses: actions/cache@v4
         with:
@@ -141,14 +137,17 @@ jobs:
             pub-${{ runner.os }}-
 
       - name: Download dependencies
+        working-directory: SkyPort
         run: flutter pub get
         shell: pwsh
 
       - name: Build release
+        working-directory: SkyPort
         run: flutter build windows --release
         shell: pwsh
 
       - name: Package zip
+        working-directory: SkyPort
         shell: pwsh
         run: |
           $PortableDir = "build/windows/x64/runner/Release"
@@ -161,7 +160,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: artifact-windows-x64-portable-v${{ env.APP_VERSION }}
-          path: SkyPort-portable-win-x64-v${{ env.APP_VERSION }}.zip
+          path: SkyPort/SkyPort-portable-win-x64-v${{ env.APP_VERSION }}.zip
           retention-days: ${{ inputs.retention-days }}
 
   summary:

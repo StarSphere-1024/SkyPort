@@ -30,8 +30,8 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
-/build/
-/coverage/
+build/
+SkyPort/coverage/
 
 .metadata
 
@@ -49,10 +49,6 @@ linux/flutter/ephemeral/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
-
-
-app.*.symbols
-
 
 app.*.map.json
 

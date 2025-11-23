@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sky_port/providers/serial_provider.dart';
-import 'package:sky_port/theme.dart';
-import 'package:sky_port/widgets/left_panel.dart';
-import 'package:sky_port/widgets/right_panel.dart';
-import 'package:sky_port/widgets/status_bar.dart';
+import 'providers/serial_provider.dart';
+import 'theme.dart';
+import 'widgets/left_panel.dart';
+import 'widgets/right_panel.dart';
+import 'widgets/status_bar.dart';
 import 'l10n/app_localizations.dart';
 
 void main() async {

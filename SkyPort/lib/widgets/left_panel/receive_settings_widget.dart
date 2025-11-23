@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/serial_provider.dart';
-import 'package:sky_port/l10n/app_localizations.dart';
+import '../../l10n/app_localizations.dart';
 import '../shared/compact_switch.dart';
 import '../shared/input_decorations.dart';
 

@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter/gestures.dart';
 
 import '../../providers/serial_provider.dart';
-import 'package:sky_port/l10n/app_localizations.dart';
+import '../../l10n/app_localizations.dart';
 
 class ReceiveDisplayWidget extends ConsumerStatefulWidget {
   const ReceiveDisplayWidget({super.key});
