@@ -35,16 +35,13 @@ bool _arePortListsEqual(List<String> a, List<String> b) {
   return setA.length == setB.length && setA.containsAll(setB);
 }
 
-// 1. Provider for available serial ports
 final availablePortsProvider =
     StreamProvider.autoDispose<List<String>>((ref) async* {
   ref.keepAlive(); // Keep alive for some time after last listener is removed
 
-  // Initial fetch
   List<String> currentPorts = SerialPort.availablePorts;
   yield currentPorts;
 
-  // Poll every 1 second
   final timer = Stream.periodic(const Duration(seconds: 1), (_) {
     return SerialPort.availablePorts;
   });
@@ -57,7 +54,6 @@ final availablePortsProvider =
   }
 });
 
-// 2. Model for serial port configuration
 class SerialConfig {
   final String portName;
   final int baudRate;
@@ -90,7 +86,6 @@ class SerialConfig {
   }
 }
 
-// 3. Provider for serial port configuration state
 class SerialConfigNotifier extends Notifier<SerialConfig?> {
   static const _keyPortName = 'serial_port_name';
   static const _keyBaudRate = 'serial_baud_rate';
@@ -125,7 +120,6 @@ class SerialConfigNotifier extends Notifier<SerialConfig?> {
       }
     });
 
-    // Initial state
     final initialPorts = SerialPort.availablePorts;
     final savedPort = prefs.getString(_keyPortName);
 
@@ -192,7 +186,6 @@ final serialConfigProvider =
     NotifierProvider.autoDispose<SerialConfigNotifier, SerialConfig?>(
         SerialConfigNotifier.new);
 
-// 4. Provider for serial connection management
 enum ConnectionStatus { disconnected, connecting, connected, disconnecting }
 
 class SerialConnection {
@@ -395,7 +388,6 @@ final serialConnectionProvider =
     NotifierProvider.autoDispose<SerialConnectionNotifier, SerialConnection>(
         SerialConnectionNotifier.new);
 
-// 5. Data Log Provider
 enum LogEntryType { received, sent }
 
 class LogEntry {
