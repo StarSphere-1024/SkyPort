@@ -293,7 +293,10 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
       }
       ref.read(errorProvider.notifier).setError('Error disconnecting port: $e');
     } finally {
-      state = SerialConnection();
+      state = state.copyWith(
+        status: ConnectionStatus.disconnected,
+        session: null,
+      );
     }
   }
 
@@ -487,6 +490,12 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
   void clear() {
     _receiveDebounce?.cancel();
     state = [];
+    // Clear RX/TX counters when clearing the receive area
+    ref.read(serialConnectionProvider.notifier).state =
+        ref.read(serialConnectionProvider).copyWith(
+              rxBytes: 0,
+              txBytes: 0,
+            );
   }
 }
 
