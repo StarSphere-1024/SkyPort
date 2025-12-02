@@ -414,16 +414,40 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
   // Buffer for accumulating bytes of the current line in line-mode text display.
   final List<int> _lineBuffer = [];
 
+  // Fixed in-memory log buffer limit: 128 MB.
+  // This counts only the raw byte payload length of each LogEntry (entry.data.length),
+  // which is a reasonable approximation for controlling memory growth.
+  static const int _maxBytes = 128 * 1024 * 1024;
+
+  int _totalBytes = 0;
+
   @override
   List<LogEntry> build() {
     ref.onDispose(() {
       _receiveDebounce?.cancel();
     });
+    _totalBytes = 0;
     return [];
   }
 
   void _addLogEntry(LogEntry entry) {
+    // Start from current state and append the new entry.
     final newList = List<LogEntry>.from(state)..add(entry);
+    _totalBytes += entry.data.length;
+
+    // If total bytes exceed the configured cap, drop oldest entries
+    // until we fall back under the limit.
+    int removeCount = 0;
+    int i = 0;
+    while (_totalBytes > _maxBytes && i < newList.length) {
+      _totalBytes -= newList[i].data.length;
+      removeCount++;
+      i++;
+    }
+    if (removeCount > 0) {
+      newList.removeRange(0, removeCount);
+    }
+
     state = newList;
   }
 
@@ -497,6 +521,8 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
 
   void clear() {
     _receiveDebounce?.cancel();
+    _lineBuffer.clear();
+    _totalBytes = 0;
     state = [];
     // Clear RX/TX counters when clearing the receive area
     ref.read(serialConnectionProvider.notifier).state =
