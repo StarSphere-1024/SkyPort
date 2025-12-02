@@ -199,19 +199,24 @@ class SerialConnection {
     this.session,
     this.rxBytes = 0,
     this.txBytes = 0,
+    this.lastRxBytes = 0,
   });
+
+  final int lastRxBytes;
 
   SerialConnection copyWith({
     ConnectionStatus? status,
     SerialPortSession? session,
     int? rxBytes,
     int? txBytes,
+    int? lastRxBytes,
   }) {
     return SerialConnection(
       status: status ?? this.status,
       session: session ?? this.session,
       rxBytes: rxBytes ?? this.rxBytes,
       txBytes: txBytes ?? this.txBytes,
+      lastRxBytes: lastRxBytes ?? this.lastRxBytes,
     );
   }
 }
@@ -249,7 +254,10 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
       _dataSubscription = session.stream.listen((data) {
         // Forward received data into the debounced log provider
         ref.read(dataLogProvider.notifier).addReceived(data);
-        state = state.copyWith(rxBytes: state.rxBytes + data.length);
+        state = state.copyWith(
+          rxBytes: state.rxBytes + data.length,
+          lastRxBytes: data.length,
+        );
       }, onError: (error) {
         disconnect();
         ref.read(errorProvider.notifier).setError("Port disconnected: $error");

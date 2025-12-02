@@ -43,11 +43,12 @@
   "disconnecting": "断开中...",
   "disconnected": "未连接",
   "unavailable": "不可用",
-  "trafficStats": "接收: {rx} | 发送: {tx}",
+  "trafficStats": "接收: {rx} - {lastRx} | 发送: {tx}",
   "@trafficStats": {
     "placeholders": {
       "rx": {"type": "int"},
-      "tx": {"type": "int"}
+      "tx": {"type": "int"},
+      "lastRx": {"type": "int"}
     }
   },
   "timeoutLabel": "块间隔",

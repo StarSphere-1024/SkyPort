@@ -43,11 +43,12 @@
   "disconnecting": "Disconnecting...",
   "disconnected": "Disconnected",
   "unavailable": "Unavailable",
-  "trafficStats": "Rx: {rx} | Tx: {tx}",
+  "trafficStats": "Rx: {rx} - {lastRx} | Tx: {tx}",
   "@trafficStats": {
     "placeholders": {
       "rx": {"type": "int"},
-      "tx": {"type": "int"}
+      "tx": {"type": "int"},
+      "lastRx": {"type": "int"}
     }
   },
   "timeoutLabel": "Block Interval",

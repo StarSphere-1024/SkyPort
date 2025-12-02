@@ -323,8 +323,8 @@ abstract class AppLocalizations {
   /// No description provided for @trafficStats.
   ///
   /// In en, this message translates to:
-  /// **'Rx: {rx} | Tx: {tx}'**
-  String trafficStats(int rx, int tx);
+  /// **'Rx: {rx} - {lastRx} | Tx: {tx}'**
+  String trafficStats(int rx, int tx, int lastRx);
 
   /// No description provided for @timeoutLabel.
   ///

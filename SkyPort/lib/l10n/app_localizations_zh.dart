@@ -122,8 +122,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get unavailable => '不可用';
 
   @override
-  String trafficStats(int rx, int tx) {
-    return '接收: $rx | 发送: $tx';
+  String trafficStats(int rx, int tx, int lastRx) {
+    return '接收: $rx - $lastRx | 发送: $tx';
   }
 
   @override

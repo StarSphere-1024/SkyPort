@@ -122,8 +122,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get unavailable => 'Unavailable';
 
   @override
-  String trafficStats(int rx, int tx) {
-    return 'Rx: $rx | Tx: $tx';
+  String trafficStats(int rx, int tx, int lastRx) {
+    return 'Rx: $rx - $lastRx | Tx: $tx';
   }
 
   @override
