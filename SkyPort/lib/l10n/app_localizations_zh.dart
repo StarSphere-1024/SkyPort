@@ -127,6 +127,9 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get trafficStatsTooltip => '累计接收字节数 - 上次包大小 | 累计发送字节数';
+
+  @override
   String get timeoutLabel => '块间隔';
 
   @override

@@ -127,6 +127,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get trafficStatsTooltip =>
+      'Total received bytes - Last packet size | Total sent bytes';
+
+  @override
   String get timeoutLabel => 'Block Interval';
 
   @override

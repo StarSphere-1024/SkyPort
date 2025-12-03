@@ -51,6 +51,7 @@
       "lastRx": {"type": "int"}
     }
   },
+  "trafficStatsTooltip": "累计接收字节数 - 上次包大小 | 累计发送字节数",
   "timeoutLabel": "块间隔",
   "receiveModeTooltip": "按行：收到换行符时分包\n按块：超过设定时间未收到数据时分包",
   "receiveModeTooltipHex": "十六进制显示模式下按行不可用\n按块：超过设定时间未收到数据时分包",

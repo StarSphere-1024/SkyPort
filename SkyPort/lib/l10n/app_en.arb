@@ -51,6 +51,7 @@
       "lastRx": {"type": "int"}
     }
   },
+  "trafficStatsTooltip": "Total received bytes - Last packet size | Total sent bytes",
   "timeoutLabel": "Block Interval",
   "receiveModeTooltip": "Line: Split data when newline is received\nBlock: Split data when no data received for set time",
   "receiveModeTooltipHex": "Line mode not available in Hex display\nBlock: Split data when no data received for set time",

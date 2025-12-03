@@ -67,10 +67,15 @@ class StatusBar extends ConsumerWidget {
               ],
             ),
             const Spacer(),
-            Text(
-              statsText,
-              style:
-                  Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 12),
+            Tooltip(
+              message: l10n.trafficStatsTooltip,
+              child: SelectableText(
+                statsText,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(fontSize: 12),
+              ),
             ),
           ],
         ),

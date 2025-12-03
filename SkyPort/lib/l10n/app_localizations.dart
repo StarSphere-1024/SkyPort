@@ -326,6 +326,12 @@ abstract class AppLocalizations {
   /// **'Rx: {rx} - {lastRx} | Tx: {tx}'**
   String trafficStats(int rx, int tx, int lastRx);
 
+  /// No description provided for @trafficStatsTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Total received bytes - Last packet size | Total sent bytes'**
+  String get trafficStatsTooltip;
+
   /// No description provided for @timeoutLabel.
   ///
   /// In en, this message translates to:

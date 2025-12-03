@@ -529,6 +529,7 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
         ref.read(serialConnectionProvider).copyWith(
               rxBytes: 0,
               txBytes: 0,
+              lastRxBytes: 0,
             );
   }
 }
