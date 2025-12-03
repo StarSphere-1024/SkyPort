@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 
 import '../../providers/serial_provider.dart';
-import '../../l10n/app_localizations.dart';
 
 class ReceiveDisplayWidget extends ConsumerStatefulWidget {
   const ReceiveDisplayWidget({super.key});
@@ -16,7 +15,6 @@ class ReceiveDisplayWidget extends ConsumerStatefulWidget {
 
 class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
   final ScrollController _scrollController = ScrollController();
-  int _visibleItemCount = 100;
   bool _isAtBottom = true;
 
   @override
@@ -84,12 +82,8 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                       : rawDataLog
                           .where((e) => e.type == LogEntryType.received)
                           .toList();
-                  final bool showLoadMore = dataLog.length > _visibleItemCount;
-                  final int listLength = (dataLog.length > _visibleItemCount)
-                      ? _visibleItemCount
-                      : dataLog.length;
+                  final int listLength = dataLog.length;
 
-                  final l10n = AppLocalizations.of(context);
                   final monoStyle = theme.textTheme.bodyMedium!.copyWith(
                     fontFamily: 'monospace',
                     fontSize: 15.0,
@@ -106,32 +100,9 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                       child: ListView.builder(
                         controller: _scrollController,
                         padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        itemCount: listLength + (showLoadMore ? 1 : 0),
+                        itemCount: listLength,
                         itemBuilder: (context, index) {
-                          // First row: Load More button/text.
-                          if (showLoadMore && index == 0) {
-                            return GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: () {
-                                setState(() {
-                                  _visibleItemCount += 100;
-                                });
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8.0, vertical: 4.0),
-                                child: Text(
-                                  l10n.loadMore,
-                                  style: theme.textTheme.labelMedium,
-                                ),
-                              ),
-                            );
-                          }
-
-                          final effectiveIndex =
-                              showLoadMore ? index - 1 : index;
-                          final startIndex = dataLog.length - listLength;
-                          final entry = dataLog[startIndex + effectiveIndex];
+                          final entry = dataLog[index];
 
                           final isSent = entry.type == LogEntryType.sent;
                           final formattedTimestamp = DateFormat('HH:mm:ss.SSS')
