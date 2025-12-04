@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "sky_port" "\0"
+            VALUE "FileDescription", "skyport" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "sky_port" "\0"
+            VALUE "InternalName", "skyport" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2025 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "sky_port.exe" "\0"
-            VALUE "ProductName", "sky_port" "\0"
+            VALUE "OriginalFilename", "skyport.exe" "\0"
+            VALUE "ProductName", "skyport" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

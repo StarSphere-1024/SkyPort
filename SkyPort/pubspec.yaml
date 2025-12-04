@@ -1,4 +1,4 @@
-name: sky_port
+name: skyport
 description: "A serial port debugging assistant."
 publish_to: 'none'
 version: 1.0.0+1
