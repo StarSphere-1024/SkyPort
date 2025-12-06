@@ -560,7 +560,7 @@ class UiSettings {
     this.blockIntervalMs = 20,
     this.receiveMode = ReceiveMode.block, // Default to block receive mode
     this.preferredReceiveMode =
-        ReceiveMode.block, // Default to block receive mode
+        ReceiveMode.line, // Default to line receive mode in text mode
     this.appendNewline = false,
     this.newlineMode = NewlineMode.lf,
   });
