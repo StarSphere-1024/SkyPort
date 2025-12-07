@@ -122,11 +122,48 @@ jobs:
         working-directory: SkyPort
         run: ls -R dist || echo "dist missing"
 
-      - name: Upload artifact
+      - name: Normalize deb filename
+        if: matrix.ff_job == 'linux-deb'
+        working-directory: SkyPort
+        run: |
+          mkdir -p dist/standard
+          DEB_FILE=$(find dist/release -maxdepth 4 -type f -name "*.deb" | head -n 1)
+          if [ -z "$DEB_FILE" ]; then
+            echo "No .deb file found under dist/release" >&2
+            exit 1
+          fi
+          TARGET="dist/standard/SkyPort-v${APP_VERSION}-linux-amd64.deb"
+          cp "$DEB_FILE" "$TARGET"
+          echo "Copied $DEB_FILE -> $TARGET"
+
+      - name: Normalize AppImage filename
+        if: matrix.ff_job == 'linux-appimage'
+        working-directory: SkyPort
+        run: |
+          mkdir -p dist/standard
+          APPIMAGE_FILE=$(find dist/release -maxdepth 4 -type f -name "*.AppImage" | head -n 1)
+          if [ -z "$APPIMAGE_FILE" ]; then
+            echo "No .AppImage file found under dist/release" >&2
+            exit 1
+          fi
+          TARGET="dist/standard/SkyPort-v${APP_VERSION}-linux-amd64.AppImage"
+          cp "$APPIMAGE_FILE" "$TARGET"
+          echo "Copied $APPIMAGE_FILE -> $TARGET"
+
+      - name: Upload deb artifact
+        if: matrix.ff_job == 'linux-deb'
         uses: actions/upload-artifact@v4
         with:
-          name: artifact-${{ matrix.artifact_suffix }}-v${{ env.APP_VERSION }}
-          path: SkyPort/dist/release/*/
+          name: SkyPort-v${{ env.APP_VERSION }}-linux-amd64-deb
+          path: SkyPort/dist/standard/SkyPort-v${{ env.APP_VERSION }}-linux-amd64.deb
+          retention-days: ${{ inputs.retention-days }}
+
+      - name: Upload AppImage artifact
+        if: matrix.ff_job == 'linux-appimage'
+        uses: actions/upload-artifact@v4
+        with:
+          name: SkyPort-v${{ env.APP_VERSION }}-linux-amd64-appimage
+          path: SkyPort/dist/standard/SkyPort-v${{ env.APP_VERSION }}-linux-amd64.AppImage
           retention-days: ${{ inputs.retention-days }}
 
   windows:
@@ -171,15 +208,16 @@ jobs:
         run: |
           $PortableDir = "build/windows/x64/runner/Release"
           if (!(Test-Path $PortableDir)) { Write-Error "Portable directory not found: $PortableDir" }
-          $ZipName = "SkyPort-portable-win-x64-v$Env:APP_VERSION.zip"
+          # SkyPort-v{version}-windows-amd64-portable.zip
+          $ZipName = "SkyPort-v$Env:APP_VERSION-windows-amd64-portable.zip"
           Compress-Archive -Path "$PortableDir/*" -DestinationPath $ZipName -Force
           Write-Host "Created $ZipName"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: artifact-windows-x64-portable-v${{ env.APP_VERSION }}
-          path: SkyPort/SkyPort-portable-win-x64-v${{ env.APP_VERSION }}.zip
+          name: SkyPort-v${{ env.APP_VERSION }}-windows-amd64-portable
+          path: SkyPort/SkyPort-v${{ env.APP_VERSION }}-windows-amd64-portable.zip
           retention-days: ${{ inputs.retention-days }}
 
   summary:
