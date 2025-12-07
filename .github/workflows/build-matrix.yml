@@ -127,9 +127,10 @@ jobs:
         working-directory: SkyPort
         run: |
           mkdir -p dist/standard
-          DEB_FILE=$(find dist/release -maxdepth 4 -type f -name "*.deb" | head -n 1)
+          # fastforge 输出示例：dist/release/1.0.0+1/skyport-1.0.0+1-linux.deb
+          DEB_FILE=$(ls dist/release/*/*.deb 2>/dev/null | head -n 1)
           if [ -z "$DEB_FILE" ]; then
-            echo "No .deb file found under dist/release" >&2
+            echo "No .deb file found under dist/release/*/*.deb" >&2
             exit 1
           fi
           TARGET="dist/standard/SkyPort-v${APP_VERSION}-linux-amd64.deb"
@@ -141,9 +142,10 @@ jobs:
         working-directory: SkyPort
         run: |
           mkdir -p dist/standard
-          APPIMAGE_FILE=$(find dist/release -maxdepth 4 -type f -name "*.AppImage" | head -n 1)
+          # fastforge 输出示例：dist/release/1.0.0+1/skyport-1.0.0+1-linux.AppImage
+          APPIMAGE_FILE=$(ls dist/release/*/*.AppImage 2>/dev/null | head -n 1)
           if [ -z "$APPIMAGE_FILE" ]; then
-            echo "No .AppImage file found under dist/release" >&2
+            echo "No .AppImage file found under dist/release/*/*.AppImage" >&2
             exit 1
           fi
           TARGET="dist/standard/SkyPort-v${APP_VERSION}-linux-amd64.AppImage"
