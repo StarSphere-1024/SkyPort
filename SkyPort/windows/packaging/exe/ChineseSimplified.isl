@@ -8,8 +8,8 @@
 ; Setup adds the periods automatically (appending a period would result in
 ; two periods being displayed).
 ;
-; Maintained by Zhenghan Yang
-; Email: 847320916@QQ.com
+; Maintained by StarSphere
+; Email: starsphere@foxmail.com
 ; Translation based on network resource
 ; The latest Translation is on https://github.com/kira-96/Inno-Setup-Chinese-Simplified-Translation
 ;

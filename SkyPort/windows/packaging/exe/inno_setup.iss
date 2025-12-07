@@ -12,7 +12,7 @@ OutputDir=.
 OutputBaseFilename={#OUTPUT_BASE_FILENAME}
 Compression=lzma
 SolidCompression=yes
-; SetupIconFile=windows\packaging\exe\icon.ico
+SetupIconFile=..\..\runner\resources\app_icon.ico
 WizardStyle=modern
 ; 权限固定为 admin，避免无效占位符导致编译失败
 PrivilegesRequired=admin
