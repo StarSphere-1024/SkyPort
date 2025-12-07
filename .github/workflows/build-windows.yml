@@ -1,0 +1,115 @@
+name: Build Windows
+
+on:
+  workflow_call:
+    inputs:
+      app_version:
+        required: true
+        type: string
+      retention-days:
+        required: false
+        type: number
+        default: 7
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_CHANNEL: stable
+
+jobs:
+  windows:
+    name: Windows (x64, portable & setup)
+    runs-on: windows-latest
+    env:
+      APP_VERSION: ${{ inputs.app_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Cache pub (Windows)
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\Pub\Cache
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
+      - name: Download dependencies
+        working-directory: SkyPort
+        run: flutter pub get
+        shell: pwsh
+
+      - name: Build release
+        working-directory: SkyPort
+        run: flutter build windows --release
+        shell: pwsh
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup -y
+
+      - name: Build Windows setup installer (Inno Setup)
+        working-directory: SkyPort
+        shell: pwsh
+        run: |
+          $BuildDir = (Resolve-Path "build/windows/x64/runner/Release").Path
+          if (!(Test-Path $BuildDir)) { Write-Error "Build directory not found: $BuildDir" }
+
+          # 使用已经参数化的 Inno Setup 脚本
+          $IssFile = "windows/packaging/exe/inno_setup.iss"
+          if (!(Test-Path $IssFile)) { Write-Error "ISS file not found: $IssFile" }
+
+          $Iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $Iscc)) { Write-Error "ISCC.exe not found at $Iscc" }
+
+          & $Iscc `
+            "/DAPP_VERSION=$Env:APP_VERSION" `
+            "/DSOURCE_DIR=$BuildDir" `
+            "/DOUTPUT_BASE_FILENAME=SkyPortInstaller" `
+            $IssFile
+
+          if ($LASTEXITCODE -ne 0) { Write-Error "Inno Setup compilation failed with exit code $LASTEXITCODE" }
+
+          # 根据 inno_setup.iss 中的 OutputDir=.，安装包会生成在 ISS 所在目录
+          $SetupSource = "windows/packaging/exe/SkyPortInstaller.exe"
+          if (!(Test-Path $SetupSource)) { Write-Error "Setup source not found: $SetupSource" }
+
+          # 规范化安装包命名：SkyPort-v{version}-windows-amd64-setup.exe
+          $SetupTarget = "SkyPort-v$Env:APP_VERSION-windows-amd64-setup.exe"
+          Move-Item -Path $SetupSource -Destination $SetupTarget -Force
+          Write-Host "Created $SetupTarget"
+
+      - name: Package zip
+        working-directory: SkyPort
+        shell: pwsh
+        run: |
+          $PortableDir = "build/windows/x64/runner/Release"
+          if (!(Test-Path $PortableDir)) { Write-Error "Portable directory not found: $PortableDir" }
+          # SkyPort-v{version}-windows-amd64-portable.zip
+          $ZipName = "SkyPort-v$Env:APP_VERSION-windows-amd64-portable.zip"
+          Compress-Archive -Path "$PortableDir/*" -DestinationPath $ZipName -Force
+          Write-Host "Created $ZipName"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SkyPort-v${{ env.APP_VERSION }}-windows-amd64-portable
+          path: SkyPort/SkyPort-v${{ env.APP_VERSION }}-windows-amd64-portable.zip
+          retention-days: ${{ inputs.retention-days }}
+
+      - name: Upload Windows setup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SkyPort-v${{ env.APP_VERSION }}-windows-amd64-setup
+          path: SkyPort/SkyPort-v${{ env.APP_VERSION }}-windows-amd64-setup.exe
+          retention-days: ${{ inputs.retention-days }}

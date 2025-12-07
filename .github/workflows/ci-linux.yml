@@ -1,19 +1,24 @@
-name: Build (Linux packages + Windows portable)
+name: CI - Linux Build
 
 on:
-  workflow_call:
-    inputs:
-      retention-days:
-        required: false
-        type: number
-        default: 7
-    outputs:
-      app_version:
-        description: Extracted application version
-        value: ${{ jobs.prepare.outputs.app_version }}
+  push:
+    branches: [ main]
+    paths:
+      - '.github/workflows/build-linux.yml'
+      - 'SkyPort/**'
+      - 'pubspec.yaml'
+      - 'analysis_options.yaml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/build-linux.yml'
+      - 'SkyPort/**'
+      - 'pubspec.yaml'
+      - 'analysis_options.yaml'
+  workflow_dispatch:
 
 concurrency:
-  group: build-${{ github.workflow }}-${{ github.ref_name }}
+  group: linux-build-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -67,31 +72,9 @@ jobs:
             echo "Detected version: $APP_VERSION"
           fi
 
-  build-linux:
-    name: Build Linux
+  build:
     needs: prepare
     uses: ./.github/workflows/build-linux.yml
     with:
       app_version: ${{ needs.prepare.outputs.app_version }}
-      retention-days: ${{ inputs.retention-days }}
-
-  build-windows:
-    name: Build Windows
-    needs: prepare
-    uses: ./.github/workflows/build-windows.yml
-    with:
-      app_version: ${{ needs.prepare.outputs.app_version }}
-      retention-days: ${{ inputs.retention-days }}
-
-  summary:
-    name: Summary
-    needs: [prepare, build-linux, build-windows]
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - name: Build matrix result
-        run: |
-          echo "Linux + Windows jobs finished." \
-            && echo "Version: ${{ needs.prepare.outputs.app_version }}" \
-            && echo "Linux result: ${{ needs.build-linux.result }}" \
-            && echo "Windows result: ${{ needs.build-windows.result }}"
+      retention-days: 7
