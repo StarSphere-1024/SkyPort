@@ -144,6 +144,26 @@ class PortSelectionWidget extends ConsumerWidget {
         const SizedBox(width: 12),
         SizedBox(
           child: FilledButton(
+            style: ButtonStyle(
+              backgroundColor: WidgetStateProperty.resolveWith<Color?>(
+                (states) {
+                  final colors = Theme.of(context).colorScheme;
+                  if (states.contains(WidgetState.disabled)) {
+                    return null;
+                  }
+                  return isConnected ? colors.error : colors.primary;
+                },
+              ),
+              foregroundColor: WidgetStateProperty.resolveWith<Color?>(
+                (states) {
+                  final colors = Theme.of(context).colorScheme;
+                  if (states.contains(WidgetState.disabled)) {
+                    return null;
+                  }
+                  return isConnected ? colors.onError : colors.onPrimary;
+                },
+              ),
+            ),
             onPressed: isBusy
                 ? null
                 : () {
