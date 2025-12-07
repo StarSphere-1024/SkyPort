@@ -34,19 +34,38 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Override pubspec version from tag (if tag build)
+        if: github.ref_type == 'tag'
+        shell: bash
+        working-directory: SkyPort
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME}"
+          VERSION="${TAG_NAME#v}"
+
+          # 使用 GitHub 运行编号作为 build number（在当前 workflow 内单调递增）
+          BUILD_NUMBER="${GITHUB_RUN_NUMBER}"
+
+          echo "Using version from tag: $VERSION (+$BUILD_NUMBER)"
+
+          # 覆盖 pubspec.yaml 中的 version 行
+          sed -i "s/^version:.*/version: ${VERSION}+${BUILD_NUMBER}/" pubspec.yaml
+
+          echo "Updated pubspec.yaml:"
+          grep '^version:' pubspec.yaml
+
       - name: Extract version
         id: version
         shell: bash
         working-directory: SkyPort
         run: |
-          if grep -q '^version:' pubspec.yaml; then
-            RAW_LINE=$(grep '^version:' pubspec.yaml | head -n1 | cut -d ' ' -f2)
-            APP_VERSION=${RAW_LINE%%+*}
-            echo "app_version=$APP_VERSION" >> "$GITHUB_OUTPUT"
-          else
+          APP_VERSION=$(sed -n 's/^[[:space:]]*version:[[:space:]]*\([^+]*\).*/\1/p' pubspec.yaml | head -n 1 | tr -d '\r')
+          if [ -z "$APP_VERSION" ]; then
             echo "app_version=unknown" >> "$GITHUB_OUTPUT"
+            echo "Detected version: unknown"
+          else
+            echo "app_version=$APP_VERSION" >> "$GITHUB_OUTPUT"
+            echo "Detected version: $APP_VERSION"
           fi
-          echo "Detected version: $APP_VERSION"
 
   linux:
     name: Linux Packages
