@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/serial_provider.dart';
 import 'providers/theme_provider.dart';
 import 'theme.dart';
+import 'widgets/settings_popup.dart';
 import 'widgets/left_panel.dart';
 import 'widgets/right_panel.dart';
 import 'widgets/status_bar.dart';
@@ -64,11 +65,34 @@ class SerialDebuggerApp extends ConsumerWidget {
   }
 }
 
-class HomePage extends ConsumerWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends ConsumerState<HomePage> {
+  static final GlobalKey _settingsKey = GlobalKey();
+  late TextEditingController _bufferController;
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    final initialSize = ref.read(uiSettingsProvider).logBufferSize;
+    _bufferController = TextEditingController(text: '$initialSize');
+  }
+
+  @override
+  void dispose() {
+    _bufferController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = this.ref;
     ref.listen<String?>(errorProvider, (prev, next) {
       if (next != null && next.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -81,6 +105,12 @@ class HomePage extends ConsumerWidget {
         ref.read(errorProvider.notifier).clear();
       }
     });
+    ref.listen<int>(uiSettingsProvider.select((s) => s.logBufferSize),
+        (prev, next) {
+      if (_bufferController.text != '$next') {
+        _bufferController.text = '$next';
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(
@@ -89,19 +119,39 @@ class HomePage extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: IconButton(
-              icon: Icon(
-                Theme.of(context).brightness == Brightness.dark
-                    ? Icons.dark_mode
-                    : Icons.light_mode,
-              ),
+              key: _settingsKey,
+              icon: const Icon(Icons.settings),
               onPressed: () {
-                ref.read(themeModeProvider.notifier).toggleTheme();
+                final RenderBox button = _settingsKey.currentContext!
+                    .findRenderObject() as RenderBox;
+                final Offset offset = button.localToGlobal(Offset.zero);
+                showMenu(
+                  context: context,
+                  position: RelativeRect.fromLTRB(
+                    offset.dx,
+                    offset.dy + button.size.height,
+                    offset.dx + button.size.width,
+                    offset.dy + button.size.height,
+                  ),
+                  items: [
+                    PopupMenuItem(
+                      enabled: false,
+                      child: SizedBox(
+                        width: 300,
+                        child: SettingsPopup(
+                          controller: _bufferController,
+                          formKey: _formKey,
+                        ),
+                      ),
+                    ),
+                  ],
+                );
               },
             ),
           ),
         ],
       ),
-      body: const SafeArea(
+      body: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

@@ -56,5 +56,12 @@
   "receiveModeTooltip": "按行：收到换行符时分包\n按块：超过设定时间未收到数据时分包",
   "receiveModeTooltipHex": "十六进制显示模式下按行不可用\n按块：超过设定时间未收到数据时分包",
   "lineModeLabel": "按行",
-  "blockModeLabel": "按块"
+  "blockModeLabel": "按块",
+  "settingsTitle": "设置",
+  "theme": "主题",
+  "followSystem": "跟随系统",
+  "light": "浅色",
+  "dark": "深色",
+  "logBufferSize": "日志缓冲区大小",
+  "logBufferSizeError": "16-512之间的整数"
 }

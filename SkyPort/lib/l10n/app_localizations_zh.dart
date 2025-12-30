@@ -143,4 +143,25 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get blockModeLabel => '按块';
+
+  @override
+  String get settingsTitle => '设置';
+
+  @override
+  String get theme => '主题';
+
+  @override
+  String get followSystem => '跟随系统';
+
+  @override
+  String get light => '浅色';
+
+  @override
+  String get dark => '深色';
+
+  @override
+  String get logBufferSize => '日志缓冲区大小';
+
+  @override
+  String get logBufferSizeError => '16-512之间的整数';
 }

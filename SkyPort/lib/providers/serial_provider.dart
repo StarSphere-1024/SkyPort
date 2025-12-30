@@ -414,11 +414,6 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
   // Buffer for accumulating bytes of the current line in line-mode text display.
   final List<int> _lineBuffer = [];
 
-  // Fixed in-memory log buffer limit: 128 MB.
-  // This counts only the raw byte payload length of each LogEntry (entry.data.length),
-  // which is a reasonable approximation for controlling memory growth.
-  static const int _maxBytes = 128 * 1024 * 1024;
-
   int _totalBytes = 0;
 
   @override
@@ -431,6 +426,8 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
   }
 
   void _addLogEntry(LogEntry entry) {
+    final uiSettings = ref.read(uiSettingsProvider);
+    final maxBytes = uiSettings.logBufferSize * 1024 * 1024;
     // Start from current state and append the new entry.
     final newList = List<LogEntry>.from(state)..add(entry);
     _totalBytes += entry.data.length;
@@ -439,7 +436,7 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
     // until we fall back under the limit.
     int removeCount = 0;
     int i = 0;
-    while (_totalBytes > _maxBytes && i < newList.length) {
+    while (_totalBytes > maxBytes && i < newList.length) {
       _totalBytes -= newList[i].data.length;
       removeCount++;
       i++;
@@ -551,6 +548,7 @@ class UiSettings {
   // Sending new line settings
   final bool appendNewline; // Whether to append a newline when sending text
   final NewlineMode newlineMode; // Which newline sequence to append
+  final int logBufferSize; // Log buffer size in MB
 
   const UiSettings({
     this.hexDisplay = false,
@@ -563,6 +561,7 @@ class UiSettings {
         ReceiveMode.line, // Default to line receive mode in text mode
     this.appendNewline = false,
     this.newlineMode = NewlineMode.lf,
+    this.logBufferSize = 128, // Default 128 MB
   });
 
   UiSettings copyWith({
@@ -575,6 +574,7 @@ class UiSettings {
     ReceiveMode? preferredReceiveMode,
     bool? appendNewline,
     NewlineMode? newlineMode,
+    int? logBufferSize,
   }) {
     return UiSettings(
       hexDisplay: hexDisplay ?? this.hexDisplay,
@@ -586,6 +586,7 @@ class UiSettings {
       preferredReceiveMode: preferredReceiveMode ?? this.preferredReceiveMode,
       appendNewline: appendNewline ?? this.appendNewline,
       newlineMode: newlineMode ?? this.newlineMode,
+      logBufferSize: logBufferSize ?? this.logBufferSize,
     );
   }
 }
@@ -614,6 +615,7 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
   // Newline settings keys
   static const _keyAppendNewline = 'ui_append_newline';
   static const _keyNewlineMode = 'ui_newline_mode';
+  static const _keyLogBufferSize = 'ui_log_buffer_size';
 
   @override
   UiSettings build() {
@@ -633,6 +635,7 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
       appendNewline: prefs.getBool(_keyAppendNewline) ?? false,
       newlineMode: NewlineMode
           .values[prefs.getInt(_keyNewlineMode) ?? NewlineMode.lf.index],
+      logBufferSize: prefs.getInt(_keyLogBufferSize) ?? 128,
     );
   }
 
@@ -706,6 +709,11 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
   void setNewlineMode(NewlineMode mode) {
     state = state.copyWith(newlineMode: mode);
     ref.read(sharedPreferencesProvider).setInt(_keyNewlineMode, mode.index);
+  }
+
+  void setLogBufferSize(int size) {
+    state = state.copyWith(logBufferSize: size);
+    ref.read(sharedPreferencesProvider).setInt(_keyLogBufferSize, size);
   }
 }
 

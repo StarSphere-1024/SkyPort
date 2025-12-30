@@ -361,6 +361,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Block'**
   String get blockModeLabel;
+
+  /// No description provided for @settingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settingsTitle;
+
+  /// No description provided for @theme.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get theme;
+
+  /// No description provided for @followSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow System'**
+  String get followSystem;
+
+  /// No description provided for @light.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get light;
+
+  /// No description provided for @dark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get dark;
+
+  /// No description provided for @logBufferSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Log Buffer Size'**
+  String get logBufferSize;
+
+  /// No description provided for @logBufferSizeError.
+  ///
+  /// In en, this message translates to:
+  /// **'16-512'**
+  String get logBufferSizeError;
 }
 
 class _AppLocalizationsDelegate

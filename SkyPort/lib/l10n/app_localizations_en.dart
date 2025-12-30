@@ -146,4 +146,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get blockModeLabel => 'Block';
+
+  @override
+  String get settingsTitle => 'Settings';
+
+  @override
+  String get theme => 'Theme';
+
+  @override
+  String get followSystem => 'Follow System';
+
+  @override
+  String get light => 'Light';
+
+  @override
+  String get dark => 'Dark';
+
+  @override
+  String get logBufferSize => 'Log Buffer Size';
+
+  @override
+  String get logBufferSizeError => '16-512';
 }
