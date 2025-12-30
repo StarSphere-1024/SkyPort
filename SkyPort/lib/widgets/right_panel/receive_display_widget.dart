@@ -3,6 +3,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import 'package:ansi_escape_codes/ansi_escape_codes.dart' as ansi;
 
 import '../../providers/serial_provider.dart';
 
@@ -18,6 +19,26 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
   final ScrollController _scrollController = ScrollController();
   bool _isAtBottom = true;
   bool _stickToBottom = true;
+
+  TextStyle _ansiStateToStyle(dynamic state, TextStyle baseStyle) {
+    Color? fg;
+    Color? bg;
+    bool bold = false;
+    if (state is Map<String, dynamic>) {
+      if (state.containsKey('foreground') && state['foreground'] is int) {
+        fg = Color(state['foreground']);
+      }
+      if (state.containsKey('background') && state['background'] is int) {
+        bg = Color(state['background']);
+      }
+      if (state.containsKey('bold') && state['bold'] is bool) {
+        bold = state['bold'];
+      }
+    }
+    FontWeight? weight = bold ? FontWeight.bold : null;
+    return baseStyle.copyWith(
+        color: fg, backgroundColor: bg, fontWeight: weight);
+  }
 
   @override
   void initState() {
@@ -188,17 +209,36 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                                     );
                                   }
 
-                                  spans.add(
-                                    TextSpan(
-                                      text: lineText,
-                                      style: dataTextStyle.copyWith(
-                                        color: isSent
-                                            ? colorScheme.primary
-                                                .withValues(alpha: 0.8)
-                                            : colorScheme.onSurface,
+                                  if (settings.enableAnsi) {
+                                    final parser = ansi.AnsiParser(lineText);
+                                    for (final match in parser.matches) {
+                                      final text = lineText.substring(
+                                          match.start, match.end);
+                                      spans.add(TextSpan(
+                                        text: text,
+                                        style: _ansiStateToStyle(
+                                            match.state,
+                                            dataTextStyle.copyWith(
+                                              color: isSent
+                                                  ? colorScheme.primary
+                                                      .withValues(alpha: 0.8)
+                                                  : colorScheme.onSurface,
+                                            )),
+                                      ));
+                                    }
+                                  } else {
+                                    spans.add(
+                                      TextSpan(
+                                        text: lineText,
+                                        style: dataTextStyle.copyWith(
+                                          color: isSent
+                                              ? colorScheme.primary
+                                                  .withValues(alpha: 0.8)
+                                              : colorScheme.onSurface,
+                                        ),
                                       ),
-                                    ),
-                                  );
+                                    );
+                                  }
                                 }
 
                                 return SizedBox(

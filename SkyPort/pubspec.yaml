@@ -17,6 +17,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   shared_preferences: ^2.5.3
+  ansi_escape_codes: ^2.1.0
 
 dev_dependencies:
   flutter_test:

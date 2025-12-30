@@ -551,6 +551,7 @@ class UiSettings {
   // Sending new line settings
   final bool appendNewline; // Whether to append a newline when sending text
   final NewlineMode newlineMode; // Which newline sequence to append
+  final bool enableAnsi; // Whether to enable ANSI escape sequence rendering
 
   const UiSettings({
     this.hexDisplay = false,
@@ -563,6 +564,7 @@ class UiSettings {
         ReceiveMode.line, // Default to line receive mode in text mode
     this.appendNewline = false,
     this.newlineMode = NewlineMode.lf,
+    this.enableAnsi = false,
   });
 
   UiSettings copyWith({
@@ -575,6 +577,7 @@ class UiSettings {
     ReceiveMode? preferredReceiveMode,
     bool? appendNewline,
     NewlineMode? newlineMode,
+    bool? enableAnsi,
   }) {
     return UiSettings(
       hexDisplay: hexDisplay ?? this.hexDisplay,
@@ -586,6 +589,7 @@ class UiSettings {
       preferredReceiveMode: preferredReceiveMode ?? this.preferredReceiveMode,
       appendNewline: appendNewline ?? this.appendNewline,
       newlineMode: newlineMode ?? this.newlineMode,
+      enableAnsi: enableAnsi ?? this.enableAnsi,
     );
   }
 }
@@ -614,6 +618,7 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
   // Newline settings keys
   static const _keyAppendNewline = 'ui_append_newline';
   static const _keyNewlineMode = 'ui_newline_mode';
+  static const _keyEnableAnsi = 'ui_enable_ansi';
 
   @override
   UiSettings build() {
@@ -633,6 +638,7 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
       appendNewline: prefs.getBool(_keyAppendNewline) ?? false,
       newlineMode: NewlineMode
           .values[prefs.getInt(_keyNewlineMode) ?? NewlineMode.lf.index],
+      enableAnsi: prefs.getBool(_keyEnableAnsi) ?? false,
     );
   }
 
@@ -706,6 +712,11 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
   void setNewlineMode(NewlineMode mode) {
     state = state.copyWith(newlineMode: mode);
     ref.read(sharedPreferencesProvider).setInt(_keyNewlineMode, mode.index);
+  }
+
+  void setEnableAnsi(bool value) {
+    state = state.copyWith(enableAnsi: value);
+    ref.read(sharedPreferencesProvider).setBool(_keyEnableAnsi, value);
   }
 }
 

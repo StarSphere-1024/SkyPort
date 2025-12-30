@@ -143,4 +143,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get blockModeLabel => '按块';
+
+  @override
+  String get enableAnsi => '启用 ANSI';
 }

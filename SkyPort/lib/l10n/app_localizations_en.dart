@@ -146,4 +146,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get blockModeLabel => 'Block';
+
+  @override
+  String get enableAnsi => 'Enable ANSI';
 }

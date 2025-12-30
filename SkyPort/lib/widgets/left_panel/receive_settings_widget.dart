@@ -47,6 +47,11 @@ class ReceiveSettingsWidget extends ConsumerWidget {
           value: settings.showSent,
           onChanged: (v) => notifier.setShowSent(v),
         ),
+        CompactSwitch(
+          label: AppLocalizations.of(context).enableAnsi,
+          value: settings.enableAnsi,
+          onChanged: (v) => notifier.setEnableAnsi(v),
+        ),
       ],
     );
   }
