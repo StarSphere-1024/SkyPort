@@ -63,5 +63,6 @@
   "light": "浅色",
   "dark": "深色",
   "logBufferSize": "日志缓冲区大小",
-  "logBufferSizeError": "16-512之间的整数"
+  "logBufferSizeError": "16-512之间的整数",
+  "enableAnsi": "启用 ANSI 转义"
 }

@@ -403,6 +403,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'16-512'**
   String get logBufferSizeError;
+
+  /// No description provided for @enableAnsi.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable ANSI'**
+  String get enableAnsi;
 }
 
 class _AppLocalizationsDelegate

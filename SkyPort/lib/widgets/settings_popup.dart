@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/theme_provider.dart';
 import '../providers/serial_provider.dart';
 import '../l10n/app_localizations.dart';
+import '../widgets/shared/compact_switch.dart';
 
 class SettingsPopup extends ConsumerWidget {
   final TextEditingController controller;
@@ -52,6 +53,12 @@ class SettingsPopup extends ConsumerWidget {
             ),
           ),
           const Divider(),
+          CompactSwitch(
+            label: AppLocalizations.of(context).enableAnsi,
+            value: ref.watch(uiSettingsProvider).enableAnsi,
+            onChanged: (v) =>
+                ref.read(uiSettingsProvider.notifier).setEnableAnsi(v),
+          ),
           ListTile(
             title: Text(
               AppLocalizations.of(context).logBufferSize,

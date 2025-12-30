@@ -167,4 +167,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get logBufferSizeError => '16-512';
+
+  @override
+  String get enableAnsi => 'Enable ANSI';
 }

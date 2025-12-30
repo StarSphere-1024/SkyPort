@@ -63,5 +63,6 @@
   "light": "Light",
   "dark": "Dark",
   "logBufferSize": "Log Buffer Size",
-  "logBufferSizeError": "16-512"
+  "logBufferSizeError": "16-512",
+  "enableAnsi": "Enable ANSI"
 }

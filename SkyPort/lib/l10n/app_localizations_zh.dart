@@ -164,4 +164,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get logBufferSizeError => '16-512之间的整数';
+
+  @override
+  String get enableAnsi => '启用 ANSI 转义';
 }
