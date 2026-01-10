@@ -213,18 +213,7 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                                     DateFormat('HH:mm:ss.SSS')
                                         .format(entry.timestamp);
 
-                                String dataText;
-                                if (settings.hexDisplay) {
-                                  dataText = entry.data
-                                      .map((b) => b
-                                          .toRadixString(16)
-                                          .padLeft(2, '0')
-                                          .toUpperCase())
-                                      .join(' ');
-                                } else {
-                                  dataText = utf8.decode(entry.data,
-                                      allowMalformed: true);
-                                }
+                                String dataText = entry.getDisplayText(settings.hexDisplay);
 
                                 final lines = dataText.split('\n');
 

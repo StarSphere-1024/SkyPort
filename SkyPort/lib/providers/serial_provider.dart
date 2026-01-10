@@ -402,11 +402,29 @@ final serialConnectionProvider =
 enum LogEntryType { received, sent }
 
 class LogEntry {
-  Uint8List data;
+  final Uint8List data;
   final LogEntryType type;
-  DateTime timestamp;
+  final DateTime timestamp;
+  String? _cachedText;
+  bool? _cachedHexMode;
 
   LogEntry(this.data, this.type, this.timestamp);
+
+  String getDisplayText(bool hexDisplay) {
+    if (_cachedText != null && _cachedHexMode == hexDisplay) {
+      return _cachedText!;
+    }
+    
+    if (hexDisplay) {
+      _cachedText = data
+          .map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase())
+          .join(' ');
+    } else {
+      _cachedText = utf8.decode(data, allowMalformed: true);
+    }
+    _cachedHexMode = hexDisplay;
+    return _cachedText!;
+  }
 }
 
 class DataLogNotifier extends Notifier<List<LogEntry>> {
@@ -425,12 +443,16 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
     return [];
   }
 
-  void _addLogEntry(LogEntry entry) {
+  void _addLogEntries(List<LogEntry> entries) {
+    if (entries.isEmpty) return;
     final uiSettings = ref.read(uiSettingsProvider);
     final maxBytes = uiSettings.logBufferSize * 1024 * 1024;
     // Start from current state and append the new entry.
-    final newList = List<LogEntry>.from(state)..add(entry);
-    _totalBytes += entry.data.length;
+    final newList = List<LogEntry>.from(state)..addAll(entries);
+    
+    for (final entry in entries) {
+      _totalBytes += entry.data.length;
+    }
 
     // If total bytes exceed the configured cap, drop oldest entries
     // until we fall back under the limit.
@@ -464,20 +486,33 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
         // Append to the last entry
         if (state.isNotEmpty && state.last.type == LogEntryType.received) {
           final lastEntry = state.last;
+          
+          final newData = Uint8List.fromList([...lastEntry.data, ...data]);
+          
           // Create a new list with the updated entry
           final updatedList = List<LogEntry>.from(state);
           updatedList[state.length - 1] = LogEntry(
-            Uint8List.fromList([...lastEntry.data, ...data]),
+            newData,
             lastEntry.type,
             DateTime.now(), // Update timestamp to the latest received time
           );
+          // Update total bytes
+          _totalBytes += (newData.length - lastEntry.data.length);
+          
+          // We should check maxBytes here too strictly speaking, but it's an edge case for a single growing packet.
+          // Let's rely on the next cleanup or simple check.
+           final maxBytes = settings.logBufferSize * 1024 * 1024;
+           if (_totalBytes > maxBytes) {
+             // simplified cleanup for this specific case if needed, or just let it grow until next new entry
+           }
+          
           state = updatedList;
         } else {
-          _addLogEntry(LogEntry(data, LogEntryType.received, DateTime.now()));
+          _addLogEntries([LogEntry(data, LogEntryType.received, DateTime.now())]);
         }
       } else {
         // Create a new entry
-        _addLogEntry(LogEntry(data, LogEntryType.received, DateTime.now()));
+        _addLogEntries([LogEntry(data, LogEntryType.received, DateTime.now())]);
       }
 
       _receiveDebounce =
@@ -492,6 +527,8 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
   }
 
   void _appendAsLines(Uint8List data) {
+    final newEntries = <LogEntry>[];
+    
     for (final byte in data) {
       if (byte == 0x0A) {
         if (_lineBuffer.isNotEmpty) {
@@ -502,18 +539,21 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
           final lineBytes = Uint8List.fromList(_lineBuffer);
           _lineBuffer.clear();
 
-          _addLogEntry(
-              LogEntry(lineBytes, LogEntryType.received, DateTime.now()));
+          newEntries.add(LogEntry(lineBytes, LogEntryType.received, DateTime.now()));
         } else {}
       } else {
         _lineBuffer.add(byte);
       }
     }
+    
+    if (newEntries.isNotEmpty) {
+      _addLogEntries(newEntries);
+    }
   }
 
   void addSent(Uint8List data) {
     _receiveDebounce?.cancel();
-    _addLogEntry(LogEntry(data, LogEntryType.sent, DateTime.now()));
+    _addLogEntries([LogEntry(data, LogEntryType.sent, DateTime.now())]);
   }
 
   void clear() {

@@ -48,6 +48,9 @@ class SerialPortWriteException implements Exception {
 class SerialPortService {
   Future<SerialPortSession> open(SerialConfig config,
       {Duration timeout = const Duration(seconds: 5)}) async {
+    if (config.portName.isEmpty) {
+      throw SerialPortOpenException('Port name cannot be empty');
+    }
     final port = SerialPort(config.portName);
     final portConfig = SerialPortConfig()
       ..baudRate = config.baudRate
