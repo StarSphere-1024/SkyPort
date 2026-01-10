@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
-import 'package:ansi_escape_codes/ansi_escape_codes.dart' as ansi;
 
 import '../../providers/serial_provider.dart';
 
@@ -18,97 +16,6 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
   final ScrollController _scrollController = ScrollController();
   bool _isAtBottom = true;
   bool _stickToBottom = true;
-
-  TextStyle _ansiStateToStyle(dynamic state, TextStyle baseStyle) {
-    Color? fg;
-    Color? bg;
-    bool bold = false;
-    bool italic = false;
-    bool underline = false;
-
-    // Helper to convert ANSI color logic to Flutter Color
-    Color? getFlutterColor(dynamic ansiColorObject) {
-      if (ansiColorObject == null) return null;
-      try {
-        final runtimeTypeStr = ansiColorObject.runtimeType.toString();
-        // Support standard 16 colors
-        if (runtimeTypeStr.contains('Color16')) {
-          final dynamic colorEnum = ansiColorObject.color;
-          final int index = colorEnum.index as int;
-          switch (index) {
-            case 0:
-              return Colors.black;
-            case 1:
-              return Colors.red;
-            case 2:
-              return Colors.green;
-            case 3:
-              return Colors.yellow;
-            case 4:
-              return Colors.blue;
-            case 5:
-              return Colors.purple; // Magenta
-            case 6:
-              return Colors.cyan;
-            case 7:
-              return Colors.white70; // Standard white (dimmer)
-
-            // Bright/Bold colors
-            case 8:
-              return Colors.grey; // Bright Black
-            case 9:
-              return Colors.redAccent;
-            case 10:
-              return Colors.greenAccent;
-            case 11:
-              return Colors.yellowAccent;
-            case 12:
-              return Colors.blueAccent;
-            case 13:
-              return Colors.purpleAccent;
-            case 14:
-              return Colors.cyanAccent;
-            case 15:
-              return Colors.white; // Bright White
-
-            default:
-              return null;
-          }
-        }
-        // Extension point: Support Color256 or RGB if needed in future
-      } catch (e) {
-        // debugPrint('ANSI Color Parse Error: $e');
-      }
-      return null;
-    }
-
-    try {
-      if (state != null) {
-        fg = getFlutterColor(state.foreground);
-        bg = getFlutterColor(state.background);
-
-        try {
-          if (state.isBold == true) bold = true;
-        } catch (_) {}
-        try {
-          if (state.isItalicized == true) italic = true;
-        } catch (_) {}
-        try {
-          if (state.isSinglyUnderlined == true) underline = true;
-        } catch (_) {}
-      }
-    } catch (e) {
-      // debugPrint('ANSI State Parse Error: $e');
-    }
-
-    return baseStyle.copyWith(
-      color: fg,
-      backgroundColor: bg,
-      fontWeight: bold ? FontWeight.bold : null,
-      fontStyle: italic ? FontStyle.italic : null,
-      decoration: underline ? TextDecoration.underline : null,
-    );
-  }
 
   @override
   void initState() {
@@ -229,82 +136,18 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                               itemCount: listLength,
                               itemBuilder: (context, index) {
                                 final entry = dataLog[index];
-
-                                final isSent = entry.type == LogEntryType.sent;
-                                final formattedTimestamp =
-                                    DateFormat('HH:mm:ss.SSS')
-                                        .format(entry.timestamp);
-
-                                String dataText =
-                                    entry.getDisplayText(settings.hexDisplay);
-
-                                final lines = dataText.split('\n');
-
-                                final List<TextSpan> spans = [];
-                                for (int j = 0; j < lines.length; j++) {
-                                  final lineText = lines[j];
-
-                                  if (j == 0 && settings.showTimestamp) {
-                                    spans.add(
-                                      TextSpan(
-                                        text: '$formattedTimestamp ',
-                                        style: monoStyle.copyWith(
-                                          color: theme.disabledColor,
-                                        ),
-                                      ),
-                                    );
-                                  }
-
-                                  if (j == 0 && settings.showSent) {
-                                    spans.add(
-                                      TextSpan(
-                                        text: isSent ? 'TX > ' : 'RX < ',
-                                        style: monoStyle.copyWith(
-                                          color: isSent
-                                              ? colorScheme.primary
-                                              : colorScheme.onSurface,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    );
-                                  }
-
-                                  if (settings.enableAnsi) {
-                                    final parser = ansi.AnsiParser(lineText);
-                                    for (final match in parser.matches) {
-                                      final text = lineText.substring(
-                                          match.start, match.end);
-
-                                      if (text.startsWith('\x1b')) {
-                                        continue;
-                                      }
-
-                                      spans.add(TextSpan(
-                                        text: text,
-                                        style: _ansiStateToStyle(
-                                            match.state,
-                                            dataTextStyle.copyWith(
-                                              color: isSent
-                                                  ? colorScheme.primary
-                                                      .withValues(alpha: 0.8)
-                                                  : colorScheme.onSurface,
-                                            )),
-                                      ));
-                                    }
-                                  } else {
-                                    spans.add(
-                                      TextSpan(
-                                        text: lineText,
-                                        style: dataTextStyle.copyWith(
-                                          color: isSent
-                                              ? colorScheme.primary
-                                                  .withValues(alpha: 0.8)
-                                              : colorScheme.onSurface,
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                }
+                                final spans = entry.getSpans(
+                                  hexDisplay: settings.hexDisplay,
+                                  showTimestamp: settings.showTimestamp,
+                                  showSent: settings.showSent,
+                                  enableAnsi: settings.enableAnsi,
+                                  baseStyle: dataTextStyle,
+                                  timestampStyle: monoStyle.copyWith(
+                                    color: theme.disabledColor,
+                                  ),
+                                  primaryColor: colorScheme.primary,
+                                  onSurfaceColor: colorScheme.onSurface,
+                                );
 
                                 return SizedBox(
                                   width: constraints.maxWidth,
