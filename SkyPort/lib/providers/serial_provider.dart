@@ -613,7 +613,9 @@ class LogEntry {
               return null;
           }
         }
-      } catch (e) {}
+      } catch (e) {
+        // Ignore exceptions when accessing ANSI color properties
+      }
       return null;
     }
 
@@ -631,7 +633,9 @@ class LogEntry {
           if (state.isSinglyUnderlined == true) underline = true;
         } catch (_) {}
       }
-    } catch (e) {}
+    } catch (e) {
+      // Ignore exceptions when accessing ANSI state properties
+    }
 
     return baseStyle.copyWith(
       color: fg,
@@ -649,47 +653,142 @@ class _CachedSpanData {
   _CachedSpanData(this.settingsHash, this.spans);
 }
 
-class DataLogNotifier extends Notifier<List<LogEntry>> {
+class LogChunk {
+  final List<LogEntry> entries;
+  final int totalBytes;
+  final int id;
+
+  List<LogEntry>? _rxEntries;
+  List<LogEntry> get rxEntries => _rxEntries ??=
+      entries.where((e) => e.type == LogEntryType.received).toList();
+
+  LogChunk({required this.entries, required this.totalBytes, required this.id});
+}
+
+class LogState {
+  final List<LogChunk> chunks;
+  final int totalBytes;
+  final int nextChunkId;
+
+  const LogState({
+    this.chunks = const [],
+    this.totalBytes = 0,
+    this.nextChunkId = 0,
+  });
+
+  List<LogEntry> get allEntries => chunks.expand((c) => c.entries).toList();
+}
+
+class DataLogNotifier extends Notifier<LogState> {
   Timer? _receiveDebounce;
-  // Buffer for accumulating bytes of the current line in line-mode text display.
   final List<int> _lineBuffer = [];
 
-  int _totalBytes = 0;
+  static const int _chunkSizeLimit = 1000;
+
+  List<LogEntry> _currentBuffer = [];
+  int _currentBufferBytes = 0;
 
   @override
-  List<LogEntry> build() {
+  LogState build() {
     ref.onDispose(() {
       _receiveDebounce?.cancel();
     });
-    _totalBytes = 0;
-    return [];
+    return const LogState();
+  }
+
+  void _updateState() {
+    final uiSettings = ref.read(uiSettingsProvider);
+    final maxBytes = uiSettings.logBufferSize * 1024 * 1024;
+
+    // Calculate total bytes including current buffer
+    // Note: state.totalBytes represents bytes in FIXED chunks only if we track it that way,
+    // but here we used state.totalBytes as global total.
+    // Let's rely on calculating from chunks + buffer to be safe or maintain it carefully.
+
+    // Recalculate fixed chunks size
+    // We filter out the last chunk if it was temporary (-1) to ensure we rebuild state from stable data.
+    List<LogChunk> finalizedChunks = [];
+    if (state.chunks.isNotEmpty) {
+      if (state.chunks.last.id == -1) {
+        finalizedChunks = state.chunks.sublist(0, state.chunks.length - 1);
+      } else {
+        finalizedChunks = state.chunks;
+      }
+    }
+
+    // Calculate total size
+    int finalizedSize = finalizedChunks.fold(0, (sum, c) => sum + c.totalBytes);
+    int newTotalBytes = finalizedSize + _currentBufferBytes;
+
+    // Pruning
+    int bytesToRemove = newTotalBytes - maxBytes;
+    if (bytesToRemove > 0 && finalizedChunks.isNotEmpty) {
+      int infoBytesRemoved = 0;
+      int chunksToRemove = 0;
+      for (final chunk in finalizedChunks) {
+        if (infoBytesRemoved >= bytesToRemove) break;
+        infoBytesRemoved += chunk.totalBytes;
+        chunksToRemove++;
+      }
+      if (chunksToRemove > 0) {
+        finalizedChunks = finalizedChunks.sublist(chunksToRemove);
+        finalizedSize -= infoBytesRemoved;
+        newTotalBytes -= infoBytesRemoved;
+      }
+    }
+
+    // Check if current buffer needs finalizing
+    if (_currentBuffer.length >= _chunkSizeLimit) {
+      final newChunk = LogChunk(
+        entries: List.unmodifiable(_currentBuffer),
+        totalBytes: _currentBufferBytes,
+        id: state.nextChunkId,
+      );
+
+      finalizedChunks = [...finalizedChunks, newChunk];
+      state = LogState(
+        chunks: finalizedChunks,
+        totalBytes: newTotalBytes,
+        nextChunkId: state.nextChunkId + 1,
+      );
+
+      _currentBuffer = [];
+      _currentBufferBytes = 0;
+    } else {
+      // Create temp chunk
+      if (_currentBuffer.isNotEmpty) {
+        final tempChunk = LogChunk(
+          entries:
+              _currentBuffer, // Mutable reference shared, but safe for immediate render
+          totalBytes: _currentBufferBytes,
+          id: -1,
+        );
+        state = LogState(
+          chunks: [...finalizedChunks, tempChunk],
+          totalBytes: newTotalBytes,
+          nextChunkId: state.nextChunkId,
+        );
+      } else {
+        // Buffer empty, just finalized chunks
+        if (state.chunks.length != finalizedChunks.length ||
+            state.chunks.isNotEmpty && state.chunks.last.id == -1) {
+          state = LogState(
+            chunks: finalizedChunks,
+            totalBytes: newTotalBytes,
+            nextChunkId: state.nextChunkId,
+          );
+        }
+      }
+    }
   }
 
   void _addLogEntries(List<LogEntry> entries) {
     if (entries.isEmpty) return;
-    final uiSettings = ref.read(uiSettingsProvider);
-    final maxBytes = uiSettings.logBufferSize * 1024 * 1024;
-    // Start from current state and append the new entry.
-    final newList = List<LogEntry>.from(state)..addAll(entries);
-
-    for (final entry in entries) {
-      _totalBytes += entry.data.length;
+    _currentBuffer.addAll(entries);
+    for (var e in entries) {
+      _currentBufferBytes += e.data.length;
     }
-
-    // If total bytes exceed the configured cap, drop oldest entries
-    // until we fall back under the limit.
-    int removeCount = 0;
-    int i = 0;
-    while (_totalBytes > maxBytes && i < newList.length) {
-      _totalBytes -= newList[i].data.length;
-      removeCount++;
-      i++;
-    }
-    if (removeCount > 0) {
-      newList.removeRange(0, removeCount);
-    }
-
-    state = newList;
+    _updateState();
   }
 
   void addReceived(Uint8List data) {
@@ -705,31 +804,28 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
       // Block receive mode: debounce short bursts of data into a single frame.
       if (_receiveDebounce?.isActive ?? false) {
         _receiveDebounce!.cancel();
-        // Append to the last entry
-        if (state.isNotEmpty && state.last.type == LogEntryType.received) {
-          final lastEntry = state.last;
 
+        bool appended = false;
+        // Try to append to the last entry in the current buffer
+        if (_currentBuffer.isNotEmpty &&
+            _currentBuffer.last.type == LogEntryType.received) {
+          final lastEntry = _currentBuffer.last;
           final newData = Uint8List.fromList([...lastEntry.data, ...data]);
 
-          // Create a new list with the updated entry
-          final updatedList = List<LogEntry>.from(state);
-          updatedList[state.length - 1] = LogEntry(
+          // Update the entry in the mutable buffer
+          _currentBuffer[_currentBuffer.length - 1] = LogEntry(
             newData,
             lastEntry.type,
-            DateTime.now(), // Update timestamp to the latest received time
+            DateTime.now(), // Update timestamp
           );
-          // Update total bytes
-          _totalBytes += (newData.length - lastEntry.data.length);
+          _currentBufferBytes += (newData.length - lastEntry.data.length);
+          appended = true;
+        }
 
-          // We should check maxBytes here too strictly speaking, but it's an edge case for a single growing packet.
-          // Let's rely on the next cleanup or simple check.
-          final maxBytes = settings.logBufferSize * 1024 * 1024;
-          if (_totalBytes > maxBytes) {
-            // simplified cleanup for this specific case if needed, or just let it grow until next new entry
-          }
-
-          state = updatedList;
+        if (appended) {
+          _updateState();
         } else {
+          // If buffer was empty (or last was sending), treat as new entry
           _addLogEntries(
               [LogEntry(data, LogEntryType.received, DateTime.now())]);
         }
@@ -740,7 +836,7 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
 
       _receiveDebounce =
           Timer(Duration(milliseconds: settings.blockIntervalMs), () {
-        // Debounce finished, next data will create a new entry
+        // Debounce finished
       });
     } else {
       // Line receive mode: process as lines
@@ -783,8 +879,9 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
   void clear() {
     _receiveDebounce?.cancel();
     _lineBuffer.clear();
-    _totalBytes = 0;
-    state = [];
+    _currentBuffer = [];
+    _currentBufferBytes = 0;
+    state = const LogState();
     // Clear RX/TX counters when clearing the receive area
     ref.read(serialConnectionProvider.notifier).state =
         ref.read(serialConnectionProvider).copyWith(
@@ -795,9 +892,8 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
   }
 }
 
-final dataLogProvider =
-    NotifierProvider.autoDispose<DataLogNotifier, List<LogEntry>>(
-        DataLogNotifier.new);
+final dataLogProvider = NotifierProvider.autoDispose<DataLogNotifier, LogState>(
+    DataLogNotifier.new);
 
 class UiSettings {
   final bool hexDisplay;
