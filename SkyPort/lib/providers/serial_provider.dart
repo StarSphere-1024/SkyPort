@@ -242,9 +242,7 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
 
     final config = ref.read(serialConfigProvider);
     if (config == null) {
-      ref
-          .read(errorProvider.notifier)
-          .setError('Serial configuration not set.');
+      ref.read(errorProvider.notifier).setError(AppErrorType.configNotSet);
       state = state.copyWith(status: ConnectionStatus.disconnected);
       return;
     }
@@ -260,20 +258,28 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
         );
       }, onError: (error) {
         disconnect();
-        ref.read(errorProvider.notifier).setError("Port disconnected: $error");
+        ref
+            .read(errorProvider.notifier)
+            .setError(AppErrorType.portDisconnected, error.toString());
       });
       state = state.copyWith(
         status: ConnectionStatus.connected,
         session: session,
       );
     } on SerialPortOpenTimeoutException catch (e) {
-      ref.read(errorProvider.notifier).setError('Error: ${e.message}');
+      ref
+          .read(errorProvider.notifier)
+          .setError(AppErrorType.portOpenTimeout, e.message);
       state = state.copyWith(status: ConnectionStatus.disconnected);
     } on SerialPortOpenException catch (e) {
-      ref.read(errorProvider.notifier).setError(e.message);
+      ref
+          .read(errorProvider.notifier)
+          .setError(AppErrorType.portOpenFailed, e.message);
       state = state.copyWith(status: ConnectionStatus.disconnected);
     } catch (e) {
-      ref.read(errorProvider.notifier).setError('Unknown connect error: $e');
+      ref
+          .read(errorProvider.notifier)
+          .setError(AppErrorType.unknown, e.toString());
       state = state.copyWith(status: ConnectionStatus.disconnected);
     }
   }
@@ -299,7 +305,9 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
       if (kDebugMode) {
         print("Error during serial port cleanup: $e");
       }
-      ref.read(errorProvider.notifier).setError('Error disconnecting port: $e');
+      ref
+          .read(errorProvider.notifier)
+          .setError(AppErrorType.cleanupError, e.toString());
     } finally {
       state = state.copyWith(
         status: ConnectionStatus.disconnected,
@@ -347,7 +355,7 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
         bytesToSend = Uint8List.fromList(utf8.encode(textToSend));
       }
     } catch (e) {
-      ref.read(errorProvider.notifier).setError('Invalid Hex format.');
+      ref.read(errorProvider.notifier).setError(AppErrorType.invalidHexFormat);
       return;
     }
 
@@ -366,7 +374,7 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
     } on SerialPortWriteException catch (e) {
       ref
           .read(errorProvider.notifier)
-          .setError('Error sending data: ${e.message}');
+          .setError(AppErrorType.writeFailed, e.message);
     }
   }
 
@@ -414,7 +422,7 @@ class LogEntry {
     if (_cachedText != null && _cachedHexMode == hexDisplay) {
       return _cachedText!;
     }
-    
+
     if (hexDisplay) {
       _cachedText = data
           .map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase())
@@ -449,7 +457,7 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
     final maxBytes = uiSettings.logBufferSize * 1024 * 1024;
     // Start from current state and append the new entry.
     final newList = List<LogEntry>.from(state)..addAll(entries);
-    
+
     for (final entry in entries) {
       _totalBytes += entry.data.length;
     }
@@ -486,9 +494,9 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
         // Append to the last entry
         if (state.isNotEmpty && state.last.type == LogEntryType.received) {
           final lastEntry = state.last;
-          
+
           final newData = Uint8List.fromList([...lastEntry.data, ...data]);
-          
+
           // Create a new list with the updated entry
           final updatedList = List<LogEntry>.from(state);
           updatedList[state.length - 1] = LogEntry(
@@ -498,17 +506,18 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
           );
           // Update total bytes
           _totalBytes += (newData.length - lastEntry.data.length);
-          
+
           // We should check maxBytes here too strictly speaking, but it's an edge case for a single growing packet.
           // Let's rely on the next cleanup or simple check.
-           final maxBytes = settings.logBufferSize * 1024 * 1024;
-           if (_totalBytes > maxBytes) {
-             // simplified cleanup for this specific case if needed, or just let it grow until next new entry
-           }
-          
+          final maxBytes = settings.logBufferSize * 1024 * 1024;
+          if (_totalBytes > maxBytes) {
+            // simplified cleanup for this specific case if needed, or just let it grow until next new entry
+          }
+
           state = updatedList;
         } else {
-          _addLogEntries([LogEntry(data, LogEntryType.received, DateTime.now())]);
+          _addLogEntries(
+              [LogEntry(data, LogEntryType.received, DateTime.now())]);
         }
       } else {
         // Create a new entry
@@ -528,7 +537,7 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
 
   void _appendAsLines(Uint8List data) {
     final newEntries = <LogEntry>[];
-    
+
     for (final byte in data) {
       if (byte == 0x0A) {
         if (_lineBuffer.isNotEmpty) {
@@ -539,13 +548,14 @@ class DataLogNotifier extends Notifier<List<LogEntry>> {
           final lineBytes = Uint8List.fromList(_lineBuffer);
           _lineBuffer.clear();
 
-          newEntries.add(LogEntry(lineBytes, LogEntryType.received, DateTime.now()));
+          newEntries
+              .add(LogEntry(lineBytes, LogEntryType.received, DateTime.now()));
         } else {}
       } else {
         _lineBuffer.add(byte);
       }
     }
-    
+
     if (newEntries.isNotEmpty) {
       _addLogEntries(newEntries);
     }
@@ -772,12 +782,50 @@ final uiSettingsProvider =
     NotifierProvider.autoDispose<UiSettingsNotifier, UiSettings>(
         UiSettingsNotifier.new);
 
-class ErrorNotifier extends Notifier<String?> {
-  @override
-  String? build() => null;
+/// Defines different types of potential errors in the serial workflow
+enum AppErrorType {
+  none,
+  configNotSet,
+  portOpenTimeout,
+  portOpenFailed,
+  portDisconnected,
+  writeFailed,
+  invalidHexFormat,
+  cleanupError,
+  unknown;
+}
 
-  void setError(String message) {
-    state = message;
+/// A structured error state
+class AppError {
+  final AppErrorType type;
+  final String? rawMessage;
+
+  const AppError(this.type, [this.rawMessage]);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AppError &&
+          runtimeType == other.runtimeType &&
+          type == other.type &&
+          rawMessage == other.rawMessage;
+
+  @override
+  int get hashCode => type.hashCode ^ rawMessage.hashCode;
+}
+
+class ErrorNotifier extends Notifier<AppError?> {
+  @override
+  AppError? build() => null;
+
+  void setError(AppErrorType type, [String? message]) {
+    state = AppError(type, message);
+    // Auto-clear error after 5 seconds
+    Future.delayed(const Duration(seconds: 5), () {
+      if (state?.type == type) {
+        state = null;
+      }
+    });
   }
 
   void clear() {
@@ -786,4 +834,4 @@ class ErrorNotifier extends Notifier<String?> {
 }
 
 final errorProvider =
-    NotifierProvider.autoDispose<ErrorNotifier, String?>(ErrorNotifier.new);
+    NotifierProvider.autoDispose<ErrorNotifier, AppError?>(ErrorNotifier.new);

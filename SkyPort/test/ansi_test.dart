@@ -1,5 +1,7 @@
+// ignore_for_file: avoid_print
+
 import 'package:ansi_escape_codes/ansi_escape_codes.dart';
-import 'package:test/test.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('ansi parser test', () {

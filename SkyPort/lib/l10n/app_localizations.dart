@@ -409,6 +409,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enable ANSI'**
   String get enableAnsi;
+
+  /// No description provided for @errConfigNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Serial configuration not set.'**
+  String get errConfigNotSet;
+
+  /// No description provided for @errPortOpenTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection timed out: {message}'**
+  String errPortOpenTimeout(Object message);
+
+  /// No description provided for @errPortOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to open port: {message}'**
+  String errPortOpenFailed(Object message);
+
+  /// No description provided for @errPortDisconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Port disconnected: {message}'**
+  String errPortDisconnected(Object message);
+
+  /// No description provided for @errWriteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Write failed: {message}'**
+  String errWriteFailed(Object message);
+
+  /// No description provided for @errInvalidHexFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid HEX format'**
+  String get errInvalidHexFormat;
+
+  /// No description provided for @errCleanupError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error during cleanup: {message}'**
+  String errCleanupError(Object message);
+
+  /// No description provided for @errUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown error: {message}'**
+  String errUnknown(Object message);
 }
 
 class _AppLocalizationsDelegate

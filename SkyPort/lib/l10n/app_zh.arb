@@ -64,5 +64,13 @@
   "dark": "深色",
   "logBufferSize": "日志缓冲区大小",
   "logBufferSizeError": "16-512之间的整数",
-  "enableAnsi": "启用 ANSI 转义"
+  "enableAnsi": "启用 ANSI",
+  "errConfigNotSet": "未设置串口配置",
+  "errPortOpenTimeout": "连接超时: {message}",
+  "errPortOpenFailed": "打开串口失败: {message}",
+  "errPortDisconnected": "串口已断开: {message}",
+  "errWriteFailed": "写入失败: {message}",
+  "errInvalidHexFormat": "无效的 HEX 格式",
+  "errCleanupError": "清理资源时出错: {message}",
+  "errUnknown": "未知错误: {message}"
 }

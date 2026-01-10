@@ -170,4 +170,40 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get enableAnsi => 'Enable ANSI';
+
+  @override
+  String get errConfigNotSet => 'Serial configuration not set.';
+
+  @override
+  String errPortOpenTimeout(Object message) {
+    return 'Connection timed out: $message';
+  }
+
+  @override
+  String errPortOpenFailed(Object message) {
+    return 'Failed to open port: $message';
+  }
+
+  @override
+  String errPortDisconnected(Object message) {
+    return 'Port disconnected: $message';
+  }
+
+  @override
+  String errWriteFailed(Object message) {
+    return 'Write failed: $message';
+  }
+
+  @override
+  String get errInvalidHexFormat => 'Invalid HEX format';
+
+  @override
+  String errCleanupError(Object message) {
+    return 'Error during cleanup: $message';
+  }
+
+  @override
+  String errUnknown(Object message) {
+    return 'Unknown error: $message';
+  }
 }

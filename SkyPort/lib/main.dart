@@ -93,16 +93,50 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final ref = this.ref;
-    ref.listen<String?>(errorProvider, (prev, next) {
-      if (next != null && next.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: SelectableText(
-              next,
+    ref.listen<AppError?>(errorProvider, (prev, next) {
+      final error = next;
+      if (error != null && error.type != AppErrorType.none) {
+        final loc = AppLocalizations.of(context);
+        String message;
+        switch (error.type) {
+          case AppErrorType.configNotSet:
+            message = loc.errConfigNotSet;
+            break;
+          case AppErrorType.portOpenTimeout:
+            message = loc.errPortOpenTimeout(error.rawMessage ?? '');
+            break;
+          case AppErrorType.portOpenFailed:
+            message = loc.errPortOpenFailed(error.rawMessage ?? '');
+            break;
+          case AppErrorType.portDisconnected:
+            message = loc.errPortDisconnected(error.rawMessage ?? '');
+            break;
+          case AppErrorType.writeFailed:
+            message = loc.errWriteFailed(error.rawMessage ?? '');
+            break;
+          case AppErrorType.invalidHexFormat:
+            message = loc.errInvalidHexFormat;
+            break;
+          case AppErrorType.cleanupError:
+            message = loc.errCleanupError(error.rawMessage ?? '');
+            break;
+          case AppErrorType.unknown:
+            message = loc.errUnknown(error.rawMessage ?? '');
+            break;
+          case AppErrorType.none:
+            return;
+        }
+
+        if (message.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: SelectableText(
+                message,
+              ),
             ),
-          ),
-        );
-        ref.read(errorProvider.notifier).clear();
+          );
+          ref.read(errorProvider.notifier).clear();
+        }
       }
     });
     ref.listen<int>(uiSettingsProvider.select((s) => s.logBufferSize),

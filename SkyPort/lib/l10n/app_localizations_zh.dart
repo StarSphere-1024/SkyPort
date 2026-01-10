@@ -166,5 +166,41 @@ class AppLocalizationsZh extends AppLocalizations {
   String get logBufferSizeError => '16-512之间的整数';
 
   @override
-  String get enableAnsi => '启用 ANSI 转义';
+  String get enableAnsi => '启用 ANSI';
+
+  @override
+  String get errConfigNotSet => '未设置串口配置';
+
+  @override
+  String errPortOpenTimeout(Object message) {
+    return '连接超时: $message';
+  }
+
+  @override
+  String errPortOpenFailed(Object message) {
+    return '打开串口失败: $message';
+  }
+
+  @override
+  String errPortDisconnected(Object message) {
+    return '串口已断开: $message';
+  }
+
+  @override
+  String errWriteFailed(Object message) {
+    return '写入失败: $message';
+  }
+
+  @override
+  String get errInvalidHexFormat => '无效的 HEX 格式';
+
+  @override
+  String errCleanupError(Object message) {
+    return '清理资源时出错: $message';
+  }
+
+  @override
+  String errUnknown(Object message) {
+    return '未知错误: $message';
+  }
 }

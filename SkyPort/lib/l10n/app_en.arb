@@ -64,5 +64,13 @@
   "dark": "Dark",
   "logBufferSize": "Log Buffer Size",
   "logBufferSizeError": "16-512",
-  "enableAnsi": "Enable ANSI"
+  "enableAnsi": "Enable ANSI",
+  "errConfigNotSet": "Serial configuration not set.",
+  "errPortOpenTimeout": "Connection timed out: {message}",
+  "errPortOpenFailed": "Failed to open port: {message}",
+  "errPortDisconnected": "Port disconnected: {message}",
+  "errWriteFailed": "Write failed: {message}",
+  "errInvalidHexFormat": "Invalid HEX format",
+  "errCleanupError": "Error during cleanup: {message}",
+  "errUnknown": "Unknown error: {message}"
 }
