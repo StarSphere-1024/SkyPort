@@ -6,6 +6,7 @@ class SerialConfig {
   final int dataBits;
   final int parity;
   final int stopBits;
+  final bool autoReconnect;
 
   SerialConfig({
     required this.portName,
@@ -13,6 +14,7 @@ class SerialConfig {
     this.dataBits = 8,
     this.parity = SerialPortParity.none,
     this.stopBits = 1,
+    this.autoReconnect = true,
   });
 
   SerialConfig copyWith({
@@ -21,6 +23,7 @@ class SerialConfig {
     int? dataBits,
     int? parity,
     int? stopBits,
+    bool? autoReconnect,
   }) {
     return SerialConfig(
       portName: portName ?? this.portName,
@@ -28,6 +31,7 @@ class SerialConfig {
       dataBits: dataBits ?? this.dataBits,
       parity: parity ?? this.parity,
       stopBits: stopBits ?? this.stopBits,
+      autoReconnect: autoReconnect ?? this.autoReconnect,
     );
   }
 }

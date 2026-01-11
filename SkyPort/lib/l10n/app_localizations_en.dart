@@ -116,7 +116,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get disconnecting => 'Disconnecting...';
 
   @override
+  String get reconnecting => 'Waiting for device...';
+
+  @override
   String get disconnected => 'Disconnected';
+
+  @override
+  String get autoReconnect => 'Smart Reconnect';
 
   @override
   String get unavailable => 'Unavailable';

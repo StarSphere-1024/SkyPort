@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/theme_provider.dart';
 import '../providers/serial/ui_settings_provider.dart';
+import '../providers/serial/serial_config_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/shared/compact_switch.dart';
 import '../theme.dart';
@@ -61,7 +62,10 @@ class SettingsPopup extends ConsumerWidget {
               ),
             ),
             trailing: DropdownButton<Color>(
-              value: ref.watch(themeColorProvider),
+              value: availableThemeColors.firstWhere(
+                (c) => c.value == ref.watch(themeColorProvider).value,
+                orElse: () => availableThemeColors.first,
+              ),
               onChanged: (Color? newColor) {
                 if (newColor != null) {
                   ref.read(themeColorProvider.notifier).setThemeColor(newColor);
@@ -96,6 +100,12 @@ class SettingsPopup extends ConsumerWidget {
             value: ref.watch(uiSettingsProvider).enableAnsi,
             onChanged: (v) =>
                 ref.read(uiSettingsProvider.notifier).setEnableAnsi(v),
+          ),
+          CompactSwitch(
+            label: AppLocalizations.of(context).autoReconnect,
+            value: ref.watch(serialConfigProvider)?.autoReconnect ?? true,
+            onChanged: (v) =>
+                ref.read(serialConfigProvider.notifier).setAutoReconnect(v),
           ),
           ListTile(
             title: Text(

@@ -62,6 +62,10 @@ class StatusBar extends ConsumerWidget {
           statusText = l10n.connecting;
           statusColor = colorScheme.tertiary;
           break;
+        case ConnectionStatus.reconnecting:
+          statusText = l10n.reconnecting;
+          statusColor = colorScheme.tertiary;
+          break;
         case ConnectionStatus.disconnecting:
           statusText = l10n.disconnecting;
           statusColor = colorScheme.tertiary;

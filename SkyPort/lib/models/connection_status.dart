@@ -1,6 +1,12 @@
 import '../services/serial_port_service.dart';
 
-enum ConnectionStatus { disconnected, connecting, connected, disconnecting }
+enum ConnectionStatus {
+  disconnected,
+  connecting,
+  reconnecting,
+  connected,
+  disconnecting
+}
 
 class SerialConnection {
   final ConnectionStatus status;

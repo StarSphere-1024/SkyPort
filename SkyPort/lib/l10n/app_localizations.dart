@@ -308,11 +308,23 @@ abstract class AppLocalizations {
   /// **'Disconnecting...'**
   String get disconnecting;
 
+  /// No description provided for @reconnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for device...'**
+  String get reconnecting;
+
   /// No description provided for @disconnected.
   ///
   /// In en, this message translates to:
   /// **'Disconnected'**
   String get disconnected;
+
+  /// No description provided for @autoReconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart Reconnect'**
+  String get autoReconnect;
 
   /// No description provided for @unavailable.
   ///

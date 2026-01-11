@@ -22,7 +22,7 @@ final availablePortsProvider =
   List<String> currentPorts = SerialPort.availablePorts;
   yield currentPorts;
 
-  final timer = Stream.periodic(const Duration(seconds: 1), (_) {
+  final timer = Stream.periodic(const Duration(milliseconds: 500), (_) {
     return SerialPort.availablePorts;
   });
 
@@ -40,6 +40,7 @@ class SerialConfigNotifier extends Notifier<SerialConfig?> {
   static const _keyDataBits = 'serial_data_bits';
   static const _keyParity = 'serial_parity';
   static const _keyStopBits = 'serial_stop_bits';
+  static const _keyAutoReconnect = 'serial_auto_reconnect';
 
   @override
   SerialConfig? build() {
@@ -88,6 +89,7 @@ class SerialConfigNotifier extends Notifier<SerialConfig?> {
       dataBits: prefs.getInt(_keyDataBits) ?? 8,
       parity: prefs.getInt(_keyParity) ?? SerialPortParity.none,
       stopBits: prefs.getInt(_keyStopBits) ?? 1,
+      autoReconnect: prefs.getBool(_keyAutoReconnect) ?? true,
     );
   }
 
@@ -100,6 +102,7 @@ class SerialConfigNotifier extends Notifier<SerialConfig?> {
       prefs.setInt(_keyDataBits, config.dataBits);
       prefs.setInt(_keyParity, config.parity);
       prefs.setInt(_keyStopBits, config.stopBits);
+      prefs.setBool(_keyAutoReconnect, config.autoReconnect);
     }
   }
 
@@ -126,6 +129,11 @@ class SerialConfigNotifier extends Notifier<SerialConfig?> {
 
   void setStopBits(int stopBits) {
     state = state?.copyWith(stopBits: stopBits);
+    _saveConfig();
+  }
+
+  void setAutoReconnect(bool value) {
+    state = state?.copyWith(autoReconnect: value);
     _saveConfig();
   }
 }

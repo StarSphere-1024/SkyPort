@@ -41,7 +41,9 @@
   },
   "connecting": "连接中...",
   "disconnecting": "断开中...",
+  "reconnecting": "等待设备...",
   "disconnected": "未连接",
+  "autoReconnect": "智能重连",
   "unavailable": "不可用",
   "trafficStats": "接收: {rx} - {lastRx} | 发送: {tx}",
   "@trafficStats": {

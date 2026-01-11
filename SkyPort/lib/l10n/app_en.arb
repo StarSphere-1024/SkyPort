@@ -41,7 +41,9 @@
   },
   "connecting": "Connecting...",
   "disconnecting": "Disconnecting...",
+  "reconnecting": "Waiting for device...",
   "disconnected": "Disconnected",
+  "autoReconnect": "Smart Reconnect",
   "unavailable": "Unavailable",
   "trafficStats": "Rx: {rx} - {lastRx} | Tx: {tx}",
   "@trafficStats": {
