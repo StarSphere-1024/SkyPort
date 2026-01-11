@@ -3,7 +3,7 @@
 [![Build Status](https://github.com/StarSphere-1024/SkyPort/actions/workflows/release.yml/badge.svg)](https://github.com/StarSphere-1024/SkyPort/actions/workflows/release.yml)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-一款使用 Flutter 构建的跨平台串口调试助手，专注桌面平台的高性能串口收发与调试体验。
+一款使用 Flutter 构建的跨平台串口调试助手，专注桌面平台的高性能串口收发与调试体验，支持 ANSI 转义序列渲染和灵活的数据处理模式。
 
 ## 📸 界面预览
 
@@ -18,10 +18,12 @@
 
 *   **数据收发**
     *   支持 ASCII 和 Hex 两种格式发送和接收数据。
-    *   支持“按块”和“按行”两种接收模式：
+    *   支持 ANSI 转义序列的解析和渲染，用于彩色日志输出。
+    *   支持"按块"和"按行"两种接收模式：
         *   按块模式：在短时间窗口内合并连续数据，适合二进制/高频数据流；
         *   按行模式：按换行符拆分，适合日志类文本输出。
-    *   每条记录可选显示时间戳，并区分显示“发送”和“接收”记录。
+    *   每条记录可选显示时间戳，并区分显示"发送"和"接收"记录。
+    *   可配置日志缓冲区大小（16-512MB，默认128MB）来控制内存使用。
     *   一键清空接收区。
 
 *   **发送配置**
@@ -30,7 +32,8 @@
 
 *   **界面与体验**
     *   基于 Material Design 3，左右双栏布局：左侧为配置与发送控制，右侧为数据日志与输入区。
-    *   支持浅色/深色主题。
+    *   支持浅色/深色/跟随系统主题切换。
+    *   可启用/禁用 ANSI 转义序列渲染。
     *   窗口尺寸、位置和串口偏好会被记忆，提升日常使用效率。
 
 *   **跨平台**
@@ -72,10 +75,12 @@
 
 ## 📦 主要依赖
 
-*   [flutter_riverpod](https://pub.dev/packages/flutter_riverpod): 用于状态管理。
-*   [flutter_libserialport](https://pub.dev/packages/flutter_libserialport): 用于串口通信。
-*   [shared_preferences](https://pub.dev/packages/shared_preferences): 用于记忆用户偏好和串口参数。
-*   [window_manager](https://pub.dev/packages/window_manager): 用于桌面端窗口管理。
+*   [flutter_riverpod](https://pub.dev/packages/flutter_riverpod) (v3.0.3): 用于状态管理。
+*   [flutter_libserialport](https://pub.dev/packages/flutter_libserialport) (v0.6.0): 用于串口通信。
+*   [shared_preferences](https://pub.dev/packages/shared_preferences) (v2.5.3): 用于记忆用户偏好和串口参数。
+*   [window_manager](https://pub.dev/packages/window_manager) (v0.5.1): 用于桌面端窗口管理。
+*   [ansi_escape_codes](https://pub.dev/packages/ansi_escape_codes) (v2.1.0): 用于 ANSI 转义序列解析和渲染。
+*   [flutter_localizations](https://api.flutter.dev/flutter/flutter_localizations/flutter_localizations-library.html) + [intl](https://pub.dev/packages/intl) (v0.20.2): 用于国际化支持。
 
 ## 🤝 贡献
 
@@ -88,7 +93,7 @@
 5. 开启一个 Pull Request
 
 ### 开发环境设置
-- 安装 Flutter 3.0+
+- 安装 Flutter 3.4.1+
 - 运行 `flutter pub get` 安装依赖
 - 使用 `flutter run` 启动开发版本
 
