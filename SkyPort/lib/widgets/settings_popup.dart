@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/theme_provider.dart';
-import '../providers/serial_provider.dart';
+import '../providers/serial/ui_settings_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/shared/compact_switch.dart';
 

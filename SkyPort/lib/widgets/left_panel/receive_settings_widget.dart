@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../providers/serial_provider.dart';
+import '../../providers/serial/serial_connection_provider.dart';
+import '../../providers/serial/ui_settings_provider.dart';
+import '../../models/connection_status.dart';
+import '../../models/ui_settings.dart';
 import '../../l10n/app_localizations.dart';
 import '../shared/compact_switch.dart';
 

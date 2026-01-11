@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../providers/serial_provider.dart';
+import '../../providers/serial/data_log_provider.dart';
+import '../../providers/serial/ui_settings_provider.dart';
+import '../../models/log_model.dart';
 
 class LogIndexMapper {
   final List<LogChunk> chunks;

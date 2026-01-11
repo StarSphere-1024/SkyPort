@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../providers/serial_provider.dart';
+import '../../providers/serial/serial_config_provider.dart';
+import '../../providers/serial/serial_connection_provider.dart';
+import '../../models/connection_status.dart';
 import '../../l10n/app_localizations.dart';
 
 class PortSelectionWidget extends ConsumerWidget {

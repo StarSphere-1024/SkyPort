@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_libserialport/flutter_libserialport.dart';
-import '../providers/serial_provider.dart';
+import '../models/serial_config.dart';
 
 /// Encapsulates an opened serial port session and its reader.
 class SerialPortSession {

@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/serial_provider.dart';
+import '../providers/serial/serial_config_provider.dart';
+import '../providers/serial/serial_connection_provider.dart';
+import '../providers/serial/error_provider.dart';
 import '../l10n/app_localizations.dart';
+import '../models/app_error.dart';
+import '../models/connection_status.dart';
 
 class StatusBar extends ConsumerWidget {
   const StatusBar({super.key});
