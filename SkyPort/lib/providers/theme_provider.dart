@@ -51,3 +51,33 @@ class ThemeModeNotifier extends Notifier<ThemeMode> {
 
 final themeModeProvider =
     NotifierProvider<ThemeModeNotifier, ThemeMode>(ThemeModeNotifier.new);
+
+class ThemeColorNotifier extends Notifier<Color> {
+  static const String _themeColorKey = 'theme_color';
+  static const Color defaultColor = Colors.blue;
+
+  @override
+  Color build() {
+    final prefs = ref.read(sharedPreferencesProvider);
+    return _loadThemeColor(prefs);
+  }
+
+  Color _loadThemeColor(SharedPreferences prefs) {
+    final colorValue = prefs.getInt(_themeColorKey);
+    if (colorValue == null) return defaultColor;
+    return Color(colorValue);
+  }
+
+  void setThemeColor(Color color) {
+    state = color;
+    _saveThemeColor();
+  }
+
+  void _saveThemeColor() {
+    final prefs = ref.read(sharedPreferencesProvider);
+    prefs.setInt(_themeColorKey, state.toARGB32());
+  }
+}
+
+final themeColorProvider =
+    NotifierProvider<ThemeColorNotifier, Color>(ThemeColorNotifier.new);

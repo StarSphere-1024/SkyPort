@@ -4,6 +4,7 @@ import '../providers/theme_provider.dart';
 import '../providers/serial/ui_settings_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/shared/compact_switch.dart';
+import '../theme.dart';
 
 class SettingsPopup extends ConsumerWidget {
   final TextEditingController controller;
@@ -50,6 +51,43 @@ class SettingsPopup extends ConsumerWidget {
                   child: Text(AppLocalizations.of(context).dark),
                 ),
               ],
+            ),
+          ),
+          ListTile(
+            title: Text(
+              'Theme Color',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            trailing: DropdownButton<Color>(
+              value: ref.watch(themeColorProvider),
+              onChanged: (Color? newColor) {
+                if (newColor != null) {
+                  ref.read(themeColorProvider.notifier).setThemeColor(newColor);
+                }
+              },
+              items: availableThemeColors.map((color) {
+                return DropdownMenuItem(
+                  value: color,
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.grey.withValues(alpha: 0.3),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+              icon: const SizedBox
+                  .shrink(), // Hide the arrow icon to save space if needed, or keep it.
+              // Actually keeping the arrow is standard.
+              underline: const SizedBox.shrink(), // Remove underline
             ),
           ),
           const Divider(),

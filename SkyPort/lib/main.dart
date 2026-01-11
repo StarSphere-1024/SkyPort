@@ -56,10 +56,11 @@ class SerialDebuggerApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
+    final themeColor = ref.watch(themeColorProvider);
     return MaterialApp(
       onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
-      theme: lightTheme,
-      darkTheme: darkTheme,
+      theme: getLightTheme(themeColor),
+      darkTheme: getDarkTheme(themeColor),
       themeMode: themeMode,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
