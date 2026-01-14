@@ -97,6 +97,7 @@
   * 主题模式切换 (亮/暗/跟随系统)。
   * ANSI 转义序列渲染启用/禁用。
   * 日志缓冲区大小设置 (16-512MB，默认128MB)。
+  * 智能重连启用/禁用（默认启用，当串口意外断开时自动尝试重新连接）。
 * **行为:** 选项通过 `themeModeProvider` 和 `uiSettingsProvider` 管理，实时应用更改。
 
 ## 4. 组件详细设计
@@ -163,6 +164,9 @@
     *   `Notifier` 根据 `uiSettingsProvider` 的 "hexSend" 状态，对数据进行预处理（字符串转 Hex 字节或 UTF-8 文本，并在配置为追加换行时附加 LF/CR/CRLF）。
     *   `Notifier` 调用 `SerialPortService` 的 `write()` 方法，并更新 Tx 字节数。
     *   `Notifier` 将已发送的数据添加到 `dataLogProvider` 中。
+4.  **断开与重连:**
+    *   当串口意外断开时，如果智能重连启用，`serialConnectionProvider` 将状态设置为 `reconnecting`，并监听端口可用性。
+    *   一旦目标端口重新可用，自动尝试重新连接并恢复通信。
 
 ### 5.2 错误处理
 * **串口打开失败:** 捕获 `SerialPortOpenTimeoutException` / `SerialPortOpenException` 等异常后写入 `errorProvider` → 触发 SnackBar；状态栏仍保留结构并显示“未连接”。
