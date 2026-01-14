@@ -56,14 +56,14 @@ class SettingsPopup extends ConsumerWidget {
           ),
           ListTile(
             title: Text(
-              'Theme Color',
+              AppLocalizations.of(context).themeColor,
               style: TextStyle(
                 color: Theme.of(context).colorScheme.primary,
               ),
             ),
             trailing: DropdownButton<Color>(
               value: availableThemeColors.firstWhere(
-                (c) => c.value == ref.watch(themeColorProvider).value,
+                (c) => c.toARGB32() == ref.watch(themeColorProvider).toARGB32(),
                 orElse: () => availableThemeColors.first,
               ),
               onChanged: (Color? newColor) {

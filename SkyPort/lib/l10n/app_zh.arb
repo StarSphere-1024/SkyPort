@@ -61,6 +61,7 @@
   "blockModeLabel": "按块",
   "settingsTitle": "设置",
   "theme": "主题",
+  "themeColor": "主题颜色",
   "followSystem": "跟随系统",
   "light": "浅色",
   "dark": "深色",

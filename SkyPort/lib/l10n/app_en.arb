@@ -61,6 +61,7 @@
   "blockModeLabel": "Block",
   "settingsTitle": "Settings",
   "theme": "Theme",
+  "themeColor": "Theme Color",
   "followSystem": "Follow System",
   "light": "Light",
   "dark": "Dark",
