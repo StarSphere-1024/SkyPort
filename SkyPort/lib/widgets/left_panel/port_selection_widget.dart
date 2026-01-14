@@ -10,9 +10,8 @@ class PortSelectionWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isConnected = ref.watch(serialConnectionProvider.select((c) =>
-        c.status == ConnectionStatus.connected ||
-        c.status == ConnectionStatus.reconnecting));
+    final isConnected = ref.watch(serialConnectionProvider
+        .select((c) => c.status == ConnectionStatus.connected));
     final isBusy = ref.watch(serialConnectionProvider.select((c) =>
         c.status == ConnectionStatus.connecting ||
         c.status == ConnectionStatus.disconnecting));
@@ -32,8 +31,11 @@ class PortSelectionWidget extends ConsumerWidget {
     Widget connectButtonChild;
     switch (connectionStatus) {
       case ConnectionStatus.connected:
-      case ConnectionStatus.reconnecting:
         connectButtonChild = Text(AppLocalizations.of(context).close);
+        break;
+      case ConnectionStatus.reconnecting:
+      case ConnectionStatus.disconnected:
+        connectButtonChild = Text(AppLocalizations.of(context).open);
         break;
       case ConnectionStatus.connecting:
       case ConnectionStatus.disconnecting:
@@ -47,9 +49,6 @@ class PortSelectionWidget extends ConsumerWidget {
                 : Theme.of(context).colorScheme.onPrimary,
           ),
         );
-        break;
-      case ConnectionStatus.disconnected:
-        connectButtonChild = Text(AppLocalizations.of(context).open);
         break;
     }
 
