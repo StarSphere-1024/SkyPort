@@ -1,8 +1,9 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../providers/serial/serial_connection_provider.dart';
 import '../../providers/serial/ui_settings_provider.dart';
@@ -19,8 +20,109 @@ class SendInputWidget extends ConsumerStatefulWidget {
 class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _sendController = TextEditingController();
+  late FocusNode _focusNode;
   bool _canSend = false;
   bool _previousHexMode = false;
+
+  // History management
+  static const String _historyKey = 'send_input_history';
+  static const int _maxHistory = 100;
+  List<String> _history = [];
+  int _historyIndex = -1;
+  String _tempInput = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode(onKeyEvent: _handleKeyEvent);
+    _loadHistory();
+  }
+
+  @override
+  void dispose() {
+    _sendController.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _history = prefs.getStringList(_historyKey) ?? [];
+    });
+  }
+
+  Future<void> _saveHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_historyKey, _history);
+  }
+
+  void _addToHistory(String text) {
+    if (text.isEmpty) return;
+    setState(() {
+      // Remove if already exists to move it to the end (most recent)
+      _history.remove(text);
+      _history.add(text);
+      if (_history.length > _maxHistory) {
+        _history.removeAt(0);
+      }
+      _historyIndex = -1;
+      _tempInput = '';
+    });
+    _saveHistory();
+  }
+
+  void _navigateHistory(bool up) {
+    if (_history.isEmpty) return;
+
+    setState(() {
+      if (up) {
+        if (_historyIndex == -1) {
+          _tempInput = _sendController.text;
+          _historyIndex = _history.length - 1;
+        } else if (_historyIndex > 0) {
+          _historyIndex--;
+        }
+      } else {
+        if (_historyIndex != -1) {
+          if (_historyIndex < _history.length - 1) {
+            _historyIndex++;
+          } else {
+            _historyIndex = -1;
+          }
+        }
+      }
+
+      final newText =
+          _historyIndex == -1 ? _tempInput : _history[_historyIndex];
+      _sendController.text = newText;
+      _sendController.selection = TextSelection.fromPosition(
+        TextPosition(offset: newText.length),
+      );
+      _updateCanSend(newText);
+    });
+  }
+
+  void _updateCanSend(String value) {
+    final uiSettings = ref.read(uiSettingsProvider);
+    final hexSend = uiSettings.hexSend;
+    if (!hexSend) {
+      _canSend = value.isNotEmpty;
+      return;
+    }
+
+    if (value.isEmpty) {
+      _canSend = false;
+      return;
+    }
+
+    final sanitized = _sanitizeHex(value);
+    if (sanitized.isEmpty) {
+      _canSend = true;
+    } else {
+      _canSend = _isValidHex(sanitized);
+    }
+  }
 
   // Static RegExp constants to avoid repeated object creation
   static final RegExp hexRegex = RegExp(r'^[0-9a-fA-F]+$');
@@ -31,9 +133,38 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
   bool _isValidHex(String sanitized) =>
       hexRegex.hasMatch(sanitized) && sanitized.length % 2 == 0;
 
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+    if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+      final text = _sendController.text;
+      final selection = _sendController.selection;
+      if (selection.isCollapsed && selection.baseOffset >= 0) {
+        final textBefore = text.substring(0, selection.baseOffset);
+        if (!textBefore.contains('\n')) {
+          _navigateHistory(true);
+          return KeyEventResult.handled;
+        }
+      }
+    } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+      final text = _sendController.text;
+      final selection = _sendController.selection;
+      if (selection.isCollapsed && selection.baseOffset >= 0) {
+        final textAfter = text.substring(selection.baseOffset);
+        if (!textAfter.contains('\n')) {
+          _navigateHistory(false);
+          return KeyEventResult.handled;
+        }
+      }
+    }
+
+    return KeyEventResult.ignored;
+  }
+
   Widget _buildTextField(bool hexSend, AppLocalizations l10n) {
     return TextFormField(
       controller: _sendController,
+      focusNode: _focusNode,
       style: const TextStyle(fontFamily: 'monospace'),
       decoration: InputDecoration(
         border: const OutlineInputBorder(),
@@ -46,21 +177,13 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
       autovalidateMode: AutovalidateMode.onUserInteraction,
       onChanged: (value) {
         setState(() {
-          if (!hexSend) {
-            _canSend = value.isNotEmpty;
-            return;
-          }
-
-          if (value.isEmpty) {
-            _canSend = false;
-            return;
-          }
-
-          final sanitized = _sanitizeHex(value);
-          if (sanitized.isEmpty) {
-            _canSend = true;
-          } else {
-            _canSend = _isValidHex(sanitized);
+          _updateCanSend(value);
+          // Only reset history navigation if the change is not from history navigation itself.
+          // We check if the current text matches the history item at the current index.
+          if (_historyIndex != -1) {
+            if (value != _history[_historyIndex]) {
+              _historyIndex = -1;
+            }
           }
         });
       },
@@ -93,9 +216,9 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
       onPressed: connectionStatus == ConnectionStatus.connected && canSend
           ? () {
               if (_formKey.currentState!.validate()) {
-                ref
-                    .read(serialConnectionProvider.notifier)
-                    .send(_sendController.text);
+                final text = _sendController.text;
+                ref.read(serialConnectionProvider.notifier).send(text);
+                _addToHistory(text);
               }
             }
           : null,
@@ -103,12 +226,6 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
         padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 24.0),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _sendController.dispose();
-    super.dispose();
   }
 
   @override
