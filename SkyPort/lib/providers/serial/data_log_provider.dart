@@ -177,20 +177,13 @@ class DataLogNotifier extends Notifier<LogState> {
     final newEntries = <LogEntry>[];
 
     for (final byte in data) {
+      _lineBuffer.add(byte);
       if (byte == 0x0A) {
-        if (_lineBuffer.isNotEmpty) {
-          if (_lineBuffer.isNotEmpty && _lineBuffer.last == 0x0D) {
-            _lineBuffer.removeLast();
-          }
+        final lineBytes = Uint8List.fromList(_lineBuffer);
+        _lineBuffer.clear();
 
-          final lineBytes = Uint8List.fromList(_lineBuffer);
-          _lineBuffer.clear();
-
-          newEntries
-              .add(LogEntry(lineBytes, LogEntryType.received, DateTime.now()));
-        } else {}
-      } else {
-        _lineBuffer.add(byte);
+        newEntries
+            .add(LogEntry(lineBytes, LogEntryType.received, DateTime.now()));
       }
     }
 

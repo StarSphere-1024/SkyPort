@@ -39,7 +39,7 @@ class LogEntry {
     return _cachedText!;
   }
 
-  List<TextSpan> getSpans({
+  List<InlineSpan> getSpans({
     required bool hexDisplay,
     required bool showTimestamp,
     required bool showSent,
@@ -92,7 +92,7 @@ class LogEntry {
     return spans;
   }
 
-  List<TextSpan> _generateSpans(
+  List<InlineSpan> _generateSpans(
     bool hexDisplay,
     bool showTimestamp,
     bool showSent,
@@ -106,7 +106,7 @@ class LogEntry {
     final formattedTimestamp = DateFormat('HH:mm:ss.SSS').format(timestamp);
     final dataText = getDisplayText(hexDisplay);
     final lines = dataText.split('\n');
-    final spans = <TextSpan>[];
+    final spans = <InlineSpan>[];
 
     for (int j = 0; j < lines.length; j++) {
       final lineText = lines[j];
@@ -151,6 +151,36 @@ class LogEntry {
           text: lineText,
           style: contentStyle,
         ));
+      }
+
+      // Handle newlines
+      if (j < lines.length - 1) {
+        // Check if this is a trailing newline (data ends with \n)
+        final isTrailingNewline = (j == lines.length - 2 && lines.last.isEmpty);
+        // Check if the current line is empty (caused by consecutive \n like \n\n)
+        final isInternalEmptyLine = lineText.isEmpty;
+
+        if (isTrailingNewline || isInternalEmptyLine) {
+          // Use a zero-sized WidgetSpan for trailing newlines OR internal empty lines.
+          // This creates a "compact" view where empty lines don't take up visual space
+          // but are still present when copied to clipboard.
+          spans.add(WidgetSpan(
+            child: SizedBox(
+              width: 0,
+              height: 0,
+              child: Text(
+                '\n',
+                style: contentStyle.copyWith(fontSize: 1),
+              ),
+            ),
+          ));
+        } else {
+          // Normal internal newline after text, render as visible text to break the line
+          spans.add(TextSpan(
+            text: '\n',
+            style: contentStyle,
+          ));
+        }
       }
     }
     return spans;
@@ -243,7 +273,7 @@ class LogEntry {
 
 class _CachedSpanData {
   final int settingsHash;
-  final List<TextSpan> spans;
+  final List<InlineSpan> spans;
   _CachedSpanData(this.settingsHash, this.spans);
 }
 
