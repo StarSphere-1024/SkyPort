@@ -29,9 +29,19 @@ class LogEntry {
     }
 
     if (hexDisplay) {
-      _cachedText = data
-          .map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase())
-          .join(' ');
+      // Hex mode with soft line breaks every 32 bytes
+      final buffer = StringBuffer();
+      for (int i = 0; i < data.length; i++) {
+        // Convert to hex
+        buffer.write(data[i].toRadixString(16).padLeft(2, '0').toUpperCase());
+        buffer.write(' ');
+
+        // Insert soft line break every 32 bytes to avoid extremely long lines
+        if ((i + 1) % 32 == 0) {
+          buffer.write('\n');
+        }
+      }
+      _cachedText = buffer.toString();
     } else {
       _cachedText = utf8.decode(data, allowMalformed: true);
     }
@@ -105,7 +115,18 @@ class LogEntry {
     final isSent = type == LogEntryType.sent;
     final formattedTimestamp = DateFormat('HH:mm:ss.SSS').format(timestamp);
     final dataText = getDisplayText(hexDisplay);
-    final lines = dataText.split('\n');
+
+    // Truncation defense for text mode (hex mode already has soft line breaks)
+    const int maxDisplayLength = 5000;
+    bool truncated = false;
+    String text = dataText;
+
+    if (!hexDisplay && text.length > maxDisplayLength) {
+      text = text.substring(0, maxDisplayLength);
+      truncated = true;
+    }
+
+    final lines = text.split('\n');
     final spans = <InlineSpan>[];
 
     for (int j = 0; j < lines.length; j++) {
@@ -138,11 +159,11 @@ class LogEntry {
       if (enableAnsi) {
         final parser = ansi.AnsiParser(lineText);
         for (final match in parser.matches) {
-          final text = lineText.substring(match.start, match.end);
-          if (text.startsWith('\x1b')) continue;
+          final textSegment = lineText.substring(match.start, match.end);
+          if (textSegment.startsWith('\x1b')) continue;
 
           spans.add(TextSpan(
-            text: text,
+            text: textSegment,
             style: _ansiStateToStyle(match.state, contentStyle),
           ));
         }
@@ -183,6 +204,15 @@ class LogEntry {
         }
       }
     }
+
+    // Add truncation indicator if text was cut
+    if (truncated) {
+      spans.add(TextSpan(
+        text: ' ... [TRUNCATED]',
+        style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+      ));
+    }
+
     return spans;
   }
 

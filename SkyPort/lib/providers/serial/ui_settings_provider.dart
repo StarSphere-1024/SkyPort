@@ -46,32 +46,10 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
   }
 
   void setHexDisplay(bool value) {
-    final newHexDisplay = value;
-    final currentReceiveMode = state.receiveMode;
-
-    if (newHexDisplay) {
-      // Switching to HEX mode: save current preference and force block mode
-      state = state.copyWith(
-        hexDisplay: true,
-        receiveMode: ReceiveMode.block,
-        preferredReceiveMode: currentReceiveMode, // Save user's preference
-      );
-      ref.read(sharedPreferencesProvider).setBool(_keyHexDisplay, true);
-      ref.read(sharedPreferencesProvider).setBool(_keyLineMode, false);
-      ref.read(sharedPreferencesProvider).setBool(
-          _keyPreferredReceiveMode, currentReceiveMode == ReceiveMode.line);
-    } else {
-      // Switching to text mode: restore user's preference
-      final preferredMode = state.preferredReceiveMode;
-      state = state.copyWith(
-        hexDisplay: false,
-        receiveMode: preferredMode,
-      );
-      ref.read(sharedPreferencesProvider).setBool(_keyHexDisplay, false);
-      ref
-          .read(sharedPreferencesProvider)
-          .setBool(_keyLineMode, preferredMode == ReceiveMode.line);
-    }
+    // Simplified: no longer need to switch receive modes
+    // Stream buffering architecture handles both hex and text uniformly
+    state = state.copyWith(hexDisplay: value);
+    ref.read(sharedPreferencesProvider).setBool(_keyHexDisplay, value);
   }
 
   void setHexSend(bool value) {
@@ -87,24 +65,6 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
   void setShowSent(bool value) {
     state = state.copyWith(showSent: value);
     ref.read(sharedPreferencesProvider).setBool(_keyShowSent, value);
-  }
-
-  void setFrameIntervalMs(int value) {
-    state = state.copyWith(blockIntervalMs: value);
-    ref.read(sharedPreferencesProvider).setInt(_keyBlockIntervalMs, value);
-  }
-
-  void setReceiveMode(ReceiveMode mode) {
-    state = state.copyWith(
-      receiveMode: mode,
-      preferredReceiveMode: mode,
-    );
-    ref
-        .read(sharedPreferencesProvider)
-        .setBool(_keyLineMode, mode == ReceiveMode.line);
-    ref
-        .read(sharedPreferencesProvider)
-        .setBool(_keyPreferredReceiveMode, mode == ReceiveMode.line);
   }
 
   void setAppendNewline(bool value) {

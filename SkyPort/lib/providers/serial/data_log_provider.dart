@@ -1,40 +1,49 @@
-import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/log_model.dart';
-import '../../models/ui_settings.dart';
 import 'ui_settings_provider.dart';
 
 class DataLogNotifier extends Notifier<LogState> {
-  Timer? _receiveDebounce;
-  final List<int> _lineBuffer = [];
+  // Stream buffering: pending data for current line
+  List<int> _pendingData = [];
+  DateTime? _pendingTimestamp;
+
+  // Defense: maximum pending bytes before forcing flush (256KB)
+  static const int _maxPendingBytes = 256 * 1024;
+
+  // Completed entries waiting to be packed into chunks
+  List<LogEntry> _completedBuffer = [];
 
   static const int _chunkSizeLimit = 1000;
-
   List<LogEntry> _currentBuffer = [];
   int _currentBufferBytes = 0;
 
   @override
   LogState build() {
-    ref.onDispose(() {
-      _receiveDebounce?.cancel();
-    });
     return const LogState();
+  }
+
+  /// Check if two lists of LogEntry are equal (same length and same content)
+  bool _listsEqual(List<LogEntry> a, List<LogEntry> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i].data.length != b[i].data.length) return false;
+      // Compare byte-by-byte
+      for (int j = 0; j < a[i].data.length; j++) {
+        if (a[i].data[j] != b[i].data[j]) return false;
+      }
+    }
+    return true;
   }
 
   void _updateState() {
     final uiSettings = ref.read(uiSettingsProvider);
     final maxBytes = uiSettings.logBufferSize * 1024 * 1024;
 
-    // Calculate total bytes including current buffer
-    // Note: state.totalBytes represents bytes in FIXED chunks only if we track it that way,
-    // but here we used state.totalBytes as global total.
-    // Let's rely on calculating from chunks + buffer to be safe or maintain it carefully.
-
     // Recalculate fixed chunks size
-    // We filter out the last chunk if it was temporary (-1) to ensure we rebuild state from stable data.
+    // Filter out the last chunk if it was temporary (-1)
     List<LogChunk> finalizedChunks = [];
     if (state.chunks.isNotEmpty) {
       if (state.chunks.last.id == -1) {
@@ -44,11 +53,24 @@ class DataLogNotifier extends Notifier<LogState> {
       }
     }
 
+    // Add completed buffer entries to current buffer
+    if (_completedBuffer.isNotEmpty) {
+      // Convert to unmodifiable list to prevent accidental mutation
+      // This prevents duplicate entries in displayChunks
+      final newEntries = List<LogEntry>.unmodifiable(_completedBuffer);
+      _currentBuffer.addAll(newEntries);
+      for (var entry in _completedBuffer) {
+        _currentBufferBytes += entry.data.length;
+      }
+      _completedBuffer = [];
+    }
+
     // Calculate total size
     int finalizedSize = finalizedChunks.fold(0, (sum, c) => sum + c.totalBytes);
-    int newTotalBytes = finalizedSize + _currentBufferBytes;
+    int pendingBytes = _pendingData.length;
+    int newTotalBytes = finalizedSize + _currentBufferBytes + pendingBytes;
 
-    // Pruning
+    // Pruning old chunks if exceeding max bytes
     int bytesToRemove = newTotalBytes - maxBytes;
     if (bytesToRemove > 0 && finalizedChunks.isNotEmpty) {
       int infoBytesRemoved = 0;
@@ -65,7 +87,7 @@ class DataLogNotifier extends Notifier<LogState> {
       }
     }
 
-    // Check if current buffer needs finalizing
+    // Check if current buffer needs finalizing into a chunk
     if (_currentBuffer.length >= _chunkSizeLimit) {
       final newChunk = LogChunk(
         entries: List.unmodifiable(_currentBuffer),
@@ -74,136 +96,133 @@ class DataLogNotifier extends Notifier<LogState> {
       );
 
       finalizedChunks = [...finalizedChunks, newChunk];
-      state = LogState(
-        chunks: finalizedChunks,
-        totalBytes: newTotalBytes,
-        nextChunkId: state.nextChunkId + 1,
-      );
-
       _currentBuffer = [];
       _currentBufferBytes = 0;
-    } else {
-      // Create temp chunk
-      if (_currentBuffer.isNotEmpty) {
+    }
+
+    // Build display chunks with pending data as last item
+    // Use a Set to track which chunks are already in the display list
+    // This prevents duplicate chunks from being added multiple times
+    final existingChunkIds = <int>{};
+    for (final chunk in finalizedChunks) {
+      existingChunkIds.add(chunk.id);
+    }
+
+    List<LogChunk> displayChunks = List.from(finalizedChunks);
+
+    // Add current buffer as temp chunk if not empty
+    // Only add if we haven't already added a temp chunk with the same content
+    if (_currentBuffer.isNotEmpty) {
+      // Check if the last chunk is already a temp chunk with the same entries
+      final lastIsTempWithSameContent = displayChunks.isNotEmpty &&
+          displayChunks.last.id == -1 &&
+          _listsEqual(displayChunks.last.entries, _currentBuffer);
+
+      if (!lastIsTempWithSameContent) {
         final tempChunk = LogChunk(
-          entries:
-              _currentBuffer, // Mutable reference shared, but safe for immediate render
+          entries: _currentBuffer,
           totalBytes: _currentBufferBytes,
           id: -1,
         );
-        state = LogState(
-          chunks: [...finalizedChunks, tempChunk],
-          totalBytes: newTotalBytes,
-          nextChunkId: state.nextChunkId,
-        );
-      } else {
-        // Buffer empty, just finalized chunks
-        if (state.chunks.length != finalizedChunks.length ||
-            state.chunks.isNotEmpty && state.chunks.last.id == -1) {
-          state = LogState(
-            chunks: finalizedChunks,
-            totalBytes: newTotalBytes,
-            nextChunkId: state.nextChunkId,
-          );
-        }
+        displayChunks.add(tempChunk);
       }
     }
+
+    // Add pending data as the very last temp entry
+    if (_pendingData.isNotEmpty) {
+      final pendingEntry = LogEntry(
+        Uint8List.fromList(_pendingData),
+        LogEntryType.received,
+        _pendingTimestamp ?? DateTime.now(),
+      );
+      final pendingChunk = LogChunk(
+        entries: [pendingEntry],
+        id: -1, // Special ID for pending data
+        totalBytes: _pendingData.length,
+      );
+      displayChunks.add(pendingChunk);
+    }
+
+    state = LogState(
+      chunks: displayChunks,
+      totalBytes: newTotalBytes,
+      nextChunkId: state.nextChunkId + (displayChunks.length > finalizedChunks.length ? 1 : 0),
+    );
   }
 
   void _addLogEntries(List<LogEntry> entries) {
     if (entries.isEmpty) return;
-    _currentBuffer.addAll(entries);
-    for (var e in entries) {
-      _currentBufferBytes += e.data.length;
-    }
+    _completedBuffer.addAll(entries);
     _updateState();
   }
 
+  /// Add received data with stream buffering
+  /// All data goes to pending buffer first, then gets flushed on newline (0x0A)
   void addReceived(Uint8List data) {
-    final settings = ref.read(uiSettingsProvider);
+    if (data.isEmpty) return;
 
-    // Determine receive mode:
-    // - If hexDisplay is true: always use block receive mode
-    // - If hexDisplay is false: use line mode if enabled, otherwise block mode
-    final useBlockMode =
-        settings.hexDisplay || settings.receiveMode == ReceiveMode.block;
+    // Record timestamp on first byte of this line
+    _pendingTimestamp ??= DateTime.now();
 
-    if (useBlockMode) {
-      // Block receive mode: debounce short bursts of data into a single frame.
-      if (_receiveDebounce?.isActive ?? false) {
-        _receiveDebounce!.cancel();
+    int processedIndex = 0;
 
-        bool appended = false;
-        // Try to append to the last entry in the current buffer
-        if (_currentBuffer.isNotEmpty &&
-            _currentBuffer.last.type == LogEntryType.received) {
-          final lastEntry = _currentBuffer.last;
-          final newData = Uint8List.fromList([...lastEntry.data, ...data]);
+    // Scan through data looking for newlines (0x0A)
+    for (int i = 0; i < data.length; i++) {
+      if (data[i] == 0x0A) {
+        // Found newline - flush pending + current segment as a completed line
 
-          // Update the entry in the mutable buffer
-          _currentBuffer[_currentBuffer.length - 1] = LogEntry(
-            newData,
-            lastEntry.type,
-            DateTime.now(), // Update timestamp
-          );
-          _currentBufferBytes += (newData.length - lastEntry.data.length);
-          appended = true;
-        }
+        // Handle CRLF: if previous byte was CR (0x0D), exclude it
+        final int lineEndExclusive = (i > processedIndex && data[i - 1] == 0x0D)
+            ? i - 1
+            : i;
 
-        if (appended) {
-          _updateState();
-        } else {
-          // If buffer was empty (or last was sending), treat as new entry
-          _addLogEntries(
-              [LogEntry(data, LogEntryType.received, DateTime.now())]);
-        }
-      } else {
-        // Create a new entry
-        _addLogEntries([LogEntry(data, LogEntryType.received, DateTime.now())]);
-      }
+        final chunk = data.sublist(processedIndex, lineEndExclusive);
+        final fullLine = Uint8List.fromList([..._pendingData, ...chunk]);
 
-      _receiveDebounce =
-          Timer(Duration(milliseconds: settings.blockIntervalMs), () {
-        // Debounce finished
-      });
-    } else {
-      // Line receive mode: process as lines
-      _receiveDebounce?.cancel();
-      _appendAsLines(data);
-    }
-  }
+        // Create completed entry
+        _completedBuffer.add(LogEntry(
+          fullLine,
+          LogEntryType.received,
+          _pendingTimestamp ?? DateTime.now(),
+        ));
 
-  void _appendAsLines(Uint8List data) {
-    final newEntries = <LogEntry>[];
-
-    for (final byte in data) {
-      _lineBuffer.add(byte);
-      if (byte == 0x0A) {
-        final lineBytes = Uint8List.fromList(_lineBuffer);
-        _lineBuffer.clear();
-
-        newEntries
-            .add(LogEntry(lineBytes, LogEntryType.received, DateTime.now()));
+        // Reset pending for next line
+        _pendingData = [];
+        _pendingTimestamp = null; // Will be set on next byte
+        processedIndex = i + 1; // Skip the newline
       }
     }
 
-    if (newEntries.isNotEmpty) {
-      _addLogEntries(newEntries);
+    // Append remaining data (after last newline, or all if no newline found)
+    if (processedIndex < data.length) {
+      _pendingData.addAll(data.sublist(processedIndex));
     }
+
+    // Defense: Force flush if pending grows too large (no newline scenario)
+    if (_pendingData.length > _maxPendingBytes) {
+      _completedBuffer.add(LogEntry(
+        Uint8List.fromList(_pendingData),
+        LogEntryType.received,
+        _pendingTimestamp ?? DateTime.now(),
+      ));
+      _pendingData = [];
+      _pendingTimestamp = null;
+    }
+
+    _updateState();
   }
 
   void addSent(Uint8List data) {
-    _receiveDebounce?.cancel();
     _addLogEntries([LogEntry(data, LogEntryType.sent, DateTime.now())]);
   }
 
   void clear() {
-    _receiveDebounce?.cancel();
-    _lineBuffer.clear();
+    _pendingData = [];
+    _pendingTimestamp = null;
+    _completedBuffer = [];
     _currentBuffer = [];
     _currentBufferBytes = 0;
     state = const LogState();
-    // Removed direct manipulation of SerialConnectionProvider to avoid circular dependency
   }
 }
 
