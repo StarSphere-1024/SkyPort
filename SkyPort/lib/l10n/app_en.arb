@@ -75,5 +75,10 @@
   "errWriteFailed": "Write failed: {message}",
   "errInvalidHexFormat": "Invalid HEX format",
   "errCleanupError": "Error during cleanup: {message}",
-  "errUnknown": "Unknown error: {message}"
+  "errUnknown": "Unknown error: {message}",
+  "autoSend": "Auto Send",
+  "autoSendInterval": "Interval",
+  "autoSendIntervalError": "0.01-60",
+  "autoSendHint": "Auto-send interval in seconds",
+  "secondsUnit": "s"
 }

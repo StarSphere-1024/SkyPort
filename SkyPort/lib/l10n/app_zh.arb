@@ -75,5 +75,10 @@
   "errWriteFailed": "写入失败: {message}",
   "errInvalidHexFormat": "无效的 HEX 格式",
   "errCleanupError": "清理资源时出错: {message}",
-  "errUnknown": "未知错误: {message}"
+  "errUnknown": "未知错误: {message}",
+  "autoSend": "自动发送",
+  "autoSendInterval": "间隔",
+  "autoSendIntervalError": "0.01-60",
+  "autoSendHint": "自动发送间隔（秒）",
+  "secondsUnit": "秒"
 }

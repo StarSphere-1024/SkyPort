@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import '../../providers/serial/serial_connection_provider.dart';
 import '../../providers/serial/ui_settings_provider.dart';
 import '../../providers/common_providers.dart';
 import '../../models/connection_status.dart';
+import '../../models/ui_settings.dart';
 import '../../l10n/app_localizations.dart';
 
 class SendInputWidget extends ConsumerStatefulWidget {
@@ -31,6 +33,10 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
   int _historyIndex = -1;
   String _tempInput = '';
 
+  // Auto-send timer
+  Timer? _autoSendTimer;
+  UiSettings? _previousSettings;
+
   @override
   void initState() {
     super.initState();
@@ -40,6 +46,7 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
 
   @override
   void dispose() {
+    _autoSendTimer?.cancel();
     _sendController.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -73,6 +80,60 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
       _tempInput = '';
     });
     _saveHistory();
+  }
+
+  void _handleAutoSendSettingsChange(
+      UiSettings? previous, UiSettings next) {
+    // Check if auto-send enabled state changed
+    final wasEnabled = previous?.autoSendEnabled ?? false;
+    final isEnabled = next.autoSendEnabled;
+
+    if (wasEnabled != isEnabled) {
+      if (isEnabled) {
+        // Defer timer start to after build phase
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _startAutoSend();
+          }
+        });
+      } else {
+        _stopAutoSend();
+      }
+    } else if (isEnabled &&
+        previous?.autoSendIntervalMs != next.autoSendIntervalMs) {
+      // Interval changed while enabled, restart timer with new interval
+      // Defer timer restart to after build phase
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _startAutoSend();
+        }
+      });
+    }
+  }
+
+  void _startAutoSend() {
+    _autoSendTimer?.cancel();
+    final interval = ref.read(uiSettingsProvider).autoSendIntervalMs;
+    _autoSendTimer = Timer.periodic(
+      Duration(milliseconds: interval),
+      (_) => _autoSend(),
+    );
+  }
+
+  void _stopAutoSend() {
+    _autoSendTimer?.cancel();
+    _autoSendTimer = null;
+  }
+
+  void _autoSend() {
+    final connectionStatus = ref.read(serialConnectionProvider).status;
+    if (connectionStatus == ConnectionStatus.connected && _canSend) {
+      final text = _sendController.text;
+      if (_formKey.currentState?.validate() ?? false) {
+        ref.read(serialConnectionProvider.notifier).send(text);
+        _addToHistory(text);
+      }
+    }
   }
 
   void _navigateHistory(bool up) {
@@ -244,6 +305,11 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
           previousIsHex: _previousHexMode, currentIsHex: hexSend);
       _previousHexMode = hexSend;
     }
+
+    // Detect auto-send settings changes
+    _handleAutoSendSettingsChange(_previousSettings, uiSettings);
+    _previousSettings = uiSettings;
+
     final colorScheme = Theme.of(context).colorScheme;
 
     return Card.filled(

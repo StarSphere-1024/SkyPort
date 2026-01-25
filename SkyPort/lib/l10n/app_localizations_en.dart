@@ -215,4 +215,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String errUnknown(Object message) {
     return 'Unknown error: $message';
   }
+
+  @override
+  String get autoSend => 'Auto Send';
+
+  @override
+  String get autoSendInterval => 'Interval';
+
+  @override
+  String get autoSendIntervalError => '0.01-60';
+
+  @override
+  String get autoSendHint => 'Auto-send interval in seconds';
+
+  @override
+  String get secondsUnit => 's';
 }

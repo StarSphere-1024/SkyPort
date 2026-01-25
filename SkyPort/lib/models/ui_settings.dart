@@ -26,6 +26,8 @@ class UiSettings {
   final NewlineMode newlineMode; // Which newline sequence to append
   final bool enableAnsi; // Whether to enable ANSI escape sequence rendering
   final int logBufferSize; // Log buffer size in MB
+  final bool autoSendEnabled; // Whether auto-send is enabled
+  final int autoSendIntervalMs; // Auto-send interval in milliseconds
 
   const UiSettings({
     this.hexDisplay = false,
@@ -40,6 +42,8 @@ class UiSettings {
     this.newlineMode = NewlineMode.lf,
     this.enableAnsi = false,
     this.logBufferSize = 128, // Default 128 MB
+    this.autoSendEnabled = false,
+    this.autoSendIntervalMs = 1000, // Default 1000ms (1 second)
   });
 
   UiSettings copyWith({
@@ -54,6 +58,8 @@ class UiSettings {
     NewlineMode? newlineMode,
     bool? enableAnsi,
     int? logBufferSize,
+    bool? autoSendEnabled,
+    int? autoSendIntervalMs,
   }) {
     return UiSettings(
       hexDisplay: hexDisplay ?? this.hexDisplay,
@@ -67,6 +73,8 @@ class UiSettings {
       newlineMode: newlineMode ?? this.newlineMode,
       enableAnsi: enableAnsi ?? this.enableAnsi,
       logBufferSize: logBufferSize ?? this.logBufferSize,
+      autoSendEnabled: autoSendEnabled ?? this.autoSendEnabled,
+      autoSendIntervalMs: autoSendIntervalMs ?? this.autoSendIntervalMs,
     );
   }
 }

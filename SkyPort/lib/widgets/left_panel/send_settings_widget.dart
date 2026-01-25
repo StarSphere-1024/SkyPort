@@ -39,6 +39,62 @@ class SendSettingsWidget extends ConsumerWidget {
           onChanged: (v) => notifier.setHexSend(v),
         ),
         const SizedBox(height: 8),
+        // Auto-Send Section
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(l10n.autoSend,
+                style: Theme.of(context).textTheme.bodyMedium),
+            const Spacer(),
+            Row(
+              children: [
+                SizedBox(
+                  width: 60,
+                  child: TextFormField(
+                    enabled: settings.autoSendEnabled,
+                    initialValue: (settings.autoSendIntervalMs / 1000).toString(),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    style: Theme.of(context).textTheme.bodyMedium,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 0,
+                        vertical: 8,
+                      ),
+                      border: UnderlineInputBorder(),
+                    ),
+                    textAlign: TextAlign.center,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) return null;
+                      final interval = double.tryParse(value);
+                      if (interval == null || interval < 0.01 || interval > 60) {
+                        return '';
+                      }
+                      return null;
+                    },
+                    onChanged: (value) {
+                      final interval = double.tryParse(value);
+                      if (interval != null && interval >= 0.01 && interval <= 60) {
+                        notifier.setAutoSendIntervalMs((interval * 1000).round());
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  l10n.secondsUnit,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(width: 5),
+                Switch(
+                  value: settings.autoSendEnabled,
+                  onChanged: (v) => notifier.setAutoSendEnabled(v),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [

@@ -212,4 +212,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String errUnknown(Object message) {
     return '未知错误: $message';
   }
+
+  @override
+  String get autoSend => '自动发送';
+
+  @override
+  String get autoSendInterval => '间隔';
+
+  @override
+  String get autoSendIntervalError => '0.01-60';
+
+  @override
+  String get autoSendHint => '自动发送间隔（秒）';
+
+  @override
+  String get secondsUnit => '秒';
 }

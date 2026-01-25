@@ -475,6 +475,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unknown error: {message}'**
   String errUnknown(Object message);
+
+  /// No description provided for @autoSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto Send'**
+  String get autoSend;
+
+  /// No description provided for @autoSendInterval.
+  ///
+  /// In en, this message translates to:
+  /// **'Interval'**
+  String get autoSendInterval;
+
+  /// No description provided for @autoSendIntervalError.
+  ///
+  /// In en, this message translates to:
+  /// **'0.01-60'**
+  String get autoSendIntervalError;
+
+  /// No description provided for @autoSendHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-send interval in seconds'**
+  String get autoSendHint;
+
+  /// No description provided for @secondsUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'s'**
+  String get secondsUnit;
 }
 
 class _AppLocalizationsDelegate
