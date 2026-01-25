@@ -40,7 +40,7 @@
 * **`serialConfigProvider` (StateNotifierProvider<SerialConfig?>):** 管理串口参数配置（端口名、波特率、数据位、校验位、停止位），支持持久化存储。
 * **`serialConnectionProvider` (StateNotifierProvider<SerialConnection>):** 管理连接生命周期（连接/断开/进程中）与端口对象、读写监听、字节统计。
 * **`dataLogProvider` (StateNotifierProvider<List<LogEntry>>):** 存储所有收/发数据条目，驱动右侧数据显示列表，支持接收端节流合并和内存限制。
-* **`uiSettingsProvider` (StateNotifierProvider<UiSettings>):** 管理界面偏好，包括十六进制显示（hexDisplay）、十六进制发送（hexSend）、时间戳显示（showTimestamp）、发送显示（showSent）、块间隔（blockIntervalMs）、接收模式（receiveMode）、追加换行（appendNewline）、换行模式（newlineMode）、ANSI启用（enableAnsi）、日志缓冲区大小（logBufferSize）。
+* **`uiSettingsProvider` (StateNotifierProvider<UiSettings>):** 管理界面偏好，包括十六进制显示（hexDisplay）、十六进制发送（hexSend）、时间戳显示（showTimestamp）、发送显示（showSent）、追加换行（appendNewline）、换行模式（newlineMode）、ANSI启用（enableAnsi）、日志缓冲区大小（logBufferSize）。
 * **`themeModeProvider` (StateNotifierProvider<ThemeMode>):** 管理主题模式（亮/暗/跟随系统）。
 * **`errorProvider` (StateNotifierProvider<AppError?>):** 暴露最近的错误消息（端口占用、打开超时、发送异常等），UI 层通过 SnackBar 或状态栏展示。
 
@@ -72,11 +72,20 @@
 ### 3.4 日志滚动与加载 (Log Scroll & Loading)
 * **自动滚动:** 仅在用户位于底部时新数据才触发平滑滚动；用户向上浏览历史时保持位置不变。
 * **全量显示:** 显示当前内存中的全部日志条目，依赖数据层的字节总量限制（默认 128MB，可配置16-512MB）来控制内存使用，避免一次性构建过长列表。
-* **接收合并节流:** 在“按帧模式”下，接收数据在可配置时间窗口（默认 20ms）内合并到同一条 `received` 记录，降低 UI rebuild 频次；发送数据不合并。
-* **按行接收模式:** 在“文本模式”下可选择按行接收（基于 `\n`/`\r\n` 拆分），适合日志类输出，单行结束后立即落一条记录。
-* **ANSI 转义序列渲染:** 支持 ANSI 转义序列的解析和渲染，用于彩色日志输出。
-* **换行模式:** 发送时可选择追加换行（LF/CR/CRLF），接收时根据模式处理。
-* **接收模式:** 块模式（debounced）或行模式（by newline），影响数据合并和显示。
+* **统一流式缓冲架构 (Unified Stream Buffering):**
+    *   采用双层缓冲模型（Pending Layer + Completed Layer）
+    *   Pending 缓冲区实时显示未完成的行数据
+    *   仅在检测到换行符（`0x0A` / `\n`）时才固化到历史记录
+    *   基于逻辑换行符显示，而非物理数据包边界
+    *   高频数据只更新最后一个 item，避免频繁 list 结构变更
+* **CRLF 处理:** 自动识别并剔除 Windows 风格换行符中的 CR（`\r`），仅保留 LF（`\n`）作为行结束符。
+* **ANSI 转义序列渲染:** 支持 ANSI 转义序列的解析和渲染，用于彩色日志输出。流式拼接确保跨包的转义序列也能完整渲染。
+* **性能防御机制:**
+    *   Hex 模式每 32 字节自动软换行，避免单行过长导致渲染卡顿
+    *   超长文本自动截断（5000 字符）并显示 `[TRUNCATED]` 标记
+    *   Pending 缓冲区 256KB 上限保护，无换行符数据超限自动固化
+    *   LRU 缓存（500 条）加速已渲染内容的重复显示
+* **换行模式:** 发送时可选择追加换行（LF/CR/CRLF），接收时自动处理。
 
 ### 3.5 错误提示与状态分离 (Errors & Status Separation)
 * 瞬时错误（打开失败 / 写入失败 / 端口断开）→ SnackBar 一次性提示，并在展示后清空错误状态。
@@ -119,6 +128,8 @@
 |              | 打开/关闭    | `FilledButton`                 | **未连接时:** 文本 "打开"。 **连接时:** 文本 "关闭", `backgroundColor: colorScheme.error`。 |
 | **接收设置** | 容器         | 直接布局                     | 内边距 `16dp`。                                                                             |
 |              | 十六进制显示 | `CompactSwitch`               | 标题 "十六进制显示"。                                                                       |
+|              | 显示时间戳   | `CompactSwitch`               | 标题 "显示时间戳"。                                                                         |
+|              | 显示发送数据 | `CompactSwitch`               | 标题 "显示发送"。                                                                           |
 |              | 清空接收区   | `OutlinedButton`               | 文本 "清空"。                                                                               |
 | **发送设置** | 容器         | 直接布局                     | 内边距 `16dp`。                                                                             |
 |              | 十六进制发送 | `CompactSwitch`               | 标题 "十六进制发送"。                                                                       |
@@ -156,9 +167,13 @@
     *   `SerialPortService` 的 `SerialPortReader` 监听到数据流。
     *   `Service` 将 `Uint8List` 数据通知给 `serialConnectionProvider`。
     *   `serialConnectionProvider` 更新 Rx 字节数，并把原始字节转交 `dataLogProvider`。
-    *   `dataLogProvider` 根据当前 UI 设置选择：
-        * **按帧模式（block）：** 在节流窗口内将多次接收合并为一条记录，并更新时间戳；
-        * **按行模式（line）：** 以行结束符为界拆分成多条 `received` 记录。
+    *   `dataLogProvider` 采用**统一流式缓冲架构**处理接收数据：
+        *   **Pending Layer（流式层）：** 所有数据先追加到 Pending 缓冲区，UI 实时显示未完成的行
+        *   **Completed Layer（归档层）：** 检测到换行符（`0x0A` / `\n`）时，将截至该行的数据打包成 `LogEntry` 并固化到历史记录
+        *   **CRLF 处理：** 自动剔除换行符前的 CR（`0x0D` / `\r`），避免显示 ^M 字符
+        *   **时间戳：** 记录每行首次接收到字节的时间戳，确保同一行的所有数据使用统一时间
+        *   **性能优化：** 高频数据流只更新最后一个 pending item，不触发 list 结构变更
+        *   **防御机制：** Pending 缓冲区超过 256KB 自动固化，防止内存溢出
 3.  **发送数据:**
     *   UI 调用 `ref.read(serialConnectionProvider.notifier).send(data)`。
     *   `Notifier` 根据 `uiSettingsProvider` 的 "hexSend" 状态，对数据进行预处理（字符串转 Hex 字节或 UTF-8 文本，并在配置为追加换行时附加 LF/CR/CRLF）。
