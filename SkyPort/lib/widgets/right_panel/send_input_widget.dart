@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../providers/serial/serial_connection_provider.dart';
 import '../../providers/serial/ui_settings_provider.dart';
+import '../../providers/common_providers.dart';
 import '../../models/connection_status.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -46,14 +46,17 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
   }
 
   Future<void> _loadHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _history = prefs.getStringList(_historyKey) ?? [];
-    });
+    final prefs = ref.read(sharedPreferencesProvider);
+    final history = prefs.getStringList(_historyKey);
+    if (mounted) {
+      setState(() {
+        _history = history ?? [];
+      });
+    }
   }
 
   Future<void> _saveHistory() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = ref.read(sharedPreferencesProvider);
     await prefs.setStringList(_historyKey, _history);
   }
 

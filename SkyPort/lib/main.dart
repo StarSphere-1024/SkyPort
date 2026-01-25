@@ -96,7 +96,6 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final ref = this.ref;
     ref.listen<AppError?>(errorProvider, (prev, next) {
       final error = next;
       if (error != null && error.type != AppErrorType.none) {
@@ -160,8 +159,10 @@ class _HomePageState extends ConsumerState<HomePage> {
               key: _settingsKey,
               icon: const Icon(Icons.settings),
               onPressed: () {
-                final RenderBox button = _settingsKey.currentContext!
-                    .findRenderObject() as RenderBox;
+                final context = _settingsKey.currentContext;
+                if (context == null) return;
+
+                final RenderBox button = context.findRenderObject() as RenderBox;
                 final Offset offset = button.localToGlobal(Offset.zero);
                 showMenu(
                   context: context,
