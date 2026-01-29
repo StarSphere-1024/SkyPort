@@ -51,7 +51,6 @@ class SendSettingsWidget extends ConsumerWidget {
                 SizedBox(
                   width: 60,
                   child: TextFormField(
-                    enabled: settings.autoSendEnabled,
                     initialValue: (settings.autoSendIntervalMs / 1000).toString(),
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     style: Theme.of(context).textTheme.bodyMedium,
