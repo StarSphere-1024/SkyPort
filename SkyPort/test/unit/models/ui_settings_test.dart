@@ -24,21 +24,6 @@ void main() {
         expect(settings.showSent, true);
       });
 
-      test('blockIntervalMs defaults to 20', () {
-        const settings = UiSettings();
-        expect(settings.blockIntervalMs, 20);
-      });
-
-      test('receiveMode defaults to block', () {
-        const settings = UiSettings();
-        expect(settings.receiveMode, ReceiveMode.block);
-      });
-
-      test('preferredReceiveMode defaults to line', () {
-        const settings = UiSettings();
-        expect(settings.preferredReceiveMode, ReceiveMode.line);
-      });
-
       test('appendNewline defaults to false', () {
         const settings = UiSettings();
         expect(settings.appendNewline, false);
@@ -77,9 +62,6 @@ void main() {
           hexSend: false,
           showTimestamp: true,
           showSent: true,
-          blockIntervalMs: 20,
-          receiveMode: ReceiveMode.block,
-          preferredReceiveMode: ReceiveMode.line,
           appendNewline: false,
           newlineMode: NewlineMode.lf,
           enableAnsi: false,
@@ -118,28 +100,6 @@ void main() {
         expect(updated.autoSendEnabled, true);
       });
 
-      test('updates blockIntervalMs', () {
-        const original = UiSettings(blockIntervalMs: 20);
-        final updated = original.copyWith(blockIntervalMs: 50);
-
-        expect(updated.blockIntervalMs, 50);
-      });
-
-      test('updates receiveMode', () {
-        const original = UiSettings(receiveMode: ReceiveMode.block);
-        final updated = original.copyWith(receiveMode: ReceiveMode.line);
-
-        expect(updated.receiveMode, ReceiveMode.line);
-      });
-
-      test('updates preferredReceiveMode', () {
-        const original = UiSettings(preferredReceiveMode: ReceiveMode.line);
-        final updated =
-            original.copyWith(preferredReceiveMode: ReceiveMode.block);
-
-        expect(updated.preferredReceiveMode, ReceiveMode.block);
-      });
-
       test('updates newlineMode', () {
         const original = UiSettings(newlineMode: NewlineMode.lf);
         final updated = original.copyWith(newlineMode: NewlineMode.crlf);
@@ -169,9 +129,6 @@ void main() {
           hexSend: true,
           showTimestamp: false,
           showSent: false,
-          blockIntervalMs: 100,
-          receiveMode: ReceiveMode.line,
-          preferredReceiveMode: ReceiveMode.block,
           appendNewline: true,
           newlineMode: NewlineMode.crlf,
           enableAnsi: true,
@@ -184,9 +141,6 @@ void main() {
         expect(updated.hexSend, true);
         expect(updated.showTimestamp, false);
         expect(updated.showSent, false);
-        expect(updated.blockIntervalMs, 100);
-        expect(updated.receiveMode, ReceiveMode.line);
-        expect(updated.preferredReceiveMode, ReceiveMode.block);
         expect(updated.appendNewline, true);
         expect(updated.newlineMode, NewlineMode.crlf);
         expect(updated.enableAnsi, true);

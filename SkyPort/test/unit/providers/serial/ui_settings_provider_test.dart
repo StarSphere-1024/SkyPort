@@ -40,21 +40,6 @@ void main() {
         expect(settings.showSent, true);
       });
 
-      test('loads default blockIntervalMs as 20', () {
-        final settings = container.read(uiSettingsProvider);
-        expect(settings.blockIntervalMs, 20);
-      });
-
-      test('loads default receiveMode as block', () {
-        final settings = container.read(uiSettingsProvider);
-        expect(settings.receiveMode, ReceiveMode.block);
-      });
-
-      test('loads default preferredReceiveMode as line', () {
-        final settings = container.read(uiSettingsProvider);
-        expect(settings.preferredReceiveMode, ReceiveMode.line);
-      });
-
       test('loads default appendNewline as false', () {
         final settings = container.read(uiSettingsProvider);
         expect(settings.appendNewline, false);

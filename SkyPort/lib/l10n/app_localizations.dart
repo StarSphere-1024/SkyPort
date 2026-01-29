@@ -212,12 +212,6 @@ abstract class AppLocalizations {
   /// **'Show Sent Data'**
   String get showSent;
 
-  /// No description provided for @receiveMode.
-  ///
-  /// In en, this message translates to:
-  /// **'Receive mode'**
-  String get receiveMode;
-
   /// No description provided for @clearReceiveArea.
   ///
   /// In en, this message translates to:
@@ -349,30 +343,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Block Interval'**
   String get timeoutLabel;
-
-  /// No description provided for @receiveModeTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Line: Split data when newline is received\nBlock: Split data when no data received for set time'**
-  String get receiveModeTooltip;
-
-  /// No description provided for @receiveModeTooltipHex.
-  ///
-  /// In en, this message translates to:
-  /// **'Line mode not available in Hex display\nBlock: Split data when no data received for set time'**
-  String get receiveModeTooltipHex;
-
-  /// No description provided for @lineModeLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Line'**
-  String get lineModeLabel;
-
-  /// No description provided for @blockModeLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Block'**
-  String get blockModeLabel;
 
   /// No description provided for @settingsTitle.
   ///

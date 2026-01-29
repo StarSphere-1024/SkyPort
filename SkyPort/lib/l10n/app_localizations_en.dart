@@ -66,9 +66,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get showSent => 'Show Sent Data';
 
   @override
-  String get receiveMode => 'Receive mode';
-
-  @override
   String get clearReceiveArea => 'Clear Receive Area';
 
   @override
@@ -138,20 +135,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get timeoutLabel => 'Block Interval';
-
-  @override
-  String get receiveModeTooltip =>
-      'Line: Split data when newline is received\nBlock: Split data when no data received for set time';
-
-  @override
-  String get receiveModeTooltipHex =>
-      'Line mode not available in Hex display\nBlock: Split data when no data received for set time';
-
-  @override
-  String get lineModeLabel => 'Line';
-
-  @override
-  String get blockModeLabel => 'Block';
 
   @override
   String get settingsTitle => 'Settings';

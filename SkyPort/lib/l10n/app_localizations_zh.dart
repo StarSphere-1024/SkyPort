@@ -66,9 +66,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get showSent => '显示发送数据';
 
   @override
-  String get receiveMode => '接收模式';
-
-  @override
   String get clearReceiveArea => '清空接收区';
 
   @override
@@ -137,18 +134,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get timeoutLabel => '块间隔';
-
-  @override
-  String get receiveModeTooltip => '按行：收到换行符时分包\n按块：超过设定时间未收到数据时分包';
-
-  @override
-  String get receiveModeTooltipHex => '十六进制显示模式下按行不可用\n按块：超过设定时间未收到数据时分包';
-
-  @override
-  String get lineModeLabel => '按行';
-
-  @override
-  String get blockModeLabel => '按块';
 
   @override
   String get settingsTitle => '设置';

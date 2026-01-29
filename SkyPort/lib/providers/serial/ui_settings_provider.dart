@@ -8,9 +8,6 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
   static const _keyHexSend = 'ui_hex_send';
   static const _keyShowTimestamp = 'ui_show_timestamp';
   static const _keyShowSent = 'ui_show_sent';
-  static const _keyBlockIntervalMs = 'ui_block_interval_ms';
-  static const _keyLineMode = 'ui_line_mode';
-  static const _keyPreferredReceiveMode = 'ui_preferred_receive_mode';
   // Newline settings keys
   static const _keyAppendNewline = 'ui_append_newline';
   static const _keyNewlineMode = 'ui_newline_mode';
@@ -28,13 +25,6 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
       hexSend: prefs.getBool(_keyHexSend) ?? false,
       showTimestamp: prefs.getBool(_keyShowTimestamp) ?? true,
       showSent: prefs.getBool(_keyShowSent) ?? true,
-      blockIntervalMs: prefs.getInt(_keyBlockIntervalMs) ?? 20,
-      receiveMode: (prefs.getBool(_keyLineMode) ?? false)
-          ? ReceiveMode.line
-          : ReceiveMode.block,
-      preferredReceiveMode: (prefs.getBool(_keyPreferredReceiveMode) ?? true)
-          ? ReceiveMode.line
-          : ReceiveMode.block,
       appendNewline: prefs.getBool(_keyAppendNewline) ?? false,
       newlineMode: NewlineMode
           .values[prefs.getInt(_keyNewlineMode) ?? NewlineMode.lf.index],

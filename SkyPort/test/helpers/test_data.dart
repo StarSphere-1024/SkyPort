@@ -60,9 +60,6 @@ const bool testHexDisplay = false;
 const bool testHexSend = false;
 const bool testShowTimestamp = true;
 const bool testShowSent = true;
-const int testBlockIntervalMs = 20;
-const ReceiveMode testReceiveMode = ReceiveMode.block;
-const ReceiveMode testPreferredReceiveMode = ReceiveMode.line;
 const bool testAppendNewline = false;
 const NewlineMode testNewlineMode = NewlineMode.lf;
 const bool testEnableAnsi = false;
@@ -79,9 +76,6 @@ const UiSettings hexDisplaySettings = UiSettings(
   hexSend: true,
   showTimestamp: false,
   showSent: true,
-  blockIntervalMs: 20,
-  receiveMode: ReceiveMode.block,
-  preferredReceiveMode: ReceiveMode.line,
   appendNewline: false,
   newlineMode: NewlineMode.lf,
   enableAnsi: false,
@@ -96,9 +90,6 @@ const UiSettings ansiEnabledSettings = UiSettings(
   hexSend: false,
   showTimestamp: true,
   showSent: true,
-  blockIntervalMs: 20,
-  receiveMode: ReceiveMode.block,
-  preferredReceiveMode: ReceiveMode.line,
   appendNewline: false,
   newlineMode: NewlineMode.lf,
   enableAnsi: true,
