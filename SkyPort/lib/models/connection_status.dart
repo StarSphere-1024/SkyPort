@@ -10,7 +10,7 @@ enum ConnectionStatus {
 
 class SerialConnection {
   final ConnectionStatus status;
-  final SerialPortSession? session;
+  final SerialPortSessionInterface? session;
   final int rxBytes;
   final int txBytes;
 
@@ -26,7 +26,7 @@ class SerialConnection {
 
   SerialConnection copyWith({
     ConnectionStatus? status,
-    SerialPortSession? session,
+    SerialPortSessionInterface? session,
     int? rxBytes,
     int? txBytes,
     int? lastRxBytes,

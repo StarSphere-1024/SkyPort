@@ -159,7 +159,11 @@ class DataLogNotifier extends Notifier<LogState> {
   /// Add received data with stream buffering
   /// All data goes to pending buffer first, then gets flushed on newline (0x0A)
   void addReceived(Uint8List data) {
-    if (data.isEmpty) return;
+    if (data.isEmpty) {
+      // Even empty data should trigger state update to ensure UI responsiveness
+      _updateState();
+      return;
+    }
 
     // Record timestamp on first byte of this line
     _pendingTimestamp ??= DateTime.now();

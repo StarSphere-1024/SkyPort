@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/serial_config.dart';
 import '../common_providers.dart';
+import '../../services/serial_port_service.dart';
 
 // Helper to compare port lists
 bool _arePortListsEqual(List<String> a, List<String> b) {
@@ -15,18 +16,22 @@ bool _arePortListsEqual(List<String> a, List<String> b) {
   return setA.length == setB.length && setA.containsAll(setB);
 }
 
+// Provider for SerialPortServiceInterface
+final serialPortServiceProvider = Provider<SerialPortServiceInterface>((ref) {
+  return SerialPortService(); // Production implementation
+});
+
 final availablePortsProvider =
     StreamProvider.autoDispose<List<String>>((ref) async* {
   ref.keepAlive(); // Keep alive for some time after last listener is removed
 
-  List<String> currentPorts = SerialPort.availablePorts;
+  final service = ref.read(serialPortServiceProvider);
+  List<String> currentPorts = await service.getAvailablePorts();
   yield currentPorts;
 
-  final timer = Stream.periodic(const Duration(milliseconds: 500), (_) {
-    return SerialPort.availablePorts;
-  });
-
-  await for (final newPorts in timer) {
+  final timer = Stream.periodic(const Duration(milliseconds: 500));
+  await for (final _ in timer) {
+    final newPorts = await service.getAvailablePorts();
     if (!_arePortListsEqual(currentPorts, newPorts)) {
       currentPorts = newPorts;
       yield currentPorts;
@@ -69,16 +74,14 @@ class SerialConfigNotifier extends Notifier<SerialConfig?> {
       }
     });
 
-    final initialPorts = SerialPort.availablePorts;
+    // For initial load, try to restore from prefs
     final savedPort = prefs.getString(_keyPortName);
-
     if (savedPort != null) {
       // Always restore saved port if it exists
       return _loadConfigFromPrefs(prefs, savedPort);
-    } else if (initialPorts.isNotEmpty) {
-      return _loadConfigFromPrefs(prefs, initialPorts.first);
     }
 
+    // If no saved port, we'll wait for ports to become available via the listener above
     return null;
   }
 
@@ -113,27 +116,83 @@ class SerialConfigNotifier extends Notifier<SerialConfig?> {
   }
 
   void setBaudRate(int baudRate) {
-    state = state?.copyWith(baudRate: baudRate);
+    if (state == null) {
+      // If no config exists, create one with default values and the new baud rate
+      state = SerialConfig(
+        portName: '', // Will be set later
+        baudRate: baudRate,
+        dataBits: 8,
+        parity: SerialPortParity.none,
+        stopBits: 1,
+        autoReconnect: true,
+      );
+    } else {
+      state = state!.copyWith(baudRate: baudRate);
+    }
     _saveConfig();
   }
 
   void setDataBits(int dataBits) {
-    state = state?.copyWith(dataBits: dataBits);
+    if (state == null) {
+      state = SerialConfig(
+        portName: '',
+        baudRate: 9600,
+        dataBits: dataBits,
+        parity: SerialPortParity.none,
+        stopBits: 1,
+        autoReconnect: true,
+      );
+    } else {
+      state = state!.copyWith(dataBits: dataBits);
+    }
     _saveConfig();
   }
 
   void setParity(int parity) {
-    state = state?.copyWith(parity: parity);
+    if (state == null) {
+      state = SerialConfig(
+        portName: '',
+        baudRate: 9600,
+        dataBits: 8,
+        parity: parity,
+        stopBits: 1,
+        autoReconnect: true,
+      );
+    } else {
+      state = state!.copyWith(parity: parity);
+    }
     _saveConfig();
   }
 
   void setStopBits(int stopBits) {
-    state = state?.copyWith(stopBits: stopBits);
+    if (state == null) {
+      state = SerialConfig(
+        portName: '',
+        baudRate: 9600,
+        dataBits: 8,
+        parity: SerialPortParity.none,
+        stopBits: stopBits,
+        autoReconnect: true,
+      );
+    } else {
+      state = state!.copyWith(stopBits: stopBits);
+    }
     _saveConfig();
   }
 
   void setAutoReconnect(bool value) {
-    state = state?.copyWith(autoReconnect: value);
+    if (state == null) {
+      state = SerialConfig(
+        portName: '',
+        baudRate: 9600,
+        dataBits: 8,
+        parity: SerialPortParity.none,
+        stopBits: 1,
+        autoReconnect: value,
+      );
+    } else {
+      state = state!.copyWith(autoReconnect: value);
+    }
     _saveConfig();
   }
 }

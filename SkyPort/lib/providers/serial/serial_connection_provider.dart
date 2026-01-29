@@ -8,7 +8,7 @@ import '../../services/serial_port_service.dart';
 import '../../models/app_error.dart';
 import '../../models/connection_status.dart';
 import '../../models/ui_settings.dart';
-import '../common_providers.dart';
+import '../../utils/hex_parser.dart';
 import 'data_log_provider.dart';
 import 'error_provider.dart';
 import 'serial_config_provider.dart';
@@ -16,20 +16,30 @@ import 'ui_settings_provider.dart';
 
 class SerialConnectionNotifier extends Notifier<SerialConnection> {
   StreamSubscription<Uint8List>? _dataSubscription;
+  Timer? _reconnectTimer;
+  bool _mounted = true;
 
   @override
   SerialConnection build() {
     ref.onDispose(() {
-      disconnect();
+      _mounted = false;
+      _cleanup();
     });
 
     // Listen for port availability to auto-reconnect
     ref.listen(availablePortsProvider, (previous, next) {
+      if (!_mounted) return;
+
       final ports = next.asData?.value ?? [];
       if (state.status == ConnectionStatus.reconnecting) {
         final config = ref.read(serialConfigProvider);
         if (config != null && ports.contains(config.portName)) {
-          connect();
+          // Schedule reconnect asynchronously to avoid calling during dispose
+          Future.microtask(() {
+            if (_mounted) {
+              connect();
+            }
+          });
         }
       }
     });
@@ -37,8 +47,23 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
     return SerialConnection();
   }
 
+  /// Cleanup all resources and cancel pending operations
+  void _cleanup() {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+
+    // Cancel data subscription synchronously
+    _dataSubscription?.cancel();
+    _dataSubscription = null;
+
+    // Note: We don't close the session here to avoid accessing ref during dispose
+    // The session will be closed by the service when the container is disposed
+  }
+
   /// Establish the serial connection. Formerly `open()`.
   Future<void> connect() async {
+    if (!_mounted) return;
+
     if (state.status != ConnectionStatus.disconnected &&
         state.status != ConnectionStatus.reconnecting) {
       return;
@@ -55,14 +80,23 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
     final service = ref.read(serialPortServiceProvider);
     try {
       final session = await service.open(config);
+      // Check if disposed during async operation
+      if (!_mounted) return;
+
       _dataSubscription = session.stream.listen((data) {
+        if (!_mounted) return;
+
         // Forward received data into the debounced log provider
         ref.read(dataLogProvider.notifier).addReceived(data);
-        state = state.copyWith(
-          rxBytes: state.rxBytes + data.length,
-          lastRxBytes: data.length,
-        );
+        if (_mounted) {
+          state = state.copyWith(
+            rxBytes: state.rxBytes + data.length,
+            lastRxBytes: data.length,
+          );
+        }
       }, onError: (error) {
+        if (!_mounted) return;
+
         final config = ref.read(serialConfigProvider);
         if (config?.autoReconnect == true) {
           _internalDisconnect(status: ConnectionStatus.reconnecting);
@@ -78,35 +112,46 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
         session: session,
       );
     } on SerialPortOpenTimeoutException catch (e) {
-      ref
-          .read(errorProvider.notifier)
-          .setError(AppErrorType.portOpenTimeout, e.message);
-      state = state.copyWith(status: ConnectionStatus.disconnected);
+      if (_mounted) {
+        ref
+            .read(errorProvider.notifier)
+            .setError(AppErrorType.portOpenTimeout, e.message);
+        state = state.copyWith(status: ConnectionStatus.disconnected);
+      }
     } on SerialPortOpenException catch (e) {
-      ref
-          .read(errorProvider.notifier)
-          .setError(AppErrorType.portOpenFailed, e.message);
-      state = state.copyWith(status: ConnectionStatus.disconnected);
+      if (_mounted) {
+        ref
+            .read(errorProvider.notifier)
+            .setError(AppErrorType.portOpenFailed, e.message);
+        state = state.copyWith(status: ConnectionStatus.disconnected);
+      }
     } catch (e) {
-      ref
-          .read(errorProvider.notifier)
-          .setError(AppErrorType.unknown, e.toString());
-      state = state.copyWith(status: ConnectionStatus.disconnected);
+      if (_mounted) {
+        ref
+            .read(errorProvider.notifier)
+            .setError(AppErrorType.unknown, e.toString());
+        state = state.copyWith(status: ConnectionStatus.disconnected);
+      }
     }
   }
 
   /// Tear down the serial connection. Formerly `close()`.
   Future<void> disconnect() async {
+    if (!_mounted) return;
     await _internalDisconnect(status: ConnectionStatus.disconnected);
   }
 
   Future<void> _internalDisconnect({required ConnectionStatus status}) async {
+    if (!_mounted) return;
+
     if (state.status != ConnectionStatus.connected &&
         state.status != ConnectionStatus.reconnecting) {
       // Allow disconnecting from reconnecting state (e.g. user cancels)
       if (state.status == ConnectionStatus.reconnecting &&
           status == ConnectionStatus.disconnected) {
-        state = state.copyWith(status: ConnectionStatus.disconnected);
+        if (_mounted) {
+          state = state.copyWith(status: ConnectionStatus.disconnected);
+        }
         return;
       }
       return;
@@ -114,7 +159,7 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
 
     ref.read(errorProvider.notifier).clear();
     // Only show disconnecting status if we were connected
-    if (state.status == ConnectionStatus.connected) {
+    if (state.status == ConnectionStatus.connected && _mounted) {
       state = state.copyWith(status: ConnectionStatus.disconnecting);
     }
 
@@ -136,16 +181,18 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
       }
 
       // Only report if strictly disconnecting to avoid UI noise during reconnect.
-      if (status == ConnectionStatus.disconnected) {
+      if (status == ConnectionStatus.disconnected && _mounted) {
         ref
             .read(errorProvider.notifier)
             .setError(AppErrorType.cleanupError, e.toString());
       }
     } finally {
-      state = state.copyWith(
-        status: status,
-        session: null,
-      );
+      if (_mounted) {
+        state = state.copyWith(
+          status: status,
+          session: null,
+        );
+      }
     }
   }
 
@@ -156,6 +203,8 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
   Future<void> close() => disconnect();
 
   Future<void> send(String data) async {
+    if (!_mounted) return;
+
     if (state.session == null || state.status != ConnectionStatus.connected) {
       return;
     }
@@ -167,7 +216,7 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
 
     try {
       if (useHex) {
-        bytesToSend = _hexToBytes(data);
+        bytesToSend = hexToBytes(data);
       } else {
         var textToSend = data;
         if (uiSettings.appendNewline) {
@@ -193,17 +242,18 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
     }
 
     try {
-      final bytesWritten = ref
-          .read(serialPortServiceProvider)
-          .write(state.session!, bytesToSend, timeoutMs: 100);
+      final bytesWritten =
+          state.session!.write(bytesToSend, timeoutMs: 100);
       if (bytesWritten > 0) {
         ref
             .read(dataLogProvider.notifier)
             .addSent(bytesToSend.sublist(0, bytesWritten));
       }
-      state = state.copyWith(
-        txBytes: state.txBytes + bytesWritten,
-      );
+      if (_mounted) {
+        state = state.copyWith(
+          txBytes: state.txBytes + bytesWritten,
+        );
+      }
     } on SerialPortWriteException catch (e) {
       ref
           .read(errorProvider.notifier)
@@ -211,31 +261,9 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
     }
   }
 
-  Uint8List _hexToBytes(String hex) {
-    final bytes = <int>[];
-    // Efficiently split by whitespace and filter out empty strings.
-    final parts = hex.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty);
-
-    for (var part in parts) {
-      // Pad the part if it has an odd length.
-      if (part.length % 2 != 0) {
-        part = '0$part';
-      }
-
-      for (int i = 0; i < part.length; i += 2) {
-        final hexPair = part.substring(i, i + 2);
-        try {
-          bytes.add(int.parse(hexPair, radix: 16));
-        } on FormatException {
-          // Rethrow with a more informative message.
-          throw FormatException('Invalid hex value found: "$hexPair"');
-        }
-      }
-    }
-    return Uint8List.fromList(bytes);
-  }
-
   void resetStats() {
+    if (!_mounted) return;
+
     state = state.copyWith(
       rxBytes: 0,
       txBytes: 0,

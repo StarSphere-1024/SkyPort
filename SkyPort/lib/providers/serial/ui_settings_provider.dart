@@ -32,7 +32,7 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
       receiveMode: (prefs.getBool(_keyLineMode) ?? false)
           ? ReceiveMode.line
           : ReceiveMode.block,
-      preferredReceiveMode: (prefs.getBool(_keyPreferredReceiveMode) ?? false)
+      preferredReceiveMode: (prefs.getBool(_keyPreferredReceiveMode) ?? true)
           ? ReceiveMode.line
           : ReceiveMode.block,
       appendNewline: prefs.getBool(_keyAppendNewline) ?? false,
