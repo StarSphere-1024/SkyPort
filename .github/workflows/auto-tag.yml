@@ -1,0 +1,96 @@
+name: Auto Tag and Release
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'SkyPort/pubspec.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-tag-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect-version-change:
+    name: Detect Version Change
+    runs-on: ubuntu-latest
+    outputs:
+      should_tag: ${{ steps.version_check.outputs.should_tag }}
+      new_version: ${{ steps.version_check.outputs.new_version }}
+      tag_name: ${{ steps.version_check.outputs.tag_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect version change
+        id: version_check
+        run: |
+          # Extract current version (strip build number)
+          CURRENT_VERSION=$(sed -n 's/^[[:space:]]*version:[[:space:]]*\([^+]*\).*/\1/p' SkyPort/pubspec.yaml | head -n 1 | tr -d '\r')
+          echo "Current version: $CURRENT_VERSION"
+
+          # Get previous version from HEAD~1
+          PREV_VERSION=$(git show HEAD~1:SkyPort/pubspec.yaml 2>/dev/null | sed -n 's/^[[:space:]]*version:[[:space:]]*\([^+]*\).*/\1/p' | head -n 1 | tr -d '\r' || echo "")
+          echo "Previous version: $PREV_VERSION"
+
+          # Check if tag already exists
+          TAG_NAME="v${CURRENT_VERSION}"
+          TAG_EXISTS=$(git tag -l "$TAG_NAME")
+          echo "Tag exists check: $TAG_EXISTS"
+
+          # Determine if we should create a tag
+          if [ -z "$PREV_VERSION" ]; then
+            echo "No previous version found"
+            echo "should_tag=false" >> "$GITHUB_OUTPUT"
+          elif [ "$CURRENT_VERSION" = "$PREV_VERSION" ]; then
+            echo "Version unchanged"
+            echo "should_tag=false" >> "$GITHUB_OUTPUT"
+          elif [ -n "$TAG_EXISTS" ]; then
+            echo "Tag $TAG_NAME already exists, skipping"
+            echo "should_tag=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Version changed from $PREV_VERSION to $CURRENT_VERSION"
+            echo "should_tag=true" >> "$GITHUB_OUTPUT"
+            echo "new_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+            echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
+          fi
+
+  create-tag:
+    name: Create Tag
+    needs: detect-version-change
+    if: needs.detect-version-change.outputs.should_tag == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create and push tag
+        run: |
+          TAG_NAME="${{ needs.detect-version-change.outputs.tag_name }}"
+          VERSION="${{ needs.detect-version-change.outputs.new_version }}"
+
+          echo "Creating tag: $TAG_NAME for version: $VERSION"
+
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create annotated tag
+          git tag -a "$TAG_NAME" -m "Release $TAG_NAME
+
+          Version: $VERSION
+          Branch: ${{ github.ref_name }}
+          Commit: ${{ github.sha }}"
+
+          # Push tag to trigger release workflow
+          git push origin "$TAG_NAME"
+
+          echo "✅ Tag $TAG_NAME created and pushed"
