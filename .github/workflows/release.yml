@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: tag-release-${{ github.ref }}
+  group: release-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build:
-    uses: StarSphere-1024/SkyPort/.github/workflows/build-matrix.yml@master
+    uses: ./.github/workflows/build-matrix.yml
     with:
       retention-days: 30
 
