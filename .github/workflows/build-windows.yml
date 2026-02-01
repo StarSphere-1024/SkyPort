@@ -48,6 +48,11 @@ jobs:
         run: flutter pub get
         shell: pwsh
 
+      - name: Run tests
+        working-directory: SkyPort
+        run: flutter test
+        shell: pwsh
+
       - name: Build release
         working-directory: SkyPort
         run: flutter build windows --release

@@ -64,6 +64,17 @@ jobs:
         working-directory: SkyPort
         run: flutter pub get
 
+      - name: Run tests
+        working-directory: SkyPort
+        run: flutter test --coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: SkyPort/coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+
       - name: Build (${{ matrix.ff_job }})
         working-directory: SkyPort
         run: fastforge release --name release --jobs ${{ matrix.ff_job }}
