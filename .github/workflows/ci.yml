@@ -1,14 +1,14 @@
-name: Build
+name: CI
 
 on:
   push:
-    branches: [ main, release ]
+    branches: [ main, dev, release ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, dev ]
   workflow_dispatch:
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -16,8 +16,6 @@ permissions:
 
 jobs:
   build:
-    uses: StarSphere-1024/SkyPort/.github/workflows/build-matrix.yml@release
+    uses: ./.github/workflows/build-matrix.yml
     with:
       retention-days: 7
-
-  # 此工作流仅构建并上传临时工件，不创建 Release。
