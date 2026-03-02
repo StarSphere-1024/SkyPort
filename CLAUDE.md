@@ -170,6 +170,7 @@ developer.log(
 2. **使用相对路径** - 当前工作目录已是项目根目录
 3. **使用 Unix 路径格式** - 如 `SkyPort/coverage/lcov.info`
 4. **切换目录使用相对路径** - `cd SkyPort` 而非 `cd D:/Projects/SkyPort/SkyPort`
+5. **优先使用绝对路径** - 如果相对路径执行失败，改用 Windows 绝对路径的 Unix 格式（如 `/d/Projects/SkyPort/SkyPort`）
 
 ### 正确的命令示例
 
@@ -179,6 +180,9 @@ cd SkyPort && flutter test --coverage
 
 # ✅ 正确 - 使用 forward slashes
 grep "^LF:" SkyPort/coverage/lcov.info
+
+# ✅ 正确 - 绝对路径（当相对路径失败时）
+cd /d/Projects/SkyPort/SkyPort && flutter test
 
 # ❌ 错误 - Windows 绝对路径
 cd D:\Projects\SkyPort\SkyPort
@@ -196,6 +200,25 @@ powershell -ExecutionPolicy Bypass -File scripts/check_coverage.ps1
 # 使用 shell 参数
 flutter test --coverage && powershell -c "Write-Host 'Tests passed'"
 ```
+
+---
+
+## 🔧 代码编辑操作规范
+
+### Edit 工具使用规则
+
+1. **必须先读取文件** - 编辑任何文件前，必须先用 Read 工具确认当前内容
+2. **不要假设文件内容** - 即使你认为知道文件结构，也要先读取验证
+3. **匹配完整的上下文** - `old_string` 应包含足够的上下文以确保唯一性（通常 3-5 行）
+4. **注意 import 语句位置** - Dart 的 import 必须在 library directive 之后、代码之前
+
+### 批量修改文件时的顺序
+
+当需要修改多个文件时：
+
+1. 先读取所有目标文件
+2. 逐个编辑，每个编辑后验证 `old_string` 匹配
+3. 全部完成后统一运行测试验证
 
 ---
 
@@ -420,6 +443,11 @@ fix(serial): handle connection timeout correctly
 test(widget): add send_input_widget tests
 ci(workflow): add coverage threshold check
 ```
+
+### 提交规则
+
+1. **只提交暂存的修改** - 不要自动添加未暂存的文件到提交中
+2. **禁止包含 Co-Authored-By Claude** - 提交信息中不要添加 `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>`
 
 ### Magic Numbers 处理
 
