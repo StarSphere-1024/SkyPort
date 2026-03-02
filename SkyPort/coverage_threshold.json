@@ -1,0 +1,15 @@
+{
+  "overall": 70,
+  "critical_modules": 85,
+  "new_code": 95,
+  "excluded_files": [
+    "**/l10n/*.dart",
+    "**/theme.dart",
+    "**/app_localizations_*.dart"
+  ],
+  "critical_module_patterns": [
+    "**/providers/*.dart",
+    "**/services/*.dart",
+    "**/models/*.dart"
+  ]
+}
