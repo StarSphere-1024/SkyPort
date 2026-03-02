@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skyport/l10n/app_localizations.dart';
 import 'package:skyport/models/connection_status.dart';
 import 'package:skyport/models/ui_settings.dart';
@@ -12,7 +11,6 @@ import 'package:skyport/providers/serial/ui_settings_provider.dart';
 import 'package:skyport/widgets/right_panel/send_input_widget.dart';
 
 import '../../helpers/mock_classes.dart';
-import '../../helpers/test_providers.dart';
 
 /// Mock UiSettingsNotifier for testing
 class TestUiSettingsNotifier extends UiSettingsNotifier {
@@ -196,7 +194,8 @@ void main() {
 
       // Text should still be there (not sent)
       final finder = find.byType(TextFormField);
-      final controller = (tester.firstWidget(finder) as TextFormField).controller;
+      final controller =
+          (tester.firstWidget(finder) as TextFormField).controller;
       expect(controller?.text, equals('Hello'));
     });
   });
@@ -209,7 +208,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sharedPreferencesProvider.overrideWithValue(FakeSharedPreferences()),
+            sharedPreferencesProvider
+                .overrideWithValue(FakeSharedPreferences()),
             uiSettingsProvider.overrideWith(() => notifier),
             serialConnectionProvider.overrideWith(
               () => TestSerialConnectionNotifier(
@@ -243,7 +243,8 @@ void main() {
       await tester.pumpAndSettle();
 
       final finder = find.byType(TextFormField);
-      final controller = (tester.firstWidget(finder) as TextFormField).controller;
+      final controller =
+          (tester.firstWidget(finder) as TextFormField).controller;
       // "AB" in hex is "41 42"
       expect(controller?.text, equals('41 42'));
     });
@@ -255,7 +256,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sharedPreferencesProvider.overrideWithValue(FakeSharedPreferences()),
+            sharedPreferencesProvider
+                .overrideWithValue(FakeSharedPreferences()),
             uiSettingsProvider.overrideWith(() => notifier),
             serialConnectionProvider.overrideWith(
               () => TestSerialConnectionNotifier(
@@ -289,7 +291,8 @@ void main() {
       await tester.pumpAndSettle();
 
       final finder = find.byType(TextFormField);
-      final controller = (tester.firstWidget(finder) as TextFormField).controller;
+      final controller =
+          (tester.firstWidget(finder) as TextFormField).controller;
       expect(controller?.text, equals('AB'));
     });
 
@@ -430,7 +433,8 @@ void main() {
       await tester.pumpAndSettle();
 
       final finder = find.byType(TextFormField);
-      final controller = (tester.firstWidget(finder) as TextFormField).controller;
+      final controller =
+          (tester.firstWidget(finder) as TextFormField).controller;
       expect(controller?.text, equals('Third message'));
     });
 
@@ -454,7 +458,8 @@ void main() {
       await tester.pumpAndSettle();
 
       final finder = find.byType(TextFormField);
-      final controller = (tester.firstWidget(finder) as TextFormField).controller;
+      final controller =
+          (tester.firstWidget(finder) as TextFormField).controller;
       // Should return to original (empty) state
       expect(controller?.text, isEmpty);
     });
@@ -545,7 +550,8 @@ void main() {
       await tester.pumpAndSettle();
 
       final finder = find.byType(TextFormField);
-      final controller = (tester.firstWidget(finder) as TextFormField).controller;
+      final controller =
+          (tester.firstWidget(finder) as TextFormField).controller;
       expect(controller?.text, equals('New text'));
     });
   });
@@ -619,7 +625,8 @@ void main() {
       await tester.pumpAndSettle();
 
       final finder = find.byType(TextFormField);
-      final controller = (tester.firstWidget(finder) as TextFormField).controller;
+      final controller =
+          (tester.firstWidget(finder) as TextFormField).controller;
       expect(controller?.selection.baseOffset, equals(9));
     });
 
@@ -637,7 +644,8 @@ void main() {
 
       // Text should still be there
       final finder = find.byType(TextFormField);
-      final controller = (tester.firstWidget(finder) as TextFormField).controller;
+      final controller =
+          (tester.firstWidget(finder) as TextFormField).controller;
       expect(controller?.text, equals('Persistent text'));
     });
   });
@@ -654,7 +662,8 @@ void main() {
       await tester.pumpAndSettle();
 
       final finder = find.byType(TextFormField);
-      final controller = (tester.firstWidget(finder) as TextFormField).controller;
+      final controller =
+          (tester.firstWidget(finder) as TextFormField).controller;
       expect(controller?.text.length, equals(1000));
     });
 
@@ -668,7 +677,8 @@ void main() {
       await tester.pumpAndSettle();
 
       final finder = find.byType(TextFormField);
-      final controller = (tester.firstWidget(finder) as TextFormField).controller;
+      final controller =
+          (tester.firstWidget(finder) as TextFormField).controller;
       expect(controller?.text, equals('Hello 世界 🌍'));
     });
 
