@@ -9,6 +9,7 @@ import '../../models/app_error.dart';
 import '../../models/connection_status.dart';
 import '../../models/ui_settings.dart';
 import '../../utils/hex_parser.dart';
+import '../../utils/constants.dart';
 import 'data_log_provider.dart';
 import 'error_provider.dart';
 import 'serial_config_provider.dart';
@@ -170,7 +171,7 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
     try {
       await subscriptionToCancel?.cancel();
       if (status == ConnectionStatus.disconnected) {
-        await Future.delayed(const Duration(milliseconds: 200));
+        await Future.delayed(Duration(milliseconds: SkyPortConstants.connectionSettleDelayMs));
       }
       if (session != null) {
         await ref.read(serialPortServiceProvider).close(session);
@@ -243,7 +244,7 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
 
     try {
       final bytesWritten =
-          state.session!.write(bytesToSend, timeoutMs: 100);
+          state.session!.write(bytesToSend, timeoutMs: SkyPortConstants.defaultWriteTimeoutMs);
       if (bytesWritten > 0) {
         ref
             .read(dataLogProvider.notifier)

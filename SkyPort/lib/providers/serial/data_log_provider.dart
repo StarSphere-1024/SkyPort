@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/log_model.dart';
+import '../../utils/constants.dart';
 import 'ui_settings_provider.dart';
 
 class DataLogNotifier extends Notifier<LogState> {
@@ -10,13 +11,8 @@ class DataLogNotifier extends Notifier<LogState> {
   List<int> _pendingData = [];
   DateTime? _pendingTimestamp;
 
-  // Defense: maximum pending bytes before forcing flush (256KB)
-  static const int _maxPendingBytes = 256 * 1024;
-
   // Completed entries waiting to be packed into chunks
   List<LogEntry> _completedBuffer = [];
-
-  static const int _chunkSizeLimit = 1000;
   List<LogEntry> _currentBuffer = [];
   int _currentBufferBytes = 0;
 
@@ -88,7 +84,7 @@ class DataLogNotifier extends Notifier<LogState> {
     }
 
     // Check if current buffer needs finalizing into a chunk
-    if (_currentBuffer.length >= _chunkSizeLimit) {
+    if (_currentBuffer.length >= SkyPortConstants.chunkSizeLimit) {
       final newChunk = LogChunk(
         entries: List.unmodifiable(_currentBuffer),
         totalBytes: _currentBufferBytes,
@@ -203,7 +199,7 @@ class DataLogNotifier extends Notifier<LogState> {
     }
 
     // Defense: Force flush if pending grows too large (no newline scenario)
-    if (_pendingData.length > _maxPendingBytes) {
+    if (_pendingData.length > SkyPortConstants.maxPendingBytes) {
       _completedBuffer.add(LogEntry(
         Uint8List.fromList(_pendingData),
         LogEntryType.received,

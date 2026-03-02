@@ -11,6 +11,7 @@ import '../../providers/common_providers.dart';
 import '../../models/connection_status.dart';
 import '../../models/ui_settings.dart';
 import '../../l10n/app_localizations.dart';
+import '../../utils/constants.dart';
 
 class SendInputWidget extends ConsumerStatefulWidget {
   const SendInputWidget({super.key});
@@ -28,7 +29,6 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
 
   // History management
   static const String _historyKey = 'send_input_history';
-  static const int _maxHistory = 100;
   List<String> _history = [];
   int _historyIndex = -1;
   String _tempInput = '';
@@ -73,7 +73,7 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
       // Remove if already exists to move it to the end (most recent)
       _history.remove(text);
       _history.add(text);
-      if (_history.length > _maxHistory) {
+      if (_history.length > SkyPortConstants.maxHistorySize) {
         _history.removeAt(0);
       }
       _historyIndex = -1;
