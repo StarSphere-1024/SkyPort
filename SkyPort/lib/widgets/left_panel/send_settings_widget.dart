@@ -5,6 +5,7 @@ import '../../providers/serial/ui_settings_provider.dart';
 import '../../models/connection_status.dart';
 import '../../models/ui_settings.dart';
 import '../../l10n/app_localizations.dart';
+import '../../utils/constants.dart';
 import '../shared/compact_switch.dart';
 
 class SendSettingsWidget extends ConsumerWidget {
@@ -103,7 +104,7 @@ class SendSettingsWidget extends ConsumerWidget {
             Row(
               children: [
                 SizedBox(
-                  width: 100,
+                  width: SkyPortConstants.intervalInputWidth.toDouble(),
                   child: DropdownMenu<int>(
                     enabled: settings.appendNewline,
                     expandedInsets: EdgeInsets.zero,

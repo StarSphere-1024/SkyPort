@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/serial/data_log_provider.dart';
 import '../../providers/serial/ui_settings_provider.dart';
 import '../../models/log_model.dart';
+import '../../utils/constants.dart';
 
 class LogIndexMapper {
   final List<LogChunk> chunks;
@@ -82,7 +83,7 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
       final currentScroll = _scrollController.position.pixels;
 
       // Use a more lenient threshold to determine if at bottom, to avoid floating point precision issues
-      final isBottom = currentScroll >= (maxScroll - 50);
+      final isBottom = currentScroll >= (maxScroll - SkyPortConstants.scrollBottomThreshold);
 
       if (_isAtBottom != isBottom) {
         // Only setState when the state actually changes
@@ -132,14 +133,14 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
       // Otherwise, use animation for smoothness
       final distance = (maxScroll - _scrollController.position.pixels).abs();
 
-      if (force || distance > 1000) {
+      if (force || distance > SkyPortConstants.forceScrollDistance) {
         _scrollController.jumpTo(maxScroll);
         onScrollComplete();
       } else {
         _scrollController
             .animateTo(
           maxScroll,
-          duration: const Duration(milliseconds: 100),
+          duration: Duration(milliseconds: SkyPortConstants.scrollAnimationDurationMs),
           curve: Curves.easeOut,
         )
             .then((_) {

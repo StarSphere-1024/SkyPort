@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_libserialport/flutter_libserialport.dart';
 import '../models/serial_config.dart';
+import '../utils/constants.dart';
 
 /// Abstract interface for a serial port session to enable mocking.
 ///
@@ -15,7 +16,7 @@ abstract class SerialPortSessionInterface {
   /// Write data to the serial port.
   /// Returns the number of bytes written.
   /// Throws [SerialPortWriteException] on failure.
-  int write(Uint8List data, {int timeoutMs = 100});
+  int write(Uint8List data, {int timeoutMs = SkyPortConstants.defaultWriteTimeoutMs});
 
   /// Close the serial port and release resources.
   void dispose();
@@ -38,7 +39,7 @@ class SerialPortSession implements SerialPortSessionInterface {
   Stream<Uint8List> get stream => _reader.stream;
 
   @override
-  int write(Uint8List data, {int timeoutMs = 100}) {
+  int write(Uint8List data, {int timeoutMs = SkyPortConstants.defaultWriteTimeoutMs}) {
     try {
       final written = _port.write(data, timeout: timeoutMs);
       if (written <= 0) {

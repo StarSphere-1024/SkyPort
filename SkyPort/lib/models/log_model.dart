@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:ansi_escape_codes/ansi_escape_codes.dart' as ansi;
 
+import '../utils/constants.dart';
+
 enum LogEntryType { received, sent }
 
 class LogEntry {
@@ -17,7 +19,7 @@ class LogEntry {
 
   // Static LRU Cache for rendered TextSpans
   // Limits memory usage by only keeping the most recently rendered spans (e.g. visible items)
-  static const int _maxCacheSize = 500;
+  static const int _maxCacheSize = SkyPortConstants.lruCacheMaxSize;
   static final LinkedHashMap<LogEntry, _CachedSpanData> _spanCache =
       LinkedHashMap<LogEntry, _CachedSpanData>();
 
@@ -117,7 +119,7 @@ class LogEntry {
     final dataText = getDisplayText(hexDisplay);
 
     // Truncation defense for text mode (hex mode already has soft line breaks)
-    const int maxDisplayLength = 5000;
+    const int maxDisplayLength = SkyPortConstants.logDisplayMaxLength;
     bool truncated = false;
     String text = dataText;
 

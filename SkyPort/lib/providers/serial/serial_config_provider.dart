@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/serial_config.dart';
+import '../../utils/constants.dart';
 import '../common_providers.dart';
 import '../../services/serial_port_service.dart';
 
@@ -29,7 +30,7 @@ final availablePortsProvider =
   List<String> currentPorts = await service.getAvailablePorts();
   yield currentPorts;
 
-  final timer = Stream.periodic(const Duration(milliseconds: 500));
+  final timer = Stream.periodic(Duration(milliseconds: SkyPortConstants.portPollIntervalMs));
   await for (final _ in timer) {
     final newPorts = await service.getAvailablePorts();
     if (!_arePortListsEqual(currentPorts, newPorts)) {

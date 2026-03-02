@@ -1,3 +1,5 @@
+import '../utils/constants.dart';
+
 /// Mode for which newline sequence to append when sending text data.
 enum NewlineMode {
   lf, // "\n"
@@ -28,7 +30,7 @@ class UiSettings {
     this.enableAnsi = false,
     this.logBufferSize = 128, // Default 128 MB
     this.autoSendEnabled = false,
-    this.autoSendIntervalMs = 1000, // Default 1000ms (1 second)
+    this.autoSendIntervalMs = SkyPortConstants.defaultAutoSendIntervalMs, // Default 1000ms (1 second)
   });
 
   UiSettings copyWith({

@@ -16,6 +16,7 @@ import 'widgets/left_panel.dart';
 import 'widgets/right_panel.dart';
 import 'widgets/status_bar.dart';
 import 'l10n/app_localizations.dart';
+import 'utils/constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -176,7 +177,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     PopupMenuItem(
                       enabled: false,
                       child: SizedBox(
-                        width: 300,
+                        width: SkyPortConstants.settingsPopupWidth.toDouble(),
                         child: SettingsPopup(
                           controller: _bufferController,
                           formKey: _formKey,
