@@ -62,6 +62,9 @@ class SkyPortConstants {
   // UI Dimension Constants
   // =====================================================
 
+  /// Width for left panel
+  static const int leftPanelWidth = 350;
+
   /// Width for interval input field
   static const int intervalInputWidth = 100;
 
