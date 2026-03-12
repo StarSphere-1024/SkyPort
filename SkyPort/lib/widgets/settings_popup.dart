@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import '../providers/theme_provider.dart';
 import '../providers/serial/ui_settings_provider.dart';
 import '../providers/serial/serial_config_provider.dart';
@@ -142,6 +143,54 @@ class SettingsPopup extends ConsumerWidget {
               ),
             ),
           ),
+          // Export path setting
+          if (Theme.of(context).platform == TargetPlatform.windows ||
+              Theme.of(context).platform == TargetPlatform.macOS ||
+              Theme.of(context).platform == TargetPlatform.linux)
+            ListTile(
+              title: Text(
+                AppLocalizations.of(context).exportPath,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: TextEditingController(
+                          text: ref.watch(uiSettingsProvider).logExportPath,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: AppLocalizations.of(context).exportPathHint,
+                          isDense: true,
+                        ),
+                        readOnly: true,
+                        enabled: ref.watch(uiSettingsProvider).logExportPath.isNotEmpty,
+                        onTap: () async {
+                          final path = await FilePicker.platform.getDirectoryPath();
+                          if (path != null) {
+                            ref.read(uiSettingsProvider.notifier).setLogExportPath(path);
+                          }
+                        },
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.folder),
+                      tooltip: AppLocalizations.of(context).exportPath,
+                      onPressed: () async {
+                        final path = await FilePicker.platform.getDirectoryPath();
+                        if (path != null) {
+                          ref.read(uiSettingsProvider.notifier).setLogExportPath(path);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );

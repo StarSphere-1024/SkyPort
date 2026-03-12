@@ -16,6 +16,8 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
   // Auto-send settings keys
   static const _keyAutoSendEnabled = 'ui_auto_send_enabled';
   static const _keyAutoSendIntervalMs = 'ui_auto_send_interval_ms';
+  // Log export settings keys
+  static const _keyLogExportPath = 'ui_log_export_path';
 
   @override
   UiSettings build() {
@@ -32,6 +34,7 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
       logBufferSize: prefs.getInt(_keyLogBufferSize) ?? 128,
       autoSendEnabled: prefs.getBool(_keyAutoSendEnabled) ?? false,
       autoSendIntervalMs: prefs.getInt(_keyAutoSendIntervalMs) ?? 1000,
+      logExportPath: prefs.getString(_keyLogExportPath) ?? '',
     );
   }
 
@@ -85,6 +88,11 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
   void setAutoSendIntervalMs(int value) {
     state = state.copyWith(autoSendIntervalMs: value);
     ref.read(sharedPreferencesProvider).setInt(_keyAutoSendIntervalMs, value);
+  }
+
+  void setLogExportPath(String value) {
+    state = state.copyWith(logExportPath: value);
+    ref.read(sharedPreferencesProvider).setString(_keyLogExportPath, value);
   }
 }
 

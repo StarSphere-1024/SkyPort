@@ -75,5 +75,12 @@
   "autoSendInterval": "Interval",
   "autoSendIntervalError": "0.01-60",
   "autoSendHint": "Auto-send interval in seconds",
-  "secondsUnit": "s"
+  "secondsUnit": "s",
+  "exportLogs": "Export Logs",
+  "exportPath": "Export path",
+  "exportPathHint": "Default folder for exported logs",
+  "export": "Export",
+  "noLogsToExport": "No logs to export",
+  "logsExportedTo": "Logs exported to: ",
+  "exportFailed": "Export failed: "
 }

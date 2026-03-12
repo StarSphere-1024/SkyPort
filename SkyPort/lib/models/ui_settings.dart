@@ -19,6 +19,7 @@ class UiSettings {
   final int logBufferSize; // Log buffer size in MB
   final bool autoSendEnabled; // Whether auto-send is enabled
   final int autoSendIntervalMs; // Auto-send interval in milliseconds
+  final String logExportPath; // Default export path
 
   const UiSettings({
     this.hexDisplay = false,
@@ -31,6 +32,7 @@ class UiSettings {
     this.logBufferSize = 128, // Default 128 MB
     this.autoSendEnabled = false,
     this.autoSendIntervalMs = SkyPortConstants.defaultAutoSendIntervalMs, // Default 1000ms (1 second)
+    this.logExportPath = '',
   });
 
   UiSettings copyWith({
@@ -44,6 +46,7 @@ class UiSettings {
     int? logBufferSize,
     bool? autoSendEnabled,
     int? autoSendIntervalMs,
+    String? logExportPath,
   }) {
     return UiSettings(
       hexDisplay: hexDisplay ?? this.hexDisplay,
@@ -56,6 +59,7 @@ class UiSettings {
       logBufferSize: logBufferSize ?? this.logBufferSize,
       autoSendEnabled: autoSendEnabled ?? this.autoSendEnabled,
       autoSendIntervalMs: autoSendIntervalMs ?? this.autoSendIntervalMs,
+      logExportPath: logExportPath ?? this.logExportPath,
     );
   }
 }

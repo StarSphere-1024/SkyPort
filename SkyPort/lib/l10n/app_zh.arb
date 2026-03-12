@@ -75,5 +75,12 @@
   "autoSendInterval": "间隔",
   "autoSendIntervalError": "0.01-60",
   "autoSendHint": "自动发送间隔（秒）",
-  "secondsUnit": "秒"
+  "secondsUnit": "秒",
+  "exportLogs": "导出日志",
+  "exportPath": "导出路径",
+  "exportPathHint": "日志导出的默认文件夹",
+  "export": "导出",
+  "noLogsToExport": "没有可导出的日志",
+  "logsExportedTo": "日志已导出到：",
+  "exportFailed": "导出失败："
 }

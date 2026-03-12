@@ -475,6 +475,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'s'**
   String get secondsUnit;
+
+  /// No description provided for @exportLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Logs'**
+  String get exportLogs;
+
+  /// No description provided for @exportPath.
+  ///
+  /// In en, this message translates to:
+  /// **'Export path'**
+  String get exportPath;
+
+  /// No description provided for @exportPathHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Default folder for exported logs'**
+  String get exportPathHint;
+
+  /// No description provided for @export.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get export;
+
+  /// No description provided for @noLogsToExport.
+  ///
+  /// In en, this message translates to:
+  /// **'No logs to export'**
+  String get noLogsToExport;
+
+  /// No description provided for @logsExportedTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs exported to: '**
+  String get logsExportedTo;
+
+  /// No description provided for @exportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Export failed: '**
+  String get exportFailed;
 }
 
 class _AppLocalizationsDelegate
