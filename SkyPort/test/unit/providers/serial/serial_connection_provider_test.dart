@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skyport/models/app_error.dart';
 import 'package:skyport/models/connection_status.dart';
+import 'package:skyport/models/serial_config.dart';
 import 'package:skyport/providers/serial/data_log_provider.dart';
 import 'package:skyport/providers/serial/error_provider.dart';
 import 'package:skyport/providers/serial/serial_connection_provider.dart';
@@ -51,6 +52,56 @@ void main() {
       container.dispose();
       mockSession.dispose();
     });
+
+    Future<void> expectReconnectOnConfigChange({
+      required void Function(SerialConfigNotifier notifier) updateConfig,
+      required void Function(SerialConfig config) expectUpdatedConfig,
+    }) async {
+      final firstSession = FakeSerialPortSession();
+      final secondSession = FakeSerialPortSession();
+      final openedConfigs = <SerialConfig>[];
+
+      when(() => mockService.open(any())).thenAnswer((invocation) async {
+        final config = invocation.positionalArguments.first as SerialConfig;
+        openedConfigs.add(config);
+
+        switch (openedConfigs.length) {
+          case 1:
+            return firstSession;
+          case 2:
+            return secondSession;
+          default:
+            throw StateError('Unexpected extra open() call');
+        }
+      });
+
+      final connectionSubscription =
+          container.listen(serialConnectionProvider, (previous, next) {});
+      final configSubscription =
+          container.listen(serialConfigProvider, (previous, next) {});
+      final notifier = container.read(serialConnectionProvider.notifier);
+
+      await notifier.connect();
+      expect(container.read(serialConnectionProvider).status,
+          ConnectionStatus.connected);
+
+      updateConfig(container.read(serialConfigProvider.notifier));
+
+      await Future.delayed(const Duration(milliseconds: 350));
+
+      final connection = container.read(serialConnectionProvider);
+      expect(connection.status, ConnectionStatus.connected);
+      expect(connection.session, same(secondSession));
+      expect(openedConfigs, hasLength(2));
+      expect(openedConfigs.first.portName, 'COM1');
+      expectUpdatedConfig(openedConfigs.last);
+      verify(() => mockService.close(firstSession)).called(1);
+
+      connectionSubscription.close();
+      configSubscription.close();
+      firstSession.dispose();
+      secondSession.dispose();
+    }
 
     group('Connection Lifecycle', () {
       test('starts in disconnected state', () {
@@ -438,6 +489,56 @@ void main() {
         // Should disconnect, not reconnect
         final connection = container.read(serialConnectionProvider);
         expect(connection.status, ConnectionStatus.disconnected);
+      });
+    });
+
+    group('Live Config Updates', () {
+      test('reconnects with updated baud rate while connected', () async {
+        await expectReconnectOnConfigChange(
+          updateConfig: (notifier) => notifier.setBaudRate(115200),
+          expectUpdatedConfig: (config) {
+            expect(config.baudRate, 115200);
+            expect(config.dataBits, 8);
+            expect(config.parity, 0);
+            expect(config.stopBits, 1);
+          },
+        );
+      });
+
+      test('reconnects with updated data bits while connected', () async {
+        await expectReconnectOnConfigChange(
+          updateConfig: (notifier) => notifier.setDataBits(7),
+          expectUpdatedConfig: (config) {
+            expect(config.baudRate, 9600);
+            expect(config.dataBits, 7);
+            expect(config.parity, 0);
+            expect(config.stopBits, 1);
+          },
+        );
+      });
+
+      test('reconnects with updated parity while connected', () async {
+        await expectReconnectOnConfigChange(
+          updateConfig: (notifier) => notifier.setParity(2),
+          expectUpdatedConfig: (config) {
+            expect(config.baudRate, 9600);
+            expect(config.dataBits, 8);
+            expect(config.parity, 2);
+            expect(config.stopBits, 1);
+          },
+        );
+      });
+
+      test('reconnects with updated stop bits while connected', () async {
+        await expectReconnectOnConfigChange(
+          updateConfig: (notifier) => notifier.setStopBits(2),
+          expectUpdatedConfig: (config) {
+            expect(config.baudRate, 9600);
+            expect(config.dataBits, 8);
+            expect(config.parity, 0);
+            expect(config.stopBits, 2);
+          },
+        );
       });
     });
   });

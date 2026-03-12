@@ -8,6 +8,7 @@ import '../../services/serial_port_service.dart';
 import '../../models/app_error.dart';
 import '../../models/connection_status.dart';
 import '../../models/ui_settings.dart';
+import '../../models/serial_config.dart';
 import '../../utils/hex_parser.dart';
 import '../../utils/constants.dart';
 import 'data_log_provider.dart';
@@ -44,6 +45,32 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
         }
       }
     });
+
+    // Listen for serial config changes to apply them immediately
+    ref.listen<SerialConfig?>(
+      serialConfigProvider,
+      (previous, next) {
+        // Skip if this is the initial call (previous is null)
+        if (previous == null) return;
+        if (!_mounted) return;
+
+        // Only restart connection if currently connected
+        if (state.status != ConnectionStatus.connected) return;
+
+        // Check if any relevant config has changed
+        final configChanged = previous.baudRate != next?.baudRate ||
+            previous.dataBits != next?.dataBits ||
+            previous.parity != next?.parity ||
+            previous.stopBits != next?.stopBits;
+
+        if (!configChanged) return;
+
+        // Automatically restart connection with new config
+        disconnect().then((_) {
+          if (_mounted) connect();
+        });
+      },
+    );
 
     return SerialConnection();
   }
