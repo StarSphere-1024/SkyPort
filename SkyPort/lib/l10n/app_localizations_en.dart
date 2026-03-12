@@ -213,4 +213,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get secondsUnit => 's';
+
+  @override
+  String get exportLogs => 'Export Logs';
+
+  @override
+  String get exportPath => 'Export path';
+
+  @override
+  String get exportPathHint => 'Default folder for exported logs';
+
+  @override
+  String get export => 'Export';
+
+  @override
+  String get noLogsToExport => 'No logs to export';
+
+  @override
+  String get logsExportedTo => 'Logs exported to: ';
+
+  @override
+  String get exportFailed => 'Export failed: ';
 }

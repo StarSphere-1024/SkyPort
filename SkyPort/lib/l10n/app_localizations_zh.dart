@@ -212,4 +212,25 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get secondsUnit => '秒';
+
+  @override
+  String get exportLogs => '导出日志';
+
+  @override
+  String get exportPath => '导出路径';
+
+  @override
+  String get exportPathHint => '日志导出的默认文件夹';
+
+  @override
+  String get export => '导出';
+
+  @override
+  String get noLogsToExport => '没有可导出的日志';
+
+  @override
+  String get logsExportedTo => '日志已导出到：';
+
+  @override
+  String get exportFailed => '导出失败：';
 }

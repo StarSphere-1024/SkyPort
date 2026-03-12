@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/common_providers.dart';
 import 'providers/serial/error_provider.dart';
 import 'providers/serial/ui_settings_provider.dart';
+import 'providers/serial/serial_config_provider.dart';
+import 'providers/serial/data_log_provider.dart';
 import 'models/app_error.dart';
 import 'providers/theme_provider.dart';
 import 'theme.dart';
@@ -15,6 +17,7 @@ import 'widgets/settings_popup.dart';
 import 'widgets/left_panel.dart';
 import 'widgets/right_panel.dart';
 import 'widgets/status_bar.dart';
+import 'services/log_export_service.dart';
 import 'l10n/app_localizations.dart';
 import 'utils/constants.dart';
 
@@ -126,6 +129,31 @@ class _HomePageState extends ConsumerState<HomePage> {
       appBar: AppBar(
         title: Text(AppLocalizations.of(context).appTitle),
         actions: [
+          // Export logs button
+          IconButton(
+            icon: const Icon(Icons.file_download),
+            tooltip: AppLocalizations.of(context).exportLogs,
+            onPressed: () async {
+              if (!context.mounted) return;
+
+              // Get current state - export matches current UI display (WYSIWYG)
+              final logState = ref.read(dataLogProvider);
+              final settings = ref.read(uiSettingsProvider);
+              final serialConfig = ref.read(serialConfigProvider);
+
+              // Export logs with all UI settings for WYSIWYG output
+              await LogExportService.exportLogs(
+                context: context,
+                chunks: logState.chunks,
+                showSent: settings.showSent,
+                hexDisplay: settings.hexDisplay,
+                showTimestamp: settings.showTimestamp,
+                enableAnsi: settings.enableAnsi,
+                defaultPath: settings.logExportPath,
+                portName: serialConfig?.portName ?? '',
+              );
+            },
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: IconButton(
