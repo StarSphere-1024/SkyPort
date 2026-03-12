@@ -1,8 +1,11 @@
 import 'dart:io';
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
+
 import '../models/log_model.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/constants.dart';
@@ -77,6 +80,15 @@ class LogExportService {
   }
 
   /// Filter entries based on showSent setting (match UI display)
+  /// Package-visible for testing
+  @visibleForTesting
+  static List<LogEntry> filterEntriesForTest(
+    List<LogChunk> chunks,
+    bool showSent,
+  ) {
+    return _filterEntries(chunks, showSent);
+  }
+
   static List<LogEntry> _filterEntries(
     List<LogChunk> chunks,
     bool showSent,
@@ -89,6 +101,18 @@ class LogExportService {
 
   /// Generate WYSIWYG export content - exactly matches UI display
   /// Includes: timestamp, TX/RX markers, data (hex/text), ANSI sequences
+  /// Package-visible for testing
+  @visibleForTesting
+  static String generateWysiwygContentForTest(
+    List<LogEntry> entries,
+    bool hexDisplay,
+    bool showTimestamp,
+    bool showSent,
+    bool enableAnsi,
+  ) {
+    return _generateWysiwygContent(entries, hexDisplay, showTimestamp, showSent, enableAnsi);
+  }
+
   static String _generateWysiwygContent(
     List<LogEntry> entries,
     bool hexDisplay,
@@ -163,6 +187,12 @@ class LogExportService {
   }
 
   /// Format date as YYYYMMDD
+  /// Package-visible for testing
+  @visibleForTesting
+  static String formatDateForTest(DateTime dt) {
+    return _formatDate(dt);
+  }
+
   static String _formatDate(DateTime dt) {
     return '${dt.year.toString().padLeft(4, '0')}'
         '${dt.month.toString().padLeft(2, '0')}'
