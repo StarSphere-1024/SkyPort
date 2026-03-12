@@ -53,6 +53,11 @@ void main() {
         const settings = UiSettings();
         expect(settings.autoSendIntervalMs, 1000);
       });
+
+      test('logExportPath defaults to empty string', () {
+        const settings = UiSettings();
+        expect(settings.logExportPath, '');
+      });
     });
 
     group('copyWith', () {
@@ -161,6 +166,14 @@ void main() {
         expect(original.logBufferSize, 128); // unchanged
         expect(copy.hexDisplay, true); // modified
         expect(copy.logBufferSize, 256); // modified
+      });
+
+      test('updates logExportPath', () {
+        const original = UiSettings(logExportPath: '');
+        final updated = original.copyWith(logExportPath: 'C:/logs');
+
+        expect(updated.logExportPath, 'C:/logs');
+        expect(original.logExportPath, ''); // unchanged
       });
     });
   });

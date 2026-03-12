@@ -69,6 +69,11 @@ void main() {
         final settings = container.read(uiSettingsProvider);
         expect(settings.autoSendIntervalMs, 1000);
       });
+
+      test('loads default logExportPath as empty string', () {
+        final settings = container.read(uiSettingsProvider);
+        expect(settings.logExportPath, '');
+      });
     });
 
     group('Boolean Settings Updates', () {
@@ -133,6 +138,15 @@ void main() {
         final settings = container.read(uiSettingsProvider);
         expect(settings.autoSendEnabled, true);
         expect(mockPrefs.getBool('ui_auto_send_enabled'), true);
+      });
+
+      test('setLogExportPath updates state and persists', () {
+        final notifier = container.read(uiSettingsProvider.notifier);
+        notifier.setLogExportPath('C:/logs');
+
+        final settings = container.read(uiSettingsProvider);
+        expect(settings.logExportPath, 'C:/logs');
+        expect(mockPrefs.getString('ui_log_export_path'), 'C:/logs');
       });
     });
 
@@ -206,6 +220,15 @@ void main() {
         expect(settings.hexDisplay, true);
         expect(settings.showTimestamp, false);
         expect(settings.logBufferSize, 256);
+      });
+
+      test('restores saved logExportPath value', () async {
+        await mockPrefs.setString('ui_log_export_path', 'D:/exports');
+        container.dispose();
+        container = createTestContainer(sharedPreferences: mockPrefs);
+
+        final settings = container.read(uiSettingsProvider);
+        expect(settings.logExportPath, 'D:/exports');
       });
     });
 
