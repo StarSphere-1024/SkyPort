@@ -41,11 +41,24 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Flutter
+      - name: Setup Flutter (Standard for x64)
+        if: matrix.arch == 'x64'
         uses: subosito/flutter-action@v2
         with:
           channel: ${{ env.FLUTTER_CHANNEL }}
           cache: true
+          architecture: x64
+
+      - name: Setup Flutter (Manual for ARM64)
+        if: matrix.arch == 'arm64'
+        run: |
+          # Windows ARM64: Use git clone to bypass flutter-action architecture detection issues
+          git clone https://github.com/flutter/flutter.git -b stable $env:HOME\flutter --depth 1
+          $env:PATH = "$env:HOME\flutter\bin;$env:HOME\flutter\bin\cache\dart-sdk\bin;$env:PATH"
+          Write-Host "PATH updated"
+          flutter --version
+          dart --version
+        shell: pwsh
 
       - name: Cache pub (Windows)
         uses: actions/cache@v5
