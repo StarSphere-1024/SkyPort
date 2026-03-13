@@ -24,15 +24,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [x64, arm64]
+        # ARM64 support disabled - waiting for runner availability
+        # Options: self-hosted runner (e.g., Raspberry Pi) or third-party CI
+        arch: [x64]
         ff_job: [linux-deb, linux-appimage]
         include:
           - arch: x64
             runner: ubuntu-22.04
             arch_name: amd64
-          - arch: arm64
-            runner: ubuntu-arm64
-            arch_name: arm64
+          # Disabled: ARM64 configuration (keep for future re-enable)
+          # - arch: arm64
+          #   runner: ubuntu-arm64
+          #   arch_name: arm64
           - ff_job: linux-deb
             pkg_suffix: -deb
           - ff_job: linux-appimage

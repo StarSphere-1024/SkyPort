@@ -24,14 +24,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [x64, arm64]
+        # ARM64 support disabled - windows-arm64 runner has limited availability
+        # Can be re-enabled when GitHub provides stable ARM64 hosted runners
+        arch: [x64]
         include:
           - arch: x64
             runner: windows-latest
             arch_name: amd64
-          - arch: arm64
-            runner: windows-arm64
-            arch_name: arm64
+          # Disabled: ARM64 configuration (keep for future re-enable)
+          # - arch: arm64
+          #   runner: windows-arm64
+          #   arch_name: arm64
     env:
       APP_VERSION: ${{ inputs.app_version }}
       ARCH_NAME: ${{ matrix.arch_name }}
