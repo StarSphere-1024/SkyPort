@@ -140,7 +140,7 @@ jobs:
 
       - name: Upload deb artifact
         if: matrix.ff_job == 'linux-deb'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: SkyPort-v${{ env.APP_VERSION }}-linux-amd64-deb
           path: SkyPort/dist/standard/SkyPort-v${{ env.APP_VERSION }}-linux-amd64.deb
@@ -148,7 +148,7 @@ jobs:
 
       - name: Upload AppImage artifact
         if: matrix.ff_job == 'linux-appimage'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: SkyPort-v${{ env.APP_VERSION }}-linux-amd64-appimage
           path: SkyPort/dist/standard/SkyPort-v${{ env.APP_VERSION }}-linux-amd64.AppImage
