@@ -31,7 +31,7 @@ jobs:
             runner: ubuntu-22.04
             arch_name: amd64
           - arch: arm64
-            runner: ubuntu-arm64
+            runner: ubuntu-24.04-arm
             arch_name: arm64
           - ff_job: linux-deb
             pkg_suffix: -deb
