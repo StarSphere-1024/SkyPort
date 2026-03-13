@@ -30,7 +30,7 @@ jobs:
       app_version: ${{ steps.version.outputs.app_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
