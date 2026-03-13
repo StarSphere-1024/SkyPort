@@ -1,4 +1,4 @@
-name: Build (Linux packages + Windows portable)
+name: Build (Linux + Windows + macOS)
 
 on:
   workflow_call:
@@ -83,15 +83,24 @@ jobs:
       app_version: ${{ needs.prepare.outputs.app_version }}
       retention-days: ${{ inputs.retention-days }}
 
+  build-macos:
+    name: Build macOS
+    needs: prepare
+    uses: ./.github/workflows/build-macos.yml
+    with:
+      app_version: ${{ needs.prepare.outputs.app_version }}
+      retention-days: ${{ inputs.retention-days }}
+
   summary:
     name: Summary
-    needs: [prepare, build-linux, build-windows]
+    needs: [prepare, build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Build matrix result
         run: |
-          echo "Linux + Windows jobs finished." \
+          echo "Linux + Windows + macOS jobs finished." \
             && echo "Version: ${{ needs.prepare.outputs.app_version }}" \
             && echo "Linux result: ${{ needs.build-linux.result }}" \
-            && echo "Windows result: ${{ needs.build-windows.result }}"
+            && echo "Windows result: ${{ needs.build-windows.result }}" \
+            && echo "macOS result: ${{ needs.build-macos.result }}"
