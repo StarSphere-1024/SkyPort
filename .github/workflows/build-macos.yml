@@ -24,11 +24,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [x64, arm64]
+        arch: [arm64]
         include:
-          - arch: x64
-            runner: macos-13
-            arch_name: amd64
           - arch: arm64
             runner: macos-latest
             arch_name: arm64
@@ -54,6 +51,9 @@ jobs:
       - name: Download dependencies
         working-directory: SkyPort
         run: flutter pub get
+
+      - name: Install build tools for CocoaPods
+        run: brew install automake libtool
 
       - name: Build macOS release
         working-directory: SkyPort
