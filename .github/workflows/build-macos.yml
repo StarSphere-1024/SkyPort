@@ -1,0 +1,124 @@
+name: Build macOS
+
+on:
+  workflow_call:
+    inputs:
+      app_version:
+        required: true
+        type: string
+      retention-days:
+        required: false
+        type: number
+        default: 7
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_CHANNEL: stable
+
+jobs:
+  macos:
+    name: macOS DMG
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+        include:
+          - arch: x64
+            runner: macos-13
+            arch_name: amd64
+          - arch: arm64
+            runner: macos-latest
+            arch_name: arm64
+    env:
+      APP_VERSION: ${{ inputs.app_version }}
+      ARCH_NAME: ${{ matrix.arch_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Enable macOS platform
+        working-directory: SkyPort
+        run: flutter create . --platforms=macos
+
+      - name: Download dependencies
+        working-directory: SkyPort
+        run: flutter pub get
+
+      - name: Run tests
+        working-directory: SkyPort
+        run: flutter test --coverage
+
+      - name: Check coverage threshold
+        working-directory: SkyPort
+        run: |
+          TOTAL_LF=$(grep "^LF:" coverage/lcov.info | awk -F: '{sum+=$2} END {print sum}')
+          TOTAL_LH=$(grep "^LH:" coverage/lcov.info | awk -F: '{sum+=$2} END {print sum}')
+
+          if [ "$TOTAL_LF" -eq 0 ]; then
+            echo "❌ No coverage data found"
+            exit 1
+          fi
+
+          COVERAGE_PCT=$((TOTAL_LH * 100 / TOTAL_LF))
+          THRESHOLD=70
+
+          echo "Coverage: ${COVERAGE_PCT}% (Lines Hit: $TOTAL_LH / Found: $TOTAL_LF)"
+          echo "Threshold: ${THRESHOLD}%"
+
+          if [ "$COVERAGE_PCT" -lt "$THRESHOLD" ]; then
+            echo "❌ Coverage ${COVERAGE_PCT}% is below threshold ${THRESHOLD}%"
+            exit 1
+          else
+            echo "✅ Coverage ${COVERAGE_PCT}% meets threshold ${THRESHOLD}%"
+          fi
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: SkyPort/coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+
+      - name: Build macOS release
+        working-directory: SkyPort
+        run: flutter build macos --release
+
+      - name: Create DMG
+        working-directory: SkyPort
+        run: |
+          # Create app directory structure
+          DMG_DIR="build/macos/Build/Products/Release"
+          APP_NAME="SkyPort"
+          APP_DIR="$DMG_DIR/$APP_NAME.app"
+
+          # Create temporary DMG folder
+          DMG_CONTENT_DIR="build/macos/dmg_content"
+          mkdir -p "$DMG_CONTENT_DIR"
+          cp -R "$APP_DIR" "$DMG_CONTENT_DIR/"
+
+          # Create Applications symlink
+          ln -s /Applications "$DMG_CONTENT_DIR/Applications"
+
+          # Create DMG
+          DMG_FILE="build/macos/SkyPort-v${APP_VERSION}-macos-${ARCH_NAME}.dmg"
+          hdiutil create -volname "$APP_NAME" -srcfolder "$DMG_CONTENT_DIR" -ov -format UDZO "$DMG_FILE"
+
+          echo "Created $DMG_FILE"
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: SkyPort-v${{ env.APP_VERSION }}-macos-${{ matrix.arch_name }}-dmg
+          path: SkyPort/build/macos/SkyPort-v${{ env.APP_VERSION }}-macos-${{ matrix.arch_name }}.dmg
+          retention-days: ${{ inputs.retention-days }}

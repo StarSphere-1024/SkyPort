@@ -19,10 +19,22 @@ env:
 
 jobs:
   windows:
-    name: Windows (x64, portable & setup)
-    runs-on: windows-latest
+    name: Windows (portable & setup)
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+        include:
+          - arch: x64
+            runner: windows-latest
+            arch_name: amd64
+          - arch: arm64
+            runner: windows-arm64
+            arch_name: arm64
     env:
       APP_VERSION: ${{ inputs.app_version }}
+      ARCH_NAME: ${{ matrix.arch_name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -107,7 +119,7 @@ jobs:
         working-directory: SkyPort
         shell: pwsh
         run: |
-          $BuildDir = (Resolve-Path "build/windows/x64/runner/Release").Path
+          $BuildDir = (Resolve-Path "build/windows/${{ matrix.arch }}/runner/Release").Path
           if (!(Test-Path $BuildDir)) { Write-Error "Build directory not found: $BuildDir" }
 
           # 使用已经参数化的 Inno Setup 脚本
@@ -129,8 +141,8 @@ jobs:
           $SetupSource = "windows/packaging/exe/SkyPortInstaller.exe"
           if (!(Test-Path $SetupSource)) { Write-Error "Setup source not found: $SetupSource" }
 
-          # 规范化安装包命名：SkyPort-v{version}-windows-amd64-setup.exe
-          $SetupTarget = "SkyPort-v$Env:APP_VERSION-windows-amd64-setup.exe"
+          # 规范化安装包命名：SkyPort-v{version}-windows-{arch}-setup.exe
+          $SetupTarget = "SkyPort-v$Env:APP_VERSION-windows-${{ matrix.arch_name }}-setup.exe"
           Move-Item -Path $SetupSource -Destination $SetupTarget -Force
           Write-Host "Created $SetupTarget"
 
@@ -138,23 +150,23 @@ jobs:
         working-directory: SkyPort
         shell: pwsh
         run: |
-          $PortableDir = "build/windows/x64/runner/Release"
+          $PortableDir = "build/windows/${{ matrix.arch }}/runner/Release"
           if (!(Test-Path $PortableDir)) { Write-Error "Portable directory not found: $PortableDir" }
-          # SkyPort-v{version}-windows-amd64-portable.zip
-          $ZipName = "SkyPort-v$Env:APP_VERSION-windows-amd64-portable.zip"
+          # SkyPort-v{version}-windows-{arch}-portable.zip
+          $ZipName = "SkyPort-v$Env:APP_VERSION-windows-${{ matrix.arch_name }}-portable.zip"
           Compress-Archive -Path "$PortableDir/*" -DestinationPath $ZipName -Force
           Write-Host "Created $ZipName"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: SkyPort-v${{ env.APP_VERSION }}-windows-amd64-portable
-          path: SkyPort/SkyPort-v${{ env.APP_VERSION }}-windows-amd64-portable.zip
+          name: SkyPort-v${{ env.APP_VERSION }}-windows-${{ matrix.arch_name }}-portable
+          path: SkyPort/SkyPort-v${{ env.APP_VERSION }}-windows-${{ matrix.arch_name }}-portable.zip
           retention-days: ${{ inputs.retention-days }}
 
       - name: Upload Windows setup artifact
         uses: actions/upload-artifact@v7
         with:
-          name: SkyPort-v${{ env.APP_VERSION }}-windows-amd64-setup
-          path: SkyPort/SkyPort-v${{ env.APP_VERSION }}-windows-amd64-setup.exe
+          name: SkyPort-v${{ env.APP_VERSION }}-windows-${{ matrix.arch_name }}-setup
+          path: SkyPort/SkyPort-v${{ env.APP_VERSION }}-windows-${{ matrix.arch_name }}-setup.exe
           retention-days: ${{ inputs.retention-days }}
