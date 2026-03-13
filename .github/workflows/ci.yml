@@ -15,7 +15,13 @@ permissions:
   contents: read
 
 jobs:
+  test:
+    name: Run Tests
+    uses: ./.github/workflows/test.yml
+
   build:
+    name: Build Packages
+    needs: test
     uses: ./.github/workflows/build-matrix.yml
     with:
       retention-days: 7

@@ -55,41 +55,6 @@ jobs:
         working-directory: SkyPort
         run: flutter pub get
 
-      - name: Run tests
-        working-directory: SkyPort
-        run: flutter test --coverage
-
-      - name: Check coverage threshold
-        working-directory: SkyPort
-        run: |
-          TOTAL_LF=$(grep "^LF:" coverage/lcov.info | awk -F: '{sum+=$2} END {print sum}')
-          TOTAL_LH=$(grep "^LH:" coverage/lcov.info | awk -F: '{sum+=$2} END {print sum}')
-
-          if [ "$TOTAL_LF" -eq 0 ]; then
-            echo "❌ No coverage data found"
-            exit 1
-          fi
-
-          COVERAGE_PCT=$((TOTAL_LH * 100 / TOTAL_LF))
-          THRESHOLD=70
-
-          echo "Coverage: ${COVERAGE_PCT}% (Lines Hit: $TOTAL_LH / Found: $TOTAL_LF)"
-          echo "Threshold: ${THRESHOLD}%"
-
-          if [ "$COVERAGE_PCT" -lt "$THRESHOLD" ]; then
-            echo "❌ Coverage ${COVERAGE_PCT}% is below threshold ${THRESHOLD}%"
-            exit 1
-          else
-            echo "✅ Coverage ${COVERAGE_PCT}% meets threshold ${THRESHOLD}%"
-          fi
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          files: SkyPort/coverage/lcov.info
-          flags: unittests
-          name: codecov-umbrella
-
       - name: Build macOS release
         working-directory: SkyPort
         run: flutter build macos --release

@@ -60,51 +60,6 @@ jobs:
         run: flutter pub get
         shell: pwsh
 
-      - name: Run tests
-        working-directory: SkyPort
-        run: flutter test --coverage
-        shell: pwsh
-
-      - name: Check coverage threshold
-        working-directory: SkyPort
-        shell: pwsh
-        run: |
-          $LcovFile = "coverage/lcov.info"
-          if (!(Test-Path $LcovFile)) {
-            Write-Error "Coverage file not found: $LcovFile"
-            exit 1
-          }
-
-          $TotalLF = 0
-          $TotalLH = 0
-
-          Get-Content $LcovFile | ForEach-Object {
-            if ($_ -match "^LF:(\d+)") {
-              $TotalLF += [int]$matches[1]
-            }
-            elseif ($_ -match "^LH:(\d+)") {
-              $TotalLH += [int]$matches[1]
-            }
-          }
-
-          if ($TotalLF -eq 0) {
-            Write-Error "No coverage data found"
-            exit 1
-          }
-
-          $CoveragePct = [math]::Floor(($TotalLH * 100) / $TotalLF)
-          $Threshold = 70
-
-          Write-Host "Coverage: ${CoveragePct}% (Lines Hit: $TotalLH / Found: $TotalLF)"
-          Write-Host "Threshold: ${Threshold}%"
-
-          if ($CoveragePct -lt $Threshold) {
-            Write-Error "❌ Coverage ${CoveragePct}% is below threshold ${Threshold}%"
-            exit 1
-          } else {
-            Write-Host "✅ Coverage ${CoveragePct}% meets threshold ${Threshold}%"
-          }
-
       - name: Build release
         working-directory: SkyPort
         run: flutter build windows --release
