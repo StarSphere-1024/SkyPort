@@ -30,7 +30,7 @@ jobs:
             runner: windows-latest
             arch_name: amd64
           - arch: arm64
-            runner: windows-arm64
+            runner: windows-11-arm
             arch_name: arm64
     env:
       APP_VERSION: ${{ inputs.app_version }}
