@@ -185,7 +185,10 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
       return;
     }
 
-    ref.read(errorProvider.notifier).clear();
+    final errorNotifier = ref.read(errorProvider.notifier);
+    final serialPortService = ref.read(serialPortServiceProvider);
+
+    errorNotifier.clear();
     // Only show disconnecting status if we were connected
     if (state.status == ConnectionStatus.connected && _mounted) {
       state = state.copyWith(status: ConnectionStatus.disconnecting);
@@ -197,11 +200,16 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
 
     try {
       await subscriptionToCancel?.cancel();
+      if (!_mounted) return;
+
       if (status == ConnectionStatus.disconnected) {
-        await Future.delayed(Duration(milliseconds: SkyPortConstants.connectionSettleDelayMs));
+        await Future.delayed(
+            Duration(milliseconds: SkyPortConstants.connectionSettleDelayMs));
+        if (!_mounted) return;
       }
+
       if (session != null) {
-        await ref.read(serialPortServiceProvider).close(session);
+        await serialPortService.close(session);
       }
     } catch (e) {
       if (kDebugMode) {
@@ -210,9 +218,7 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
 
       // Only report if strictly disconnecting to avoid UI noise during reconnect.
       if (status == ConnectionStatus.disconnected && _mounted) {
-        ref
-            .read(errorProvider.notifier)
-            .setError(AppErrorType.cleanupError, e.toString());
+        errorNotifier.setError(AppErrorType.cleanupError, e.toString());
       }
     } finally {
       if (_mounted) {
@@ -270,8 +276,8 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
     }
 
     try {
-      final bytesWritten =
-          state.session!.write(bytesToSend, timeoutMs: SkyPortConstants.defaultWriteTimeoutMs);
+      final bytesWritten = state.session!.write(bytesToSend,
+          timeoutMs: SkyPortConstants.defaultWriteTimeoutMs);
       if (bytesWritten > 0) {
         ref
             .read(dataLogProvider.notifier)
