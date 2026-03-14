@@ -57,7 +57,9 @@ jobs:
           # Add Flutter to PATH for subsequent steps
           Add-Content -Path $env:GITHUB_PATH -Value "$env:HOME\flutter\bin"
           Add-Content -Path $env:GITHUB_PATH -Value "$env:HOME\flutter\bin\cache\dart-sdk\bin"
-          Write-Host "Flutter added to PATH"
+          # Add Dart pub global cache to PATH
+          Add-Content -Path $env:GITHUB_PATH -Value "$env:LOCALAPPDATA\Pub\Cache\bin"
+          Write-Host "Flutter and pub cache added to PATH"
 
       - name: Cache pub (Windows)
         uses: actions/cache@v5
@@ -69,22 +71,12 @@ jobs:
 
       - name: Download dependencies
         working-directory: SkyPort
-        run: |
-          if ($env:RUNNER_ARCH -eq "ARM64") {
-            & $env:HOME\flutter\bin\flutter.ps1 pub get
-          } else {
-            flutter pub get
-          }
+        run: flutter pub get
         shell: pwsh
 
       - name: Build release
         working-directory: SkyPort
-        run: |
-          if ($env:RUNNER_ARCH -eq "ARM64") {
-            & $env:HOME\flutter\bin\flutter.ps1 build windows --release
-          } else {
-            flutter build windows --release
-          }
+        run: flutter build windows --release
         shell: pwsh
 
       - name: Install Inno Setup
