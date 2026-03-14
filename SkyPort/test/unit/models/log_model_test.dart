@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ansi_escape_codes/ansi_escape_codes.dart' as ansi;
 
 import 'package:skyport/models/log_model.dart';
 
@@ -44,7 +43,8 @@ void main() {
       });
 
       test('handles malformed UTF-8 gracefully', () {
-        final data = Uint8List.fromList([0xFF, 0xFE, 0x80, 0xC0]); // Invalid UTF-8
+        final data =
+            Uint8List.fromList([0xFF, 0xFE, 0x80, 0xC0]); // Invalid UTF-8
         final entry = LogEntry(data, LogEntryType.received, DateTime.now());
 
         final text = entry.getDisplayText(false);
@@ -226,13 +226,15 @@ void main() {
         );
 
         // ANSI parsing should produce more spans (text segments with different styles)
-        expect(spansWithAnsi.length, greaterThanOrEqualTo(spansWithoutAnsi.length));
+        expect(spansWithAnsi.length,
+            greaterThanOrEqualTo(spansWithoutAnsi.length));
       });
 
       test('ANSI colors mapped to Flutter colors', () {
         // Test that _ansiStateToStyle handles different ANSI color types
         // This is more of an integration test for the color mapping
-        final data = Uint8List.fromList([27, 91, 51, 50, 109, 72, 105]); // ESC[32m + "Hi"
+        final data = Uint8List.fromList(
+            [27, 91, 51, 50, 109, 72, 105]); // ESC[32m + "Hi"
         final entry = LogEntry(data, LogEntryType.received, DateTime.now());
 
         final baseStyle = const TextStyle(fontSize: 14);
@@ -301,8 +303,8 @@ void main() {
         );
 
         // Should not contain truncation indicator
-        final hasTruncation = spans.any((s) =>
-            s is TextSpan && (s.text?.contains('[TRUNCATED]') ?? false));
+        final hasTruncation = spans.any(
+            (s) => s is TextSpan && (s.text?.contains('[TRUNCATED]') ?? false));
         expect(hasTruncation, isFalse);
       });
     });
@@ -329,7 +331,8 @@ void main() {
       });
 
       test('handles consecutive newlines', () {
-        final data = Uint8List.fromList([72, 105, 10, 10, 72, 111]); // "Hi\n\nHo"
+        final data =
+            Uint8List.fromList([72, 105, 10, 10, 72, 111]); // "Hi\n\nHo"
         final entry = LogEntry(data, LogEntryType.received, DateTime.now());
 
         final baseStyle = const TextStyle(fontSize: 14);
