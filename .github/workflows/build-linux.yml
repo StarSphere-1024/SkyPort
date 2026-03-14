@@ -52,8 +52,14 @@ jobs:
           git clone https://github.com/flutter/flutter.git -b stable $HOME/flutter --depth 1
           echo "$HOME/flutter/bin" >> $GITHUB_PATH
           echo "$HOME/flutter/bin/cache/dart-sdk/bin" >> $GITHUB_PATH
-          flutter --version
-          dart --version
+
+      - name: Verify Flutter (ARM64)
+        if: matrix.arch == 'arm64'
+        run: |
+          which flutter || echo "flutter not in PATH"
+          ls -la $HOME/flutter/bin/flutter
+          $HOME/flutter/bin/flutter --version
+          $HOME/flutter/bin/dart --version
 
       - name: Setup Flutter (Standard for x64)
         if: matrix.arch != 'arm64'
@@ -84,15 +90,34 @@ jobs:
           appimagetool --version || echo "appimagetool installed"
 
       - name: Activate fastforge
-        run: dart pub global activate fastforge
+        run: |
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            $HOME/flutter/bin/dart pub global activate fastforge
+          else
+            dart pub global activate fastforge
+          fi
+        shell: bash
 
       - name: Download Dart/Flutter deps
         working-directory: SkyPort
-        run: flutter pub get
+        run: |
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            $HOME/flutter/bin/flutter pub get
+          else
+            flutter pub get
+          fi
+        shell: bash
 
       - name: Build (${{ matrix.ff_job }})
         working-directory: SkyPort
-        run: fastforge release --name release --jobs ${{ matrix.ff_job }}
+        run: |
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            export PATH="$HOME/flutter/bin:$PATH"
+            $HOME/flutter/bin/fastforge release --name release --jobs ${{ matrix.ff_job }}
+          else
+            fastforge release --name release --jobs ${{ matrix.ff_job }}
+          fi
+        shell: bash
 
       - name: List dist
         working-directory: SkyPort
