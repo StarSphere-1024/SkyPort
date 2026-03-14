@@ -79,6 +79,13 @@ jobs:
         run: flutter build windows --release
         shell: pwsh
 
+      - name: List build output (debug)
+        working-directory: SkyPort
+        run: |
+          Write-Host "Build directory contents:"
+          Get-ChildItem -Path "build/windows" -Recurse -Directory | Select-Object FullName
+        shell: pwsh
+
       - name: Install Inno Setup
         shell: pwsh
         run: |
@@ -88,8 +95,17 @@ jobs:
         working-directory: SkyPort
         shell: pwsh
         run: |
-          $BuildDir = (Resolve-Path "build/windows/${{ matrix.arch }}/runner/Release").Path
-          if (!(Test-Path $BuildDir)) { Write-Error "Build directory not found: $BuildDir" }
+          # Find the build directory (handle both arm64 and ARM64 casing)
+          $BuildDir = Get-ChildItem -Path "build/windows" -Filter "Release" -Recurse -Depth 2 |
+            Where-Object { $_.FullName -match 'build\\windows\\[^\\]+\\runner\\Release$' } |
+            Select-Object -First 1 -ExpandProperty FullName
+
+          if (!$BuildDir -or !(Test-Path $BuildDir)) {
+            Write-Error "Build directory not found. Available build directories:"
+            Get-ChildItem -Path "build/windows" -Recurse -Directory | Select-Object FullName
+            exit 1
+          }
+          Write-Host "Using build directory: $BuildDir"
 
           # 使用已经参数化的 Inno Setup 脚本
           $IssFile = "windows/packaging/exe/inno_setup.iss"
@@ -119,11 +135,19 @@ jobs:
         working-directory: SkyPort
         shell: pwsh
         run: |
-          $PortableDir = "build/windows/${{ matrix.arch }}/runner/Release"
-          if (!(Test-Path $PortableDir)) { Write-Error "Portable directory not found: $PortableDir" }
+          # Find the build directory (handle both arm64 and ARM64 casing)
+          $BuildDir = Get-ChildItem -Path "build/windows" -Filter "Release" -Recurse -Depth 2 |
+            Where-Object { $_.FullName -match 'build\\windows\\[^\\]+\\runner\\Release$' } |
+            Select-Object -First 1 -ExpandProperty FullName
+
+          if (!$BuildDir -or !(Test-Path $BuildDir)) {
+            Write-Error "Build directory not found for packaging"
+            exit 1
+          }
+
           # SkyPort-v{version}-windows-{arch}-portable.zip
           $ZipName = "SkyPort-v$Env:APP_VERSION-windows-${{ matrix.arch_name }}-portable.zip"
-          Compress-Archive -Path "$PortableDir/*" -DestinationPath $ZipName -Force
+          Compress-Archive -Path "$BuildDir/*" -DestinationPath $ZipName -Force
           Write-Host "Created $ZipName"
 
       - name: Upload artifact
