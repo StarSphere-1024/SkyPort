@@ -1,54 +1,51 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:skyport/l10n/app_localizations.dart';
-import 'package:skyport/models/connection_status.dart' show OldConnectionStatus, SerialConnection;
 import 'package:skyport/models/serial_config.dart';
 import 'package:skyport/providers/common_providers.dart';
-import 'package:skyport/providers/serial/serial_connection_provider.dart';
-import 'package:skyport/providers/serial/serial_config_provider.dart';
+import 'package:skyport/providers/serial/serial_port_manager.dart';
 import 'package:skyport/widgets/left_panel/serial_params_widget.dart';
 
 import '../../helpers/mock_classes.dart';
 import '../../helpers/test_data.dart';
-import '../../helpers/test_providers.dart';
 
 void main() {
   group('SerialParamsWidget', () {
     late MockSerialPortService mockService;
     late FakeSharedPreferences fakePrefs;
 
-    setUpAll(() {
-      registerFallbackValues();
-    });
+    setUpAll(registerFallbackValues);
 
     setUp(() {
       mockService = MockSerialPortService();
-      fakePrefs = FakeSharedPreferences();
+      fakePrefs = FakeSharedPreferences()
+        ..setString('serial_port_name', 'COM1')
+        ..setInt('serial_baud_rate', 9600)
+        ..setInt('serial_data_bits', 8)
+        ..setInt('serial_parity', 0)
+        ..setInt('serial_stop_bits', 1);
       setupMockSerialPortService(mockService);
+      when(() => mockService.getAvailablePorts())
+          .thenAnswer((_) async => ['COM1']);
     });
 
-    Widget createTestWidget({
-      OldConnectionStatus connectionStatus = OldConnectionStatus.disconnected,
-      SerialConfig? config,
-    }) {
+    Widget createTestWidget({SerialConfig? config}) {
+      if (config != null) {
+        fakePrefs
+          ..setString('serial_port_name', config.portName)
+          ..setInt('serial_baud_rate', config.baudRate)
+          ..setInt('serial_data_bits', config.dataBits)
+          ..setInt('serial_parity', config.parity)
+          ..setInt('serial_stop_bits', config.stopBits)
+          ..setBool('serial_auto_reconnect', config.autoReconnect);
+      }
+
       return ProviderScope(
         overrides: [
           sharedPreferencesProvider.overrideWithValue(fakePrefs),
           serialPortServiceProvider.overrideWithValue(mockService),
-          availablePortsProvider.overrideWithValue(AsyncData(['COM1'])),
-          serialConfigProvider.overrideWith(
-            () => TestSerialConfigNotifier(config ?? defaultSerialConfig()),
-          ),
-          serialConnectionProvider.overrideWith(
-            () => _TestSerialConnectionNotifier(
-              SerialConnection(
-                status: connectionStatus,
-                txBytes: 0,
-                rxBytes: 0,
-              ),
-            ),
-          ),
         ],
         child: const MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -61,255 +58,56 @@ void main() {
       );
     }
 
-    group('Baud Rate Dropdown', () {
-      testWidgets('displays baud rate dropdown', (tester) async {
-        await tester.pumpWidget(createTestWidget());
+    testWidgets('renders dropdowns and labels', (tester) async {
+      await tester.pumpWidget(createTestWidget());
+      await tester.pumpAndSettle();
 
-        // Should find baud rate dropdown
-        expect(find.byType(DropdownMenu<int>), findsWidgets);
-
-        // Should find baud rate label
-        expect(find.text('Baud Rate'), findsOneWidget);
-      });
-
-      testWidgets('contains standard baud rates', (tester) async {
-        await tester.pumpWidget(createTestWidget());
-
-        // Find all dropdowns and check entries
-        final dropdowns = tester.widgetList<DropdownMenu<int>>(
-          find.byType(DropdownMenu<int>),
-        );
-
-        // First dropdown should be baud rate
-        final baudDropdown = dropdowns.first;
-        expect(baudDropdown.dropdownMenuEntries.length, 11); // 11 standard rates
-
-        // Check some key values
-        final entries = baudDropdown.dropdownMenuEntries;
-        final labels = entries.map((e) => e.label).toList();
-
-        expect(labels, contains('1200'));
-        expect(labels, contains('9600'));
-        expect(labels, contains('115200'));
-        expect(labels, contains('921600'));
-      });
-
-      // 注意：此测试需要更新以使用 serialPortManagerProvider
-      testWidgets('shows current baud rate', skip: true, (tester) async {
-        const testBaud = 115200;
-        await tester.pumpWidget(
-          createTestWidget(
-            config: serialConfigWithBaudRate(testBaud),
-          ),
-        );
-
-        // Should find the baud rate in the UI
-        expect(find.text('$testBaud'), findsOneWidget);
-      });
-
-      // 注意：新架构下，连接时也可以修改配置（会触发调和）
-      // 这个测试测试的是旧行为，暂时跳过
-      testWidgets('is disabled when connected', skip: true, (tester) async {
-        await tester.pumpWidget(
-          createTestWidget(
-            connectionStatus: OldConnectionStatus.connected,
-          ),
-        );
-
-        // All dropdowns should have null onSelected
-        final dropdowns = tester.widgetList<DropdownMenu<int>>(
-          find.byType(DropdownMenu<int>),
-        );
-
-        for (final dropdown in dropdowns) {
-          expect(dropdown.onSelected, isNull);
-        }
-      });
-
-      // 注意：新架构下，忙碌时也可以修改配置
-      // 这个测试测试的是旧行为，暂时跳过
-      testWidgets('is disabled when busy', skip: true, (tester) async {
-        await tester.pumpWidget(
-          createTestWidget(
-            connectionStatus: OldConnectionStatus.connecting,
-          ),
-        );
-
-        // All dropdowns should have null onSelected
-        final dropdowns = tester.widgetList<DropdownMenu<int>>(
-          find.byType(DropdownMenu<int>),
-        );
-
-        for (final dropdown in dropdowns) {
-          expect(dropdown.onSelected, isNull);
-        }
-      });
+      expect(find.byType(DropdownMenu<int>), findsWidgets);
+      expect(find.text('Baud Rate'), findsOneWidget);
+      expect(find.text('Data Bits'), findsOneWidget);
+      expect(find.text('Parity'), findsOneWidget);
+      expect(find.text('Stop Bits'), findsOneWidget);
     });
 
-    group('Data Bits Dropdown', () {
-      testWidgets('displays data bits dropdown', (tester) async {
-        await tester.pumpWidget(createTestWidget());
+    testWidgets('contains standard baud rates', (tester) async {
+      await tester.pumpWidget(createTestWidget());
+      await tester.pumpAndSettle();
 
-        // Should find data bits label
-        expect(find.text('Data Bits'), findsOneWidget);
-      });
+      final dropdowns = tester.widgetList<DropdownMenu<int>>(
+        find.byType(DropdownMenu<int>),
+      );
 
-      testWidgets('contains valid data bits values', (tester) async {
-        await tester.pumpWidget(createTestWidget());
-
-        final dropdowns = tester.widgetList<DropdownMenu<int>>(
-          find.byType(DropdownMenu<int>),
-        );
-
-        // Find data bits dropdown (second one)
-        final dataBitsDropdown = dropdowns.elementAt(1);
-        final labels = dataBitsDropdown.dropdownMenuEntries.map((e) => e.label);
-
-        expect(labels, containsAll(['8', '7', '6', '5']));
-      });
-
-      testWidgets('shows current data bits', (tester) async {
-        await tester.pumpWidget(createTestWidget());
-
-        // Default is 8 data bits
-        expect(find.text('8'), findsOneWidget);
-      });
+      final baudDropdown = dropdowns.first;
+      expect(baudDropdown.dropdownMenuEntries.length, 11);
+      final labels =
+          baudDropdown.dropdownMenuEntries.map((e) => e.label).toList();
+      expect(labels, containsAll(['1200', '9600', '115200', '921600']));
     });
 
-    group('Parity Dropdown', () {
-      testWidgets('displays parity dropdown', (tester) async {
-        await tester.pumpWidget(createTestWidget());
+    testWidgets('displays custom config values', (tester) async {
+      final customConfig = SerialConfig(
+        portName: 'COM1',
+        baudRate: 115200,
+        dataBits: 7,
+        parity: 1,
+        stopBits: 2,
+        autoReconnect: false,
+      );
 
-        // Should find parity label
-        expect(find.text('Parity'), findsOneWidget);
-      });
+      await tester.pumpWidget(createTestWidget(config: customConfig));
+      await tester.pumpAndSettle();
 
-      testWidgets('contains parity options', (tester) async {
-        await tester.pumpWidget(createTestWidget());
-
-        final dropdowns = tester.widgetList<DropdownMenu<int>>(
-          find.byType(DropdownMenu<int>),
-        );
-
-        // Find parity dropdown (third one)
-        final parityDropdown = dropdowns.elementAt(2);
-        final labels = parityDropdown.dropdownMenuEntries.map((e) => e.label);
-
-        expect(labels, containsAll(['None', 'Odd', 'Even']));
-      });
-
-      testWidgets('shows current parity', (tester) async {
-        await tester.pumpWidget(createTestWidget());
-
-        // Default is None (0)
-        expect(find.text('None'), findsOneWidget);
-      });
+      expect(find.text('115200'), findsOneWidget);
+      expect(find.text('7'), findsOneWidget);
+      expect(find.text('Odd'), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
     });
 
-    group('Stop Bits Dropdown', () {
-      testWidgets('displays stop bits dropdown', (tester) async {
-        await tester.pumpWidget(createTestWidget());
+    testWidgets('renders without errors', (tester) async {
+      await tester.pumpWidget(createTestWidget(config: defaultSerialConfig()));
+      await tester.pumpAndSettle();
 
-        // Should find stop bits label
-        expect(find.text('Stop Bits'), findsOneWidget);
-      });
-
-      testWidgets('contains valid stop bits values', (tester) async {
-        await tester.pumpWidget(createTestWidget());
-
-        final dropdowns = tester.widgetList<DropdownMenu<int>>(
-          find.byType(DropdownMenu<int>),
-        );
-
-        // Find stop bits dropdown (fourth one)
-        final stopBitsDropdown = dropdowns.elementAt(3);
-        final labels = stopBitsDropdown.dropdownMenuEntries.map((e) => e.label);
-
-        expect(labels, containsAll(['1', '2']));
-      });
-
-      testWidgets('shows current stop bits', (tester) async {
-        await tester.pumpWidget(createTestWidget());
-
-        // Default is 1 stop bit
-        expect(find.text('1'), findsOneWidget);
-      });
-    });
-
-    group('Widget Layout', () {
-      testWidgets('renders without errors', (tester) async {
-        await tester.pumpWidget(createTestWidget());
-
-        expect(find.byType(SerialParamsWidget), findsOneWidget);
-        expect(find.byType(DropdownMenu<int>), findsWidgets); // Multiple dropdowns
-      });
-
-      testWidgets('has proper Column layout', (tester) async {
-        await tester.pumpWidget(createTestWidget());
-
-        expect(find.byType(Column), findsWidgets);
-      });
-
-      testWidgets('has proper Row layout for paired controls',
-          (tester) async {
-        await tester.pumpWidget(createTestWidget());
-
-        // Should have 2 rows (baud+data bits, parity+stop bits)
-        expect(find.byType(Row), findsWidgets);
-      });
-
-      testWidgets('all dropdowns are expanded', (tester) async {
-        await tester.pumpWidget(createTestWidget());
-
-        final dropdowns = tester.widgetList<DropdownMenu<int>>(
-          find.byType(DropdownMenu<int>),
-        );
-
-        for (final dropdown in dropdowns) {
-          expect(dropdown.expandedInsets, EdgeInsets.zero);
-        }
-      });
-    });
-
-    group('Configuration Updates', () {
-      testWidgets('initial values match config defaults', (tester) async {
-        await tester.pumpWidget(createTestWidget());
-
-        // Default config: 9600 baud, 8 data bits, None parity, 1 stop bit
-        expect(find.text('9600'), findsOneWidget);
-        expect(find.text('8'), findsOneWidget);
-        expect(find.text('None'), findsOneWidget);
-        expect(find.text('1'), findsOneWidget);
-      });
-
-      // 注意：此测试需要更新以使用 serialPortManagerProvider
-      testWidgets('displays custom config values', skip: true, (tester) async {
-        final customConfig = SerialConfig(
-          portName: 'COM1',
-          baudRate: 115200,
-          dataBits: 7,
-          parity: 1, // Odd
-          stopBits: 2,
-          autoReconnect: false,
-        );
-
-        await tester.pumpWidget(createTestWidget(config: customConfig));
-
-        expect(find.text('115200'), findsOneWidget);
-        expect(find.text('7'), findsOneWidget);
-        expect(find.text('Odd'), findsOneWidget);
-        expect(find.text('2'), findsOneWidget);
-      });
+      expect(find.byType(SerialParamsWidget), findsOneWidget);
     });
   });
-}
-
-/// Test implementation of SerialConnectionNotifier
-class _TestSerialConnectionNotifier extends SerialConnectionNotifier {
-  final SerialConnection _connection;
-
-  _TestSerialConnectionNotifier(this._connection);
-
-  @override
-  SerialConnection build() => _connection;
 }

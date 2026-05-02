@@ -1,4 +1,3 @@
-import '../services/serial_port_service.dart';
 import 'serial_config.dart';
 
 enum ConnectionState {
@@ -49,47 +48,6 @@ class ConnectionStatus {
       errorMessage: identical(errorMessage, _unset)
           ? this.errorMessage
           : errorMessage as String?,
-      rxBytes: rxBytes ?? this.rxBytes,
-      txBytes: txBytes ?? this.txBytes,
-      lastRxBytes: lastRxBytes ?? this.lastRxBytes,
-    );
-  }
-}
-
-enum OldConnectionStatus {
-  disconnected,
-  connecting,
-  reconnecting,
-  connected,
-  disconnecting
-}
-
-@Deprecated('Use SerialPortManager and ConnectionStatus instead.')
-class SerialConnection {
-  final OldConnectionStatus status;
-  final SerialPortSessionInterface? session;
-  final int rxBytes;
-  final int txBytes;
-  final int lastRxBytes;
-
-  SerialConnection({
-    this.status = OldConnectionStatus.disconnected,
-    this.session,
-    this.rxBytes = 0,
-    this.txBytes = 0,
-    this.lastRxBytes = 0,
-  });
-
-  SerialConnection copyWith({
-    OldConnectionStatus? status,
-    SerialPortSessionInterface? session,
-    int? rxBytes,
-    int? txBytes,
-    int? lastRxBytes,
-  }) {
-    return SerialConnection(
-      status: status ?? this.status,
-      session: session ?? this.session,
       rxBytes: rxBytes ?? this.rxBytes,
       txBytes: txBytes ?? this.txBytes,
       lastRxBytes: lastRxBytes ?? this.lastRxBytes,
