@@ -7,7 +7,6 @@ import 'package:skyport/providers/serial/serial_port_manager.dart';
 import 'package:skyport/widgets/settings_popup.dart';
 
 import '../helpers/mock_classes.dart';
-import '../helpers/widget_test_helpers.dart';
 
 void main() {
   group('SettingsPopup Widget', () {

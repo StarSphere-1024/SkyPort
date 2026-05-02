@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../providers/serial/serial_port_manager.dart';
-import '../../models/connection_status.dart';
 import '../../l10n/app_localizations.dart';
+import '../../providers/serial/serial_port_manager.dart';
 import '../shared/dropdown_builders.dart';
 
 class SerialParamsWidget extends ConsumerWidget {
@@ -11,7 +10,6 @@ class SerialParamsWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(serialPortManagerProvider);
-    final manager = ref.read(serialPortManagerProvider.notifier);
     final isReconfiguring = state.isReconciling;
 
     return _buildSerialParamsGrid(context, ref, isReconfiguring);
