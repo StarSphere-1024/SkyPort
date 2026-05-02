@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/serial/data_log_provider.dart';
-import '../providers/serial/serial_connection_provider.dart';
+
 import '../l10n/app_localizations.dart';
+import '../providers/serial/data_log_provider.dart';
+import '../providers/serial/serial_port_manager.dart';
 import 'left_panel/port_selection_widget.dart';
-import 'left_panel/serial_params_widget.dart';
 import 'left_panel/receive_settings_widget.dart';
 import 'left_panel/send_settings_widget.dart';
+import 'left_panel/serial_params_widget.dart';
 
 class LeftPanel extends ConsumerWidget {
   const LeftPanel({super.key});
@@ -30,7 +31,9 @@ class LeftPanel extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildSectionTitle(
-                      context, AppLocalizations.of(context).serialPortSettings),
+                    context,
+                    AppLocalizations.of(context).serialPortSettings,
+                  ),
                   const SizedBox(height: 12),
                   const PortSelectionWidget(),
                   const SizedBox(height: 12),
@@ -39,14 +42,18 @@ class LeftPanel extends ConsumerWidget {
                   const Divider(),
                   const SizedBox(height: 12),
                   _buildSectionTitle(
-                      context, AppLocalizations.of(context).receiveSettings),
+                    context,
+                    AppLocalizations.of(context).receiveSettings,
+                  ),
                   const SizedBox(height: 8),
                   const ReceiveSettingsWidget(),
                   const SizedBox(height: 12),
                   const Divider(),
                   const SizedBox(height: 12),
                   _buildSectionTitle(
-                      context, AppLocalizations.of(context).sendSettings),
+                    context,
+                    AppLocalizations.of(context).sendSettings,
+                  ),
                   const SizedBox(height: 8),
                   const SendSettingsWidget(),
                 ],
@@ -77,7 +84,7 @@ class LeftPanel extends ConsumerWidget {
         child: OutlinedButton.icon(
           onPressed: () {
             ref.read(dataLogProvider.notifier).clear();
-            ref.read(serialConnectionProvider.notifier).resetStats();
+            ref.read(serialPortManagerProvider.notifier).resetStats();
           },
           icon: const Icon(Icons.delete_outline, size: 24),
           label: Text(AppLocalizations.of(context).clearReceiveArea),

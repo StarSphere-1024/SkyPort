@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skyport/models/app_error.dart';
-import 'package:skyport/models/connection_status.dart';
+import 'package:skyport/models/connection_status.dart' show OldConnectionStatus, SerialConnection;
 import 'package:skyport/models/serial_config.dart';
 import 'package:skyport/providers/serial/data_log_provider.dart';
 import 'package:skyport/providers/serial/error_provider.dart';
@@ -83,14 +83,14 @@ void main() {
 
       await notifier.connect();
       expect(container.read(serialConnectionProvider).status,
-          ConnectionStatus.connected);
+          OldConnectionStatus.connected);
 
       updateConfig(container.read(serialConfigProvider.notifier));
 
       await Future.delayed(const Duration(milliseconds: 350));
 
       final connection = container.read(serialConnectionProvider);
-      expect(connection.status, ConnectionStatus.connected);
+      expect(connection.status, OldConnectionStatus.connected);
       expect(connection.session, same(secondSession));
       expect(openedConfigs, hasLength(2));
       expect(openedConfigs.first.portName, 'COM1');
@@ -106,7 +106,7 @@ void main() {
     group('Connection Lifecycle', () {
       test('starts in disconnected state', () {
         final connection = container.read(serialConnectionProvider);
-        expect(connection.status, ConnectionStatus.disconnected);
+        expect(connection.status, OldConnectionStatus.disconnected);
       });
 
       test('transitions to connecting when connect is called', () async {
@@ -123,7 +123,7 @@ void main() {
 
         // Check that state is now connecting
         expect(container.read(serialConnectionProvider).status,
-            ConnectionStatus.connecting);
+            OldConnectionStatus.connecting);
 
         // Wait for connection to complete
         await future;
@@ -144,7 +144,7 @@ void main() {
         await notifier.connect();
 
         final connection = container.read(serialConnectionProvider);
-        expect(connection.status, ConnectionStatus.connected);
+        expect(connection.status, OldConnectionStatus.connected);
         expect(connection.session, isNotNull);
 
         subscription.close();
@@ -179,12 +179,12 @@ void main() {
         await notifier.connect();
 
         expect(container.read(serialConnectionProvider).status,
-            ConnectionStatus.connected);
+            OldConnectionStatus.connected);
 
         await notifier.disconnect();
 
         expect(container.read(serialConnectionProvider).status,
-            ConnectionStatus.disconnected);
+            OldConnectionStatus.disconnected);
       });
 
       test('clears error on connect', () async {
@@ -344,7 +344,7 @@ void main() {
         await notifier.connect();
 
         final connection = container.read(serialConnectionProvider);
-        expect(connection.status, ConnectionStatus.disconnected);
+        expect(connection.status, OldConnectionStatus.disconnected);
 
         final error = container.read(errorProvider);
         expect(error?.type, AppErrorType.portOpenTimeout);
@@ -451,7 +451,7 @@ void main() {
 
         // Verify connected state
         expect(container.read(serialConnectionProvider).status,
-            ConnectionStatus.connected);
+            OldConnectionStatus.connected);
 
         // Simulate connection error
         mockSession.simulateError('Connection lost');
@@ -461,7 +461,7 @@ void main() {
 
         // Should enter reconnecting state
         final connection = container.read(serialConnectionProvider);
-        expect(connection.status, ConnectionStatus.reconnecting,
+        expect(connection.status, OldConnectionStatus.reconnecting,
             reason:
                 'Should be in reconnecting state after error with autoReconnect=true');
 
@@ -488,7 +488,7 @@ void main() {
 
         // Should disconnect, not reconnect
         final connection = container.read(serialConnectionProvider);
-        expect(connection.status, ConnectionStatus.disconnected);
+        expect(connection.status, OldConnectionStatus.disconnected);
       });
     });
 

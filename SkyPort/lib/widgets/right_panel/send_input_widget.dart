@@ -1,16 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide ConnectionState;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../providers/serial/serial_connection_provider.dart';
-import '../../providers/serial/ui_settings_provider.dart';
-import '../../providers/common_providers.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/connection_status.dart';
 import '../../models/ui_settings.dart';
-import '../../l10n/app_localizations.dart';
+import '../../providers/common_providers.dart';
+import '../../providers/serial/serial_port_manager.dart';
+import '../../providers/serial/ui_settings_provider.dart';
 import '../../utils/constants.dart';
 
 class SendInputWidget extends ConsumerStatefulWidget {
@@ -27,13 +27,11 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
   bool _canSend = false;
   bool _previousHexMode = false;
 
-  // History management
   static const String _historyKey = 'send_input_history';
   List<String> _history = [];
   int _historyIndex = -1;
   String _tempInput = '';
 
-  // Auto-send timer
   Timer? _autoSendTimer;
   UiSettings? _previousSettings;
 
@@ -70,7 +68,6 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
   void _addToHistory(String text) {
     if (text.isEmpty) return;
     setState(() {
-      // Remove if already exists to move it to the end (most recent)
       _history.remove(text);
       _history.add(text);
       if (_history.length > SkyPortConstants.maxHistorySize) {
@@ -82,15 +79,12 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
     _saveHistory();
   }
 
-  void _handleAutoSendSettingsChange(
-      UiSettings? previous, UiSettings next) {
-    // Check if auto-send enabled state changed
+  void _handleAutoSendSettingsChange(UiSettings? previous, UiSettings next) {
     final wasEnabled = previous?.autoSendEnabled ?? false;
     final isEnabled = next.autoSendEnabled;
 
     if (wasEnabled != isEnabled) {
       if (isEnabled) {
-        // Defer timer start to after build phase
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             _startAutoSend();
@@ -101,8 +95,6 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
       }
     } else if (isEnabled &&
         previous?.autoSendIntervalMs != next.autoSendIntervalMs) {
-      // Interval changed while enabled, restart timer with new interval
-      // Defer timer restart to after build phase
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _startAutoSend();
@@ -126,11 +118,12 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
   }
 
   void _autoSend() {
-    final connectionStatus = ref.read(serialConnectionProvider).status;
-    if (connectionStatus == ConnectionStatus.connected && _canSend) {
+    final connectionState =
+        ref.read(serialPortManagerProvider).connection.state;
+    if (connectionState == ConnectionState.connected && _canSend) {
       final text = _sendController.text;
       if (_formKey.currentState?.validate() ?? false) {
-        ref.read(serialConnectionProvider.notifier).send(text);
+        ref.read(serialPortManagerProvider.notifier).send(text);
         _addToHistory(text);
       }
     }
@@ -147,13 +140,11 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
         } else if (_historyIndex > 0) {
           _historyIndex--;
         }
-      } else {
-        if (_historyIndex != -1) {
-          if (_historyIndex < _history.length - 1) {
-            _historyIndex++;
-          } else {
-            _historyIndex = -1;
-          }
+      } else if (_historyIndex != -1) {
+        if (_historyIndex < _history.length - 1) {
+          _historyIndex++;
+        } else {
+          _historyIndex = -1;
         }
       }
 
@@ -169,8 +160,7 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
 
   void _updateCanSend(String value) {
     final uiSettings = ref.read(uiSettingsProvider);
-    final hexSend = uiSettings.hexSend;
-    if (!hexSend) {
+    if (!uiSettings.hexSend) {
       _canSend = value.isNotEmpty;
       return;
     }
@@ -188,12 +178,11 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
     }
   }
 
-  // Static RegExp constants to avoid repeated object creation
   static final RegExp hexRegex = RegExp(r'^[0-9a-fA-F]+$');
   static final RegExp whitespaceRegex = RegExp(r'\s+');
 
-  // Helper methods to reduce code duplication
   String _sanitizeHex(String value) => value.replaceAll(whitespaceRegex, '');
+
   bool _isValidHex(String sanitized) =>
       hexRegex.hasMatch(sanitized) && sanitized.length % 2 == 0;
 
@@ -242,24 +231,16 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
       onChanged: (value) {
         setState(() {
           _updateCanSend(value);
-          // Only reset history navigation if the change is not from history navigation itself.
-          // We check if the current text matches the history item at the current index.
-          if (_historyIndex != -1) {
-            if (value != _history[_historyIndex]) {
-              _historyIndex = -1;
-            }
+          if (_historyIndex != -1 && value != _history[_historyIndex]) {
+            _historyIndex = -1;
           }
         });
       },
       validator: (value) {
         if (hexSend) {
-          if (value == null || value.isEmpty) {
-            return null;
-          }
+          if (value == null || value.isEmpty) return null;
           final sanitized = _sanitizeHex(value);
-          if (sanitized.isEmpty) {
-            return null;
-          }
+          if (sanitized.isEmpty) return null;
           if (!hexRegex.hasMatch(sanitized)) {
             return l10n.invalidHexChars;
           }
@@ -272,16 +253,15 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
     );
   }
 
-  Widget _buildSendButton(
-      ConnectionStatus connectionStatus, bool canSend, WidgetRef ref) {
+  Widget _buildSendButton(ConnectionState connectionState, bool canSend) {
     return FilledButton.icon(
       icon: const Icon(Icons.send),
       label: Text(AppLocalizations.of(context).send),
-      onPressed: connectionStatus == ConnectionStatus.connected && canSend
+      onPressed: connectionState == ConnectionState.connected && canSend
           ? () {
               if (_formKey.currentState!.validate()) {
                 final text = _sendController.text;
-                ref.read(serialConnectionProvider.notifier).send(text);
+                ref.read(serialPortManagerProvider.notifier).send(text);
                 _addToHistory(text);
               }
             }
@@ -294,19 +274,19 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final connectionStatus =
-        ref.watch(serialConnectionProvider.select((c) => c.status));
+    final connectionState =
+        ref.watch(serialPortManagerProvider.select((s) => s.connection.state));
     final uiSettings = ref.watch(uiSettingsProvider);
     final hexSend = uiSettings.hexSend;
 
-    // Detect hexSend mode changes to perform text ↔ hex in-place conversion.
     if (_previousHexMode != hexSend) {
       _handleHexSendToggle(
-          previousIsHex: _previousHexMode, currentIsHex: hexSend);
+        previousIsHex: _previousHexMode,
+        currentIsHex: hexSend,
+      );
       _previousHexMode = hexSend;
     }
 
-    // Detect auto-send settings changes
     _handleAutoSendSettingsChange(_previousSettings, uiSettings);
     _previousSettings = uiSettings;
 
@@ -325,7 +305,7 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
                 child: _buildTextField(hexSend, AppLocalizations.of(context)),
               ),
               const SizedBox(width: 8),
-              _buildSendButton(connectionStatus, _canSend, ref),
+              _buildSendButton(connectionState, _canSend),
             ],
           ),
         ),
@@ -333,14 +313,15 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
     );
   }
 
-  void _handleHexSendToggle(
-      {required bool previousIsHex, required bool currentIsHex}) {
+  void _handleHexSendToggle({
+    required bool previousIsHex,
+    required bool currentIsHex,
+  }) {
     final text = _sendController.text;
     if (text.isEmpty) {
       return;
     }
 
-    // Text -> Hex
     if (!previousIsHex && currentIsHex) {
       final bytes = utf8.encode(text);
       final hex = bytes
@@ -354,7 +335,6 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
       return;
     }
 
-    // Hex -> Text
     if (previousIsHex && !currentIsHex) {
       final hexText = text.trim();
       if (hexText.isEmpty) {
@@ -363,10 +343,8 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
         return;
       }
 
-      // Reuse the parsing rules from the sending end: allow spaces, automatically pad odd-length characters.
       try {
         final bytes = _parseHexToBytes(hexText);
-        // Try to decode as UTF-8; if it fails, keep the original hex text.
         final decoded = utf8.decode(bytes, allowMalformed: false);
         _sendController.text = decoded;
         _sendController.selection = TextSelection.fromPosition(
@@ -374,12 +352,11 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
         );
         _canSend = decoded.isNotEmpty;
       } catch (_) {
-        // Invalid hex or invalid UTF-8: keep the original content, no conversion.
+        // Keep original content when conversion fails.
       }
     }
   }
 
-  // Locally implement a parser equivalent to the sending logic to avoid directly depending on private methods.
   Uint8List _parseHexToBytes(String hex) {
     final bytes = <int>[];
     final parts = hex.trim().split(whitespaceRegex).where((s) => s.isNotEmpty);
