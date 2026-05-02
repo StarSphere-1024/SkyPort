@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/serial_port_service.dart';
 import '../../models/app_error.dart';
-import '../../models/connection_status.dart';
+import '../../models/connection_status.dart' show OldConnectionStatus, SerialConnection;
 import '../../models/ui_settings.dart';
 import '../../models/serial_config.dart';
 import '../../utils/hex_parser.dart';
@@ -33,7 +33,7 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
       if (!_mounted) return;
 
       final ports = next.asData?.value ?? [];
-      if (state.status == ConnectionStatus.reconnecting) {
+      if (state.status == OldConnectionStatus.reconnecting) {
         final config = ref.read(serialConfigProvider);
         if (config != null && ports.contains(config.portName)) {
           // Schedule reconnect asynchronously to avoid calling during dispose
@@ -55,7 +55,7 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
         if (!_mounted) return;
 
         // Only restart connection if currently connected
-        if (state.status != ConnectionStatus.connected) return;
+        if (state.status != OldConnectionStatus.connected) return;
 
         // Check if any relevant config has changed
         final configChanged = previous.baudRate != next?.baudRate ||
@@ -92,17 +92,17 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
   Future<void> connect() async {
     if (!_mounted) return;
 
-    if (state.status != ConnectionStatus.disconnected &&
-        state.status != ConnectionStatus.reconnecting) {
+    if (state.status != OldConnectionStatus.disconnected &&
+        state.status != OldConnectionStatus.reconnecting) {
       return;
     }
     ref.read(errorProvider.notifier).clear();
-    state = state.copyWith(status: ConnectionStatus.connecting);
+    state = state.copyWith(status: OldConnectionStatus.connecting);
 
     final config = ref.read(serialConfigProvider);
     if (config == null) {
       ref.read(errorProvider.notifier).setError(AppErrorType.configNotSet);
-      state = state.copyWith(status: ConnectionStatus.disconnected);
+      state = state.copyWith(status: OldConnectionStatus.disconnected);
       return;
     }
     final service = ref.read(serialPortServiceProvider);
@@ -127,7 +127,7 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
 
         final config = ref.read(serialConfigProvider);
         if (config?.autoReconnect == true) {
-          _internalDisconnect(status: ConnectionStatus.reconnecting);
+          _internalDisconnect(status: OldConnectionStatus.reconnecting);
         } else {
           disconnect();
           ref
@@ -136,7 +136,7 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
         }
       });
       state = state.copyWith(
-        status: ConnectionStatus.connected,
+        status: OldConnectionStatus.connected,
         session: session,
       );
     } on SerialPortOpenTimeoutException catch (e) {
@@ -144,21 +144,21 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
         ref
             .read(errorProvider.notifier)
             .setError(AppErrorType.portOpenTimeout, e.message);
-        state = state.copyWith(status: ConnectionStatus.disconnected);
+        state = state.copyWith(status: OldConnectionStatus.disconnected);
       }
     } on SerialPortOpenException catch (e) {
       if (_mounted) {
         ref
             .read(errorProvider.notifier)
             .setError(AppErrorType.portOpenFailed, e.message);
-        state = state.copyWith(status: ConnectionStatus.disconnected);
+        state = state.copyWith(status: OldConnectionStatus.disconnected);
       }
     } catch (e) {
       if (_mounted) {
         ref
             .read(errorProvider.notifier)
             .setError(AppErrorType.unknown, e.toString());
-        state = state.copyWith(status: ConnectionStatus.disconnected);
+        state = state.copyWith(status: OldConnectionStatus.disconnected);
       }
     }
   }
@@ -166,19 +166,19 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
   /// Tear down the serial connection. Formerly `close()`.
   Future<void> disconnect() async {
     if (!_mounted) return;
-    await _internalDisconnect(status: ConnectionStatus.disconnected);
+    await _internalDisconnect(status: OldConnectionStatus.disconnected);
   }
 
-  Future<void> _internalDisconnect({required ConnectionStatus status}) async {
+  Future<void> _internalDisconnect({required OldConnectionStatus status}) async {
     if (!_mounted) return;
 
-    if (state.status != ConnectionStatus.connected &&
-        state.status != ConnectionStatus.reconnecting) {
+    if (state.status != OldConnectionStatus.connected &&
+        state.status != OldConnectionStatus.reconnecting) {
       // Allow disconnecting from reconnecting state (e.g. user cancels)
-      if (state.status == ConnectionStatus.reconnecting &&
-          status == ConnectionStatus.disconnected) {
+      if (state.status == OldConnectionStatus.reconnecting &&
+          status == OldConnectionStatus.disconnected) {
         if (_mounted) {
-          state = state.copyWith(status: ConnectionStatus.disconnected);
+          state = state.copyWith(status: OldConnectionStatus.disconnected);
         }
         return;
       }
@@ -190,8 +190,8 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
 
     errorNotifier.clear();
     // Only show disconnecting status if we were connected
-    if (state.status == ConnectionStatus.connected && _mounted) {
-      state = state.copyWith(status: ConnectionStatus.disconnecting);
+    if (state.status == OldConnectionStatus.connected && _mounted) {
+      state = state.copyWith(status: OldConnectionStatus.disconnecting);
     }
 
     final session = state.session;
@@ -202,7 +202,7 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
       await subscriptionToCancel?.cancel();
       if (!_mounted) return;
 
-      if (status == ConnectionStatus.disconnected) {
+      if (status == OldConnectionStatus.disconnected) {
         await Future.delayed(
             Duration(milliseconds: SkyPortConstants.connectionSettleDelayMs));
         if (!_mounted) return;
@@ -217,7 +217,7 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
       }
 
       // Only report if strictly disconnecting to avoid UI noise during reconnect.
-      if (status == ConnectionStatus.disconnected && _mounted) {
+      if (status == OldConnectionStatus.disconnected && _mounted) {
         errorNotifier.setError(AppErrorType.cleanupError, e.toString());
       }
     } finally {
@@ -239,7 +239,7 @@ class SerialConnectionNotifier extends Notifier<SerialConnection> {
   Future<void> send(String data) async {
     if (!_mounted) return;
 
-    if (state.session == null || state.status != ConnectionStatus.connected) {
+    if (state.session == null || state.status != OldConnectionStatus.connected) {
       return;
     }
     ref.read(errorProvider.notifier).clear();

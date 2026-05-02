@@ -8,8 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/common_providers.dart';
 import 'providers/serial/error_provider.dart';
 import 'providers/serial/ui_settings_provider.dart';
-import 'providers/serial/serial_config_provider.dart';
 import 'providers/serial/data_log_provider.dart';
+import 'providers/serial/serial_port_manager.dart';
 import 'models/app_error.dart';
 import 'providers/theme_provider.dart';
 import 'theme.dart';
@@ -139,7 +139,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               // Get current state - export matches current UI display (WYSIWYG)
               final logState = ref.read(dataLogProvider);
               final settings = ref.read(uiSettingsProvider);
-              final serialConfig = ref.read(serialConfigProvider);
+              final serialState = ref.read(serialPortManagerProvider);
 
               // Export logs with all UI settings for WYSIWYG output
               await LogExportService.exportLogs(
@@ -150,7 +150,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 showTimestamp: settings.showTimestamp,
                 enableAnsi: settings.enableAnsi,
                 defaultPath: settings.logExportPath,
-                portName: serialConfig?.portName ?? '',
+                portName: serialState.targetConfig.portName,
               );
             },
           ),
@@ -163,7 +163,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                 final context = _settingsKey.currentContext;
                 if (context == null) return;
 
-                final RenderBox button = context.findRenderObject() as RenderBox;
+                final RenderBox button =
+                    context.findRenderObject() as RenderBox;
                 final Offset offset = button.localToGlobal(Offset.zero);
                 showMenu(
                   context: context,

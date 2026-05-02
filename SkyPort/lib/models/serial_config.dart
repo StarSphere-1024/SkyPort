@@ -34,4 +34,12 @@ class SerialConfig {
       autoReconnect: autoReconnect ?? this.autoReconnect,
     );
   }
+
+  bool isSameSettings(SerialConfig other) {
+    return portName == other.portName &&
+        baudRate == other.baudRate &&
+        dataBits == other.dataBits &&
+        parity == other.parity &&
+        stopBits == other.stopBits;
+  }
 }

@@ -1,12 +1,13 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:file_picker/file_picker.dart';
-import '../providers/theme_provider.dart';
-import '../providers/serial/ui_settings_provider.dart';
-import '../providers/serial/serial_config_provider.dart';
+
 import '../l10n/app_localizations.dart';
-import '../widgets/shared/compact_switch.dart';
+import '../providers/serial/serial_port_manager.dart';
+import '../providers/serial/ui_settings_provider.dart';
+import '../providers/theme_provider.dart';
 import '../theme.dart';
+import '../widgets/shared/compact_switch.dart';
 
 class SettingsPopup extends ConsumerWidget {
   final TextEditingController controller;
@@ -20,6 +21,9 @@ class SettingsPopup extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final serialState = ref.watch(serialPortManagerProvider);
+    final serialManager = ref.read(serialPortManagerProvider.notifier);
+
     return Form(
       key: formKey,
       child: Column(
@@ -89,10 +93,8 @@ class SettingsPopup extends ConsumerWidget {
                   ),
                 );
               }).toList(),
-              icon: const SizedBox
-                  .shrink(), // Hide the arrow icon to save space if needed, or keep it.
-              // Actually keeping the arrow is standard.
-              underline: const SizedBox.shrink(), // Remove underline
+              icon: const SizedBox.shrink(),
+              underline: const SizedBox.shrink(),
             ),
           ),
           const Divider(),
@@ -104,9 +106,8 @@ class SettingsPopup extends ConsumerWidget {
           ),
           CompactSwitch(
             label: AppLocalizations.of(context).autoReconnect,
-            value: ref.watch(serialConfigProvider)?.autoReconnect ?? true,
-            onChanged: (v) =>
-                ref.read(serialConfigProvider.notifier).setAutoReconnect(v),
+            value: serialState.targetConfig.autoReconnect,
+            onChanged: serialManager.setAutoReconnect,
           ),
           ListTile(
             title: Text(
@@ -125,14 +126,14 @@ class SettingsPopup extends ConsumerWidget {
                   suffixText: 'MB',
                 ),
                 validator: (value) {
-                  int? size = int.tryParse(value ?? '');
+                  final size = int.tryParse(value ?? '');
                   if (size == null || size < 16 || size > 512) {
                     return AppLocalizations.of(context).logBufferSizeError;
                   }
                   return null;
                 },
                 onSaved: (value) {
-                  int size = int.parse(value!);
+                  final size = int.parse(value!);
                   ref.read(uiSettingsProvider.notifier).setLogBufferSize(size);
                 },
                 onFieldSubmitted: (value) {
@@ -143,7 +144,6 @@ class SettingsPopup extends ConsumerWidget {
               ),
             ),
           ),
-          // Export path setting
           if (Theme.of(context).platform == TargetPlatform.windows ||
               Theme.of(context).platform == TargetPlatform.macOS ||
               Theme.of(context).platform == TargetPlatform.linux)
@@ -168,11 +168,17 @@ class SettingsPopup extends ConsumerWidget {
                           isDense: true,
                         ),
                         readOnly: true,
-                        enabled: ref.watch(uiSettingsProvider).logExportPath.isNotEmpty,
+                        enabled: ref
+                            .watch(uiSettingsProvider)
+                            .logExportPath
+                            .isNotEmpty,
                         onTap: () async {
-                          final path = await FilePicker.platform.getDirectoryPath();
+                          final path =
+                              await FilePicker.platform.getDirectoryPath();
                           if (path != null) {
-                            ref.read(uiSettingsProvider.notifier).setLogExportPath(path);
+                            ref
+                                .read(uiSettingsProvider.notifier)
+                                .setLogExportPath(path);
                           }
                         },
                       ),
@@ -181,9 +187,12 @@ class SettingsPopup extends ConsumerWidget {
                       icon: const Icon(Icons.folder),
                       tooltip: AppLocalizations.of(context).exportPath,
                       onPressed: () async {
-                        final path = await FilePicker.platform.getDirectoryPath();
+                        final path =
+                            await FilePicker.platform.getDirectoryPath();
                         if (path != null) {
-                          ref.read(uiSettingsProvider.notifier).setLogExportPath(path);
+                          ref
+                              .read(uiSettingsProvider.notifier)
+                              .setLogExportPath(path);
                         }
                       },
                     ),
