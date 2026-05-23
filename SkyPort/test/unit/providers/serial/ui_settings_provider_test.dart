@@ -230,6 +230,26 @@ void main() {
         final settings = container.read(uiSettingsProvider);
         expect(settings.logExportPath, 'D:/exports');
       });
+
+      test('falls back to lf when saved newlineMode index is too high',
+          () async {
+        await mockPrefs.setInt('ui_newline_mode', 99);
+        container.dispose();
+        container = createTestContainer(sharedPreferences: mockPrefs);
+
+        final settings = container.read(uiSettingsProvider);
+        expect(settings.newlineMode, NewlineMode.lf);
+      });
+
+      test('falls back to lf when saved newlineMode index is negative',
+          () async {
+        await mockPrefs.setInt('ui_newline_mode', -1);
+        container.dispose();
+        container = createTestContainer(sharedPreferences: mockPrefs);
+
+        final settings = container.read(uiSettingsProvider);
+        expect(settings.newlineMode, NewlineMode.lf);
+      });
     });
 
     group('Independent Settings Updates', () {
@@ -241,8 +261,10 @@ void main() {
         final newSettings = container.read(uiSettingsProvider);
 
         expect(newSettings.hexDisplay, true); // updated
-        expect(newSettings.showTimestamp, originalSettings.showTimestamp); // unchanged
-        expect(newSettings.logBufferSize, originalSettings.logBufferSize); // unchanged
+        expect(newSettings.showTimestamp,
+            originalSettings.showTimestamp); // unchanged
+        expect(newSettings.logBufferSize,
+            originalSettings.logBufferSize); // unchanged
       });
 
       test('multiple sequential updates persist correctly', () {

@@ -346,7 +346,8 @@ void main() {
         final notifier = container.read(dataLogProvider.notifier);
 
         // Add some real data first
-        notifier.addReceived(Uint8List.fromList([0x54, 0x65, 0x73, 0x74, 0x0A])); // "Test\n"
+        notifier.addReceived(
+            Uint8List.fromList([0x54, 0x65, 0x73, 0x74, 0x0A])); // "Test\n"
 
         // Then add empty data
         notifier.addReceived(Uint8List(0));
@@ -427,12 +428,14 @@ void main() {
       test('clear resets chunk ID counter', () {
         final notifier = container.read(dataLogProvider.notifier);
 
-        // Add data to create chunks
-        notifier.addReceived(Uint8List.fromList([0x41, 0x0A]));
-        notifier.addReceived(Uint8List.fromList([0x42, 0x0A]));
+        // Add enough data to create a finalized chunk.
+        for (var i = 0; i < 1500; i++) {
+          notifier.addReceived(Uint8List.fromList([0x41, 0x0A]));
+        }
 
         final stateBefore = container.read(dataLogProvider);
         final nextIdBefore = stateBefore.nextChunkId;
+        expect(nextIdBefore, greaterThan(0));
 
         // Clear
         notifier.clear();
@@ -463,13 +466,15 @@ void main() {
             expect(entry.timestamp, isNotNull);
             // Timestamp should be between before and after (with small tolerance)
             expect(
-              entry.timestamp.isBefore(afterTime.add(const Duration(seconds: 1))),
+              entry.timestamp
+                  .isBefore(afterTime.add(const Duration(seconds: 1))),
               true,
               reason: 'Timestamp should not be in the future',
             );
             // Timestamp should be recent (within last minute)
             expect(
-              entry.timestamp.isAfter(beforeTime.subtract(const Duration(minutes: 1))),
+              entry.timestamp
+                  .isAfter(beforeTime.subtract(const Duration(minutes: 1))),
               true,
               reason: 'Timestamp should be recent',
             );
@@ -625,6 +630,26 @@ void main() {
         expect(hasReceived, true);
         expect(hasSent, true);
       });
+
+      test('does not duplicate sent entries while received data is pending',
+          () {
+        final notifier = container.read(dataLogProvider.notifier);
+
+        notifier.addSent(Uint8List.fromList([0x54, 0x78])); // "Tx"
+        notifier.addReceived(Uint8List.fromList([0x52])); // pending "R"
+        notifier.addReceived(Uint8List.fromList([0x78, 0x0A])); // flush "Rx"
+
+        final entries = container.read(dataLogProvider).allEntries;
+
+        expect(entries.length, 2);
+        expect(entries.where((e) => e.type == LogEntryType.sent), hasLength(1));
+        expect(
+          entries.where((e) => e.type == LogEntryType.received),
+          hasLength(1),
+        );
+        expect(String.fromCharCodes(entries.first.data), 'Tx');
+        expect(String.fromCharCodes(entries.last.data), 'Rx');
+      });
     });
 
     group('Unicode and Special Characters', () {
@@ -640,10 +665,12 @@ void main() {
         expect(state.totalBytes, greaterThan(0));
 
         // Verify data is preserved
-        expect(state.chunks.isNotEmpty, true, reason: 'Should have at least one chunk');
+        expect(state.chunks.isNotEmpty, true,
+            reason: 'Should have at least one chunk');
 
         for (final chunk in state.chunks) {
-          expect(chunk.entries.isNotEmpty, true, reason: 'Chunk should have entries');
+          expect(chunk.entries.isNotEmpty, true,
+              reason: 'Chunk should have entries');
 
           for (final entry in chunk.entries) {
             if (entry.data.isNotEmpty) {
@@ -651,8 +678,7 @@ void main() {
               final text = utf8.decode(entry.data);
               // The newline (0x0A) is used as delimiter and not stored
               // So we expect "你好" without the newline
-              expect(text, '你好',
-                  reason: 'Entry data should decode to "你好"');
+              expect(text, '你好', reason: 'Entry data should decode to "你好"');
             }
           }
         }
@@ -665,7 +691,8 @@ void main() {
         // because newline is used as a delimiter and is not stored
         final List<int> byteList = [];
         for (int byte = 0; byte < 256; byte++) {
-          if (byte != 0x0A) {  // Skip newline
+          if (byte != 0x0A) {
+            // Skip newline
             byteList.add(byte);
           }
         }

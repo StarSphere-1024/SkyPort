@@ -38,16 +38,10 @@ class DataLogNotifier extends Notifier<LogState> {
     final uiSettings = ref.read(uiSettingsProvider);
     final maxBytes = uiSettings.logBufferSize * 1024 * 1024;
 
-    // Recalculate fixed chunks size
-    // Filter out the last chunk if it was temporary (-1)
-    List<LogChunk> finalizedChunks = [];
-    if (state.chunks.isNotEmpty) {
-      if (state.chunks.last.id == -1) {
-        finalizedChunks = state.chunks.sublist(0, state.chunks.length - 1);
-      } else {
-        finalizedChunks = state.chunks;
-      }
-    }
+    // Recalculate fixed chunks size. Temporary display chunks are rebuilt from
+    // the notifier buffers on every update and must not become committed state.
+    var finalizedChunks = state.chunks.where((c) => c.id != -1).toList();
+    var nextChunkId = state.nextChunkId;
 
     // Add completed buffer entries to current buffer
     if (_completedBuffer.isNotEmpty) {
@@ -62,15 +56,15 @@ class DataLogNotifier extends Notifier<LogState> {
     }
 
     // Calculate total size
-    int finalizedSize = finalizedChunks.fold(0, (sum, c) => sum + c.totalBytes);
-    int pendingBytes = _pendingData.length;
-    int newTotalBytes = finalizedSize + _currentBufferBytes + pendingBytes;
+    var finalizedSize = finalizedChunks.fold(0, (sum, c) => sum + c.totalBytes);
+    final pendingBytes = _pendingData.length;
+    var newTotalBytes = finalizedSize + _currentBufferBytes + pendingBytes;
 
     // Pruning old chunks if exceeding max bytes
-    int bytesToRemove = newTotalBytes - maxBytes;
+    final bytesToRemove = newTotalBytes - maxBytes;
     if (bytesToRemove > 0 && finalizedChunks.isNotEmpty) {
-      int infoBytesRemoved = 0;
-      int chunksToRemove = 0;
+      var infoBytesRemoved = 0;
+      var chunksToRemove = 0;
       for (final chunk in finalizedChunks) {
         if (infoBytesRemoved >= bytesToRemove) break;
         infoBytesRemoved += chunk.totalBytes;
@@ -88,8 +82,9 @@ class DataLogNotifier extends Notifier<LogState> {
       final newChunk = LogChunk(
         entries: List.unmodifiable(_currentBuffer),
         totalBytes: _currentBufferBytes,
-        id: state.nextChunkId,
+        id: nextChunkId,
       );
+      nextChunkId++;
 
       finalizedChunks = [...finalizedChunks, newChunk];
       _currentBuffer = [];
@@ -97,14 +92,7 @@ class DataLogNotifier extends Notifier<LogState> {
     }
 
     // Build display chunks with pending data as last item
-    // Use a Set to track which chunks are already in the display list
-    // This prevents duplicate chunks from being added multiple times
-    final existingChunkIds = <int>{};
-    for (final chunk in finalizedChunks) {
-      existingChunkIds.add(chunk.id);
-    }
-
-    List<LogChunk> displayChunks = List.from(finalizedChunks);
+    final displayChunks = List<LogChunk>.from(finalizedChunks);
 
     // Add current buffer as temp chunk if not empty
     // Only add if we haven't already added a temp chunk with the same content
@@ -116,7 +104,7 @@ class DataLogNotifier extends Notifier<LogState> {
 
       if (!lastIsTempWithSameContent) {
         final tempChunk = LogChunk(
-          entries: _currentBuffer,
+          entries: List.unmodifiable(_currentBuffer),
           totalBytes: _currentBufferBytes,
           id: -1,
         );
@@ -132,7 +120,7 @@ class DataLogNotifier extends Notifier<LogState> {
         _pendingTimestamp ?? DateTime.now(),
       );
       final pendingChunk = LogChunk(
-        entries: [pendingEntry],
+        entries: List.unmodifiable([pendingEntry]),
         id: -1, // Special ID for pending data
         totalBytes: _pendingData.length,
       );
@@ -142,7 +130,7 @@ class DataLogNotifier extends Notifier<LogState> {
     state = LogState(
       chunks: displayChunks,
       totalBytes: newTotalBytes,
-      nextChunkId: state.nextChunkId + (displayChunks.length > finalizedChunks.length ? 1 : 0),
+      nextChunkId: nextChunkId,
     );
   }
 
@@ -172,9 +160,8 @@ class DataLogNotifier extends Notifier<LogState> {
         // Found newline - flush pending + current segment as a completed line
 
         // Handle CRLF: if previous byte was CR (0x0D), exclude it
-        final int lineEndExclusive = (i > processedIndex && data[i - 1] == 0x0D)
-            ? i - 1
-            : i;
+        final int lineEndExclusive =
+            (i > processedIndex && data[i - 1] == 0x0D) ? i - 1 : i;
 
         final chunk = data.sublist(processedIndex, lineEndExclusive);
         final fullLine = Uint8List.fromList([..._pendingData, ...chunk]);
