@@ -38,6 +38,16 @@ jobs:
         working-directory: SkyPort
         run: flutter test --coverage
 
+      - name: Exclude generated files from coverage
+        working-directory: SkyPort
+        run: |
+          awk '
+            /^SF:lib[\/\\]l10n[\/\\]app_localizations(_.*)?\.dart$/ { skip=1; next }
+            /^SF:/ { skip=0 }
+            !skip { print }
+          ' coverage/lcov.info > coverage/lcov.filtered.info
+          mv coverage/lcov.filtered.info coverage/lcov.info
+
       - name: Check coverage threshold
         working-directory: SkyPort
         run: |
