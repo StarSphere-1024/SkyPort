@@ -8,7 +8,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 THRESHOLD=70
-COVERAGE_FILE="coverage/lcov.info"
+COVERAGE_FILE="SkyPort/coverage/lcov.info"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -31,9 +31,16 @@ if [ ! -f "$COVERAGE_FILE" ]; then
   exit 1
 fi
 
-# Parse lcov.info and calculate coverage
-TOTAL_LF=$(grep "^LF:" "$COVERAGE_FILE" | awk -F: '{sum+=$2} END {print sum}')
-TOTAL_LH=$(grep "^LH:" "$COVERAGE_FILE" | awk -F: '{sum+=$2} END {print sum}')
+# Parse lcov.info and calculate coverage. Keep this aligned with CI by
+# excluding generated localization files.
+TOTALS=$(awk '
+  /^SF:lib[\/\\]l10n[\/\\]app_localizations(_.*)?\.dart$/ { skip=1; next }
+  /^SF:/ { skip=0 }
+  !skip && /^LF:/ { split($0, a, ":"); lf += a[2] }
+  !skip && /^LH:/ { split($0, a, ":"); lh += a[2] }
+  END { print lf " " lh }
+' "$COVERAGE_FILE")
+read -r TOTAL_LF TOTAL_LH <<< "$TOTALS"
 
 if [ "$TOTAL_LF" -eq 0 ]; then
   echo "❌ No coverage data found"

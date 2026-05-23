@@ -18,15 +18,23 @@ if (!(Test-Path $CoverageFile)) {
     exit 1
 }
 
-# Parse lcov.info and calculate coverage
+# Parse lcov.info and calculate coverage. Keep this aligned with CI by
+# excluding generated localization files.
 $TotalLF = 0
 $TotalLH = 0
+$SkipFile = $false
 
 Get-Content $CoverageFile | ForEach-Object {
-    if ($_ -match "^LF:(\d+)") {
+    if ($_ -match "^SF:lib[\/\\]l10n[\/\\]app_localizations(_.*)?\.dart$") {
+        $SkipFile = $true
+    }
+    elseif ($_ -match "^SF:") {
+        $SkipFile = $false
+    }
+    elseif (!$SkipFile -and $_ -match "^LF:(\d+)") {
         $TotalLF += [int]$matches[1]
     }
-    elseif ($_ -match "^LH:(\d+)") {
+    elseif (!$SkipFile -and $_ -match "^LH:(\d+)") {
         $TotalLH += [int]$matches[1]
     }
 }
