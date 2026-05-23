@@ -47,7 +47,7 @@ jobs:
         env:
           TAG_NAME: ${{ github.ref_name }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bash .github/scripts/generate-release-notes.sh "$TAG_NAME" release_notes.md artifacts
+        run: node .github/scripts/generate-release-notes.mjs "$TAG_NAME" release_notes.md artifacts
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
