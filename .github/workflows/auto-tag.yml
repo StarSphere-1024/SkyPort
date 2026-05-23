@@ -31,21 +31,20 @@ jobs:
       - name: Detect version change
         id: version_check
         run: |
-          # Extract current version (strip build number)
           CURRENT_VERSION=$(sed -n 's/^[[:space:]]*version:[[:space:]]*\([^+]*\).*/\1/p' SkyPort/pubspec.yaml | head -n 1 | tr -d '\r')
           echo "Current version: $CURRENT_VERSION"
 
-          # Get previous version from HEAD~1
           PREV_VERSION=$(git show HEAD~1:SkyPort/pubspec.yaml 2>/dev/null | sed -n 's/^[[:space:]]*version:[[:space:]]*\([^+]*\).*/\1/p' | head -n 1 | tr -d '\r' || echo "")
           echo "Previous version: $PREV_VERSION"
 
-          # Check if tag already exists
           TAG_NAME="v${CURRENT_VERSION}"
           TAG_EXISTS=$(git tag -l "$TAG_NAME")
           echo "Tag exists check: $TAG_EXISTS"
 
-          # Determine if we should create a tag
-          if [ -z "$PREV_VERSION" ]; then
+          if [ -z "$CURRENT_VERSION" ]; then
+            echo "No current version found"
+            echo "should_tag=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$PREV_VERSION" ]; then
             echo "No previous version found"
             echo "should_tag=false" >> "$GITHUB_OUTPUT"
           elif [ "$CURRENT_VERSION" = "$PREV_VERSION" ]; then
@@ -61,9 +60,15 @@ jobs:
             echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
           fi
 
+  release-gate-tests:
+    name: Release Gate Tests
+    needs: detect-version-change
+    if: needs.detect-version-change.outputs.should_tag == 'true'
+    uses: ./.github/workflows/test.yml
+
   create-tag:
     name: Create Tag
-    needs: detect-version-change
+    needs: [detect-version-change, build]
     if: needs.detect-version-change.outputs.should_tag == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -79,18 +84,46 @@ jobs:
 
           echo "Creating tag: $TAG_NAME for version: $VERSION"
 
-          # Configure git
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Create annotated tag
           git tag -a "$TAG_NAME" -m "Release $TAG_NAME
 
           Version: $VERSION
           Branch: ${{ github.ref_name }}
           Commit: ${{ github.sha }}"
 
-          # Push tag to trigger release workflow
           git push origin "$TAG_NAME"
+          echo "Tag $TAG_NAME created and pushed"
 
-          echo "✅ Tag $TAG_NAME created and pushed"
+  build:
+    name: Build Release Artifacts
+    needs: release-gate-tests
+    uses: ./.github/workflows/build-matrix.yml
+    with:
+      retention-days: 30
+
+  release:
+    name: Create GitHub Release
+    needs: [detect-version-change, build, create-tag]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          pattern: '*'
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -R artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.detect-version-change.outputs.tag_name }}
+          name: SkyPort ${{ needs.detect-version-change.outputs.tag_name }}
+          generate_release_notes: true
+          files: artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
