@@ -108,6 +108,11 @@ jobs:
     needs: [detect-version-change, build, create-tag]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
       - name: Download artifacts
         uses: actions/download-artifact@v8
         with:
@@ -118,12 +123,18 @@ jobs:
       - name: List artifacts
         run: ls -R artifacts
 
+      - name: Generate release notes
+        env:
+          TAG_NAME: ${{ needs.detect-version-change.outputs.tag_name }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash .github/scripts/generate-release-notes.sh "$TAG_NAME" release_notes.md artifacts
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.detect-version-change.outputs.tag_name }}
           name: SkyPort ${{ needs.detect-version-change.outputs.tag_name }}
-          generate_release_notes: true
+          body_path: release_notes.md
           files: artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
