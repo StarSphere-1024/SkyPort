@@ -16,7 +16,8 @@ abstract class SerialPortSessionInterface {
   /// Write data to the serial port.
   /// Returns the number of bytes written.
   /// Throws [SerialPortWriteException] on failure.
-  int write(Uint8List data, {int timeoutMs = SkyPortConstants.defaultWriteTimeoutMs});
+  int write(Uint8List data,
+      {int timeoutMs = SkyPortConstants.defaultWriteTimeoutMs});
 
   /// Close the serial port and release resources.
   void dispose();
@@ -31,7 +32,8 @@ class SerialPortSession implements SerialPortSessionInterface {
   final SerialPort _port;
   final SerialPortReader _reader;
 
-  SerialPortSession({required SerialPort port, required SerialPortReader reader})
+  SerialPortSession(
+      {required SerialPort port, required SerialPortReader reader})
       : _port = port,
         _reader = reader;
 
@@ -39,7 +41,8 @@ class SerialPortSession implements SerialPortSessionInterface {
   Stream<Uint8List> get stream => _reader.stream;
 
   @override
-  int write(Uint8List data, {int timeoutMs = SkyPortConstants.defaultWriteTimeoutMs}) {
+  int write(Uint8List data,
+      {int timeoutMs = SkyPortConstants.defaultWriteTimeoutMs}) {
     try {
       final written = _port.write(data, timeout: timeoutMs);
       if (written <= 0) {
@@ -56,9 +59,15 @@ class SerialPortSession implements SerialPortSessionInterface {
   @override
   void dispose() {
     try {
+      _reader.close();
+    } catch (_) {}
+    try {
       if (_port.isOpen) {
         _port.close();
       }
+    } catch (_) {}
+    try {
+      _port.dispose();
     } catch (_) {}
   }
 }
@@ -91,8 +100,7 @@ abstract class SerialPortServiceInterface {
   Future<List<String>> getAvailablePorts();
 
   /// Open a serial port session.
-  Future<SerialPortSessionInterface> open(SerialConfig config,
-      {Duration timeout = const Duration(seconds: 5)});
+  Future<SerialPortSessionInterface> open(SerialConfig config);
 
   /// Close a serial port session.
   Future<void> close(SerialPortSessionInterface? session);
@@ -107,8 +115,7 @@ class SerialPortService implements SerialPortServiceInterface {
   }
 
   @override
-  Future<SerialPortSessionInterface> open(SerialConfig config,
-      {Duration timeout = const Duration(seconds: 5)}) async {
+  Future<SerialPortSessionInterface> open(SerialConfig config) async {
     if (config.portName.isEmpty) {
       throw SerialPortOpenException('Port name cannot be empty');
     }
@@ -126,16 +133,15 @@ class SerialPortService implements SerialPortServiceInterface {
 
     bool success = false;
     try {
-      final opened = await Future<bool>.value(port.openReadWrite())
-          .timeout(timeout, onTimeout: () => false);
+      final opened = port.openReadWrite();
       if (!opened) {
-        throw SerialPortOpenTimeoutException();
+        throw SerialPortOpenException('Failed to open port');
       }
       port.config = portConfig;
       final reader = SerialPortReader(port);
       success = true;
       return SerialPortSession(port: port, reader: reader);
-    } on SerialPortOpenTimeoutException {
+    } on SerialPortOpenException {
       rethrow;
     } catch (e) {
       throw SerialPortOpenException('Error opening port: $e');

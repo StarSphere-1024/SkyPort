@@ -23,6 +23,7 @@ class SettingsPopup extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final serialState = ref.watch(serialPortManagerProvider);
     final serialManager = ref.read(serialPortManagerProvider.notifier);
+    final uiSettings = ref.watch(uiSettingsProvider);
 
     return Form(
       key: formKey,
@@ -100,7 +101,7 @@ class SettingsPopup extends ConsumerWidget {
           const Divider(),
           CompactSwitch(
             label: AppLocalizations.of(context).enableAnsi,
-            value: ref.watch(uiSettingsProvider).enableAnsi,
+            value: uiSettings.enableAnsi,
             onChanged: (v) =>
                 ref.read(uiSettingsProvider.notifier).setEnableAnsi(v),
           ),
@@ -159,19 +160,7 @@ class SettingsPopup extends ConsumerWidget {
                 child: Row(
                   children: [
                     Expanded(
-                      child: TextField(
-                        controller: TextEditingController(
-                          text: ref.watch(uiSettingsProvider).logExportPath,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: AppLocalizations.of(context).exportPathHint,
-                          isDense: true,
-                        ),
-                        readOnly: true,
-                        enabled: ref
-                            .watch(uiSettingsProvider)
-                            .logExportPath
-                            .isNotEmpty,
+                      child: InkWell(
                         onTap: () async {
                           final path =
                               await FilePicker.platform.getDirectoryPath();
@@ -181,6 +170,19 @@ class SettingsPopup extends ConsumerWidget {
                                 .setLogExportPath(path);
                           }
                         },
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            hintText:
+                                AppLocalizations.of(context).exportPathHint,
+                            isDense: true,
+                          ),
+                          child: Text(
+                            uiSettings.logExportPath.isEmpty
+                                ? AppLocalizations.of(context).exportPathHint
+                                : uiSettings.logExportPath,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ),
                     ),
                     IconButton(

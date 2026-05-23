@@ -21,8 +21,7 @@ class FakeSerialPortService implements SerialPortServiceInterface {
   Future<List<String>> getAvailablePorts() async => _availablePorts;
 
   @override
-  Future<SerialPortSessionInterface> open(SerialConfig config,
-      {Duration timeout = const Duration(seconds: 5)}) async {
+  Future<SerialPortSessionInterface> open(SerialConfig config) async {
     // Return a FakeSerialPortSession
     return FakeSerialPortSession();
   }
@@ -40,8 +39,7 @@ class FakeSerialPortService implements SerialPortServiceInterface {
 /// It uses StreamController to simulate incoming data streams,
 /// allowing tests to run without real hardware or FFI bindings.
 class FakeSerialPortSession implements SerialPortSessionInterface {
-  final StreamController<Uint8List> _controller =
-      StreamController.broadcast();
+  final StreamController<Uint8List> _controller = StreamController.broadcast();
 
   @override
   Stream<Uint8List> get stream => _controller.stream;

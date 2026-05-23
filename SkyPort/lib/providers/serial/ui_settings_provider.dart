@@ -28,14 +28,20 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
       showTimestamp: prefs.getBool(_keyShowTimestamp) ?? true,
       showSent: prefs.getBool(_keyShowSent) ?? true,
       appendNewline: prefs.getBool(_keyAppendNewline) ?? false,
-      newlineMode: NewlineMode
-          .values[prefs.getInt(_keyNewlineMode) ?? NewlineMode.lf.index],
+      newlineMode: _loadNewlineMode(prefs.getInt(_keyNewlineMode)),
       enableAnsi: prefs.getBool(_keyEnableAnsi) ?? false,
       logBufferSize: prefs.getInt(_keyLogBufferSize) ?? 128,
       autoSendEnabled: prefs.getBool(_keyAutoSendEnabled) ?? false,
       autoSendIntervalMs: prefs.getInt(_keyAutoSendIntervalMs) ?? 1000,
       logExportPath: prefs.getString(_keyLogExportPath) ?? '',
     );
+  }
+
+  NewlineMode _loadNewlineMode(int? index) {
+    if (index == null || index < 0 || index >= NewlineMode.values.length) {
+      return NewlineMode.lf;
+    }
+    return NewlineMode.values[index];
   }
 
   void setHexDisplay(bool value) {
