@@ -5,9 +5,9 @@ project(runner LANGUAGES CXX)
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
 set(BINARY_NAME "skyport")
-# The unique GTK application identifier for this application. See:
-# https://wiki.gnome.org/HowDoI/ChooseApplicationID
-set(APPLICATION_ID "skyport")
+# The unique GTK application identifier for this application. It must be a
+# valid D-Bus-style application ID, otherwise GLib rejects it at startup.
+set(APPLICATION_ID "com.starsphere.SkyPort")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
