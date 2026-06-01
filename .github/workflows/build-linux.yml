@@ -30,9 +30,11 @@ jobs:
           - arch: x64
             runner: ubuntu-22.04
             arch_name: amd64
+            appimage_arch: x86_64
           - arch: arm64
             runner: ubuntu-24.04-arm
             arch_name: arm64
+            appimage_arch: arm_aarch64
           - ff_job: linux-deb
             pkg_suffix: -deb
           - ff_job: linux-appimage
@@ -93,12 +95,56 @@ jobs:
       - name: Activate fastforge
         run: dart pub global activate fastforge
 
+      - name: Patch fastforge AppImage generator
+        if: matrix.ff_job == 'linux-appimage'
+        run: |
+          set -euo pipefail
+
+          CONFIG_FILE=$(find "$HOME/.pub-cache/hosted" -path '*/flutter_app_packager-*/lib/src/makers/appimage/make_appimage_config.dart' | head -n 1)
+          MAKER_FILE=$(find "$HOME/.pub-cache/hosted" -path '*/flutter_app_packager-*/lib/src/makers/appimage/app_package_maker_appimage.dart' | head -n 1)
+
+          if [ -z "$CONFIG_FILE" ] || [ -z "$MAKER_FILE" ]; then
+            echo "flutter_app_packager AppImage sources were not found in pub cache" >&2
+            exit 1
+          fi
+
+          python3 - "$CONFIG_FILE" "$MAKER_FILE" <<'PY'
+          from pathlib import Path
+          import sys
+
+          config_path = Path(sys.argv[1])
+          maker_path = Path(sys.argv[2])
+
+          config = config_path.read_text()
+          replacements = {
+              "'Exec': 'LD_LIBRARY_PATH=usr/lib $appName %u'":
+                  "'Exec': '$appName %u'",
+              "'LD_LIBRARY_PATH=usr/lib $appName ${action.arguments.join(' ')} %u'":
+                  "'$appName ${action.arguments.join(' ')} %u'",
+              "export LD_LIBRARY_PATH=usr/lib\n": "",
+          }
+          for old, new in replacements.items():
+              if old not in config:
+                  raise SystemExit(f'Expected AppImage config text was not found: {old}')
+              config = config.replace(old, new)
+          config_path.write_text(config)
+
+          maker = maker_path.read_text()
+          old = "'ARCH': 'x86_64'"
+          new = "'ARCH': Platform.environment['ARCH'] ?? 'x86_64'"
+          if old not in maker:
+              raise SystemExit('Expected hardcoded ARCH value was not found')
+          maker_path.write_text(maker.replace(old, new))
+          PY
+
       - name: Download Dart/Flutter deps
         working-directory: SkyPort
         run: flutter pub get
 
       - name: Build (${{ matrix.ff_job }})
         working-directory: SkyPort
+        env:
+          ARCH: ${{ matrix.appimage_arch }}
         run: fastforge release --name release --jobs ${{ matrix.ff_job }}
 
       - name: List dist
