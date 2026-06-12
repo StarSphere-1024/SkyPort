@@ -9,6 +9,11 @@ releases:
           platform: linux
           target: deb
           arch: x64
+      - name: linux-rpm
+        package:
+          platform: linux
+          target: rpm
+          arch: x64
       - name: linux-appimage
         package:
           platform: linux
@@ -19,6 +24,11 @@ releases:
         package:
           platform: linux
           target: deb
+          arch: arm64
+      - name: linux-arm64-rpm
+        package:
+          platform: linux
+          target: rpm
           arch: arm64
       - name: linux-arm64-appimage
         package:
