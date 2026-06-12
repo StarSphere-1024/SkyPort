@@ -1,0 +1,25 @@
+# RPM packaging configuration for SkyPort.
+display_name: SkyPort
+generic_name: SkyPort
+
+# Desktop entry metadata.
+icon: assets/icon.png
+categories:
+  - Development
+  - Utility
+
+# RPM spec metadata.
+summary: Serial port debugging assistant
+description: A serial port debugging assistant.
+group: Development/Tools
+vendor: StarSphere-1024
+packager: StarSphere-1024
+packagerEmail: starsphere@foxmail.com
+license: AGPL-3.0-only
+url: https://github.com/StarSphere-1024/SkyPort
+
+# Fedora/RHEL package dependency names.
+requires:
+  - gtk3
+
+# build_arch is inferred by fastforge/flutter_app_packager from the runner.
