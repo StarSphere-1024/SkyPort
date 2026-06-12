@@ -52,6 +52,12 @@ class SkyPortConstants {
   /// Connection settle delay in milliseconds
   static const int connectionSettleDelayMs = 200;
 
+  /// Serial reader native event wait timeout in milliseconds
+  static const int serialReadPollTimeoutMs = 50;
+
+  /// Grace period for the serial reader isolate to stop using native handles
+  static const int serialReaderShutdownDelayMs = 100;
+
   /// Port polling interval in milliseconds
   static const int portPollIntervalMs = 500;
 

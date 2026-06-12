@@ -20,7 +20,7 @@ abstract class SerialPortSessionInterface {
       {int timeoutMs = SkyPortConstants.defaultWriteTimeoutMs});
 
   /// Close the serial port and release resources.
-  void dispose();
+  Future<void> dispose();
 }
 
 /// Production implementation of SerialPortSessionInterface.
@@ -57,15 +57,21 @@ class SerialPortSession implements SerialPortSessionInterface {
   }
 
   @override
-  void dispose() {
+  Future<void> dispose() async {
     try {
       _reader.close();
     } catch (_) {}
+    await Future.delayed(
+      const Duration(milliseconds: SkyPortConstants.serialReaderShutdownDelayMs),
+    );
     try {
       if (_port.isOpen) {
         _port.close();
       }
     } catch (_) {}
+    await Future.delayed(
+      const Duration(milliseconds: SkyPortConstants.serialReaderShutdownDelayMs),
+    );
     try {
       _port.dispose();
     } catch (_) {}
@@ -138,7 +144,10 @@ class SerialPortService implements SerialPortServiceInterface {
         throw SerialPortOpenException('Failed to open port');
       }
       port.config = portConfig;
-      final reader = SerialPortReader(port);
+      final reader = SerialPortReader(
+        port,
+        timeout: SkyPortConstants.serialReadPollTimeoutMs,
+      );
       success = true;
       return SerialPortSession(port: port, reader: reader);
     } on SerialPortOpenException {
@@ -160,7 +169,7 @@ class SerialPortService implements SerialPortServiceInterface {
   Future<void> close(SerialPortSessionInterface? session) async {
     if (session == null) return;
     try {
-      session.dispose();
+      await session.dispose();
     } catch (e) {
       // Intentionally ignore: provider decides whether to surface the error.
     }

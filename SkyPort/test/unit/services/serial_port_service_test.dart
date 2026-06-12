@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_libserialport/flutter_libserialport.dart';
 import 'package:mocktail/mocktail.dart';
@@ -10,6 +13,27 @@ class MockSerialPort extends Mock implements SerialPort {}
 class MockSerialPortReader extends Mock implements SerialPortReader {}
 
 class MockSerialPortConfig extends Mock implements SerialPortConfig {}
+
+class DelayedDisposeSession implements SerialPortSessionInterface {
+  final Completer<void> _disposeCompleter = Completer<void>();
+  bool disposeStarted = false;
+
+  @override
+  Stream<Uint8List> get stream => const Stream.empty();
+
+  @override
+  int write(Uint8List data, {int timeoutMs = 100}) => data.length;
+
+  @override
+  Future<void> dispose() async {
+    disposeStarted = true;
+    await _disposeCompleter.future;
+  }
+
+  void completeDispose() {
+    _disposeCompleter.complete();
+  }
+}
 
 void main() {
   group('SerialPortService', () {
@@ -192,6 +216,24 @@ void main() {
 
       test('close ignores errors gracefully', () async {
         expect(() => service.close(null), returnsNormally);
+      });
+
+      test('close waits for async session disposal', () async {
+        final session = DelayedDisposeSession();
+        var closeCompleted = false;
+
+        final closeFuture = service.close(session).then((_) {
+          closeCompleted = true;
+        });
+        await Future<void>.delayed(Duration.zero);
+
+        expect(session.disposeStarted, true);
+        expect(closeCompleted, false);
+
+        session.completeDispose();
+        await closeFuture;
+
+        expect(closeCompleted, true);
       });
     });
 
