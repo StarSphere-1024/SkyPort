@@ -29,7 +29,7 @@ class FakeSerialPortService implements SerialPortServiceInterface {
   @override
   Future<void> close(SerialPortSessionInterface? session) async {
     // Simulate closing
-    session?.dispose();
+    await session?.dispose();
   }
 }
 
@@ -65,9 +65,9 @@ class FakeSerialPortSession implements SerialPortSessionInterface {
   }
 
   @override
-  void dispose() {
+  Future<void> dispose() async {
     if (!_controller.isClosed) {
-      _controller.close();
+      await _controller.close();
     }
   }
 }

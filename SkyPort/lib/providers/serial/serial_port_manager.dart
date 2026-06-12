@@ -218,7 +218,7 @@ class SerialPortManager extends Notifier<SerialPortState> {
 
           final session = await _service.open(configToApply);
           if (!_shouldApplyOperation(token)) {
-            session.dispose();
+            await session.dispose();
             break;
           }
 
@@ -249,7 +249,7 @@ class SerialPortManager extends Notifier<SerialPortState> {
     try {
       final session = await _service.open(configToOpen);
       if (!_shouldApplyOperation(token)) {
-        session.dispose();
+        await session.dispose();
         return;
       }
       _onConnected(session, configToOpen);
@@ -392,7 +392,7 @@ class SerialPortManager extends Notifier<SerialPortState> {
 
     if (_session != null) {
       try {
-        _session!.dispose();
+        await _session!.dispose();
       } catch (_) {}
       _session = null;
     }
