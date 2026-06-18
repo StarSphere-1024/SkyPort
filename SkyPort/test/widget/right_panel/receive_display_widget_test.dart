@@ -1,7 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skyport/models/log_model.dart';
 import 'package:skyport/models/ui_settings.dart';
@@ -18,6 +20,15 @@ class TestDataLogNotifier extends DataLogNotifier {
   final LogState _initialState;
 
   TestDataLogNotifier(this._initialState);
+
+  @override
+  LogState build() => _initialState;
+}
+
+class MutableTestDataLogNotifier extends DataLogNotifier {
+  final LogState _initialState;
+
+  MutableTestDataLogNotifier(this._initialState);
 
   @override
   LogState build() => _initialState;
@@ -53,6 +64,16 @@ Widget createReceiveDisplayTestWidget({
         ),
       ),
     ),
+  );
+}
+
+Offset _textOffsetToGlobalPosition(RenderParagraph paragraph, int offset) {
+  final localOffset = paragraph.getOffsetForCaret(
+    TextPosition(offset: offset),
+    Rect.zero,
+  );
+  return paragraph.localToGlobal(
+    localOffset + Offset(1, paragraph.size.height / 2),
   );
 }
 
@@ -529,6 +550,157 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(SelectionArea), findsOneWidget);
+    });
+
+    testWidgets('does not auto-scroll while text is selected', (tester) async {
+      final entries = List.generate(
+        80,
+        (i) => LogEntry(
+          Uint8List.fromList('Line $i'.codeUnits),
+          LogEntryType.received,
+          DateTime.now(),
+        ),
+      );
+      final initialState = LogState(
+        chunks: [LogChunk(entries: entries, totalBytes: 550, id: 0)],
+        totalBytes: 550,
+        nextChunkId: 1,
+      );
+      late MutableTestDataLogNotifier notifier;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sharedPreferencesProvider
+                .overrideWithValue(FakeSharedPreferences()),
+            dataLogProvider.overrideWith(
+              () => notifier = MutableTestDataLogNotifier(initialState),
+            ),
+            uiSettingsProvider.overrideWith(
+              () => TestUiSettingsNotifier(
+                const UiSettings(showTimestamp: false, showSent: false),
+              ),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: Column(
+                children: [ReceiveDisplayWidget()],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final listView = tester.widget<ListView>(find.byType(ListView));
+      final controller = listView.controller!;
+      controller.jumpTo(0);
+      await tester.pump();
+
+      final paragraph = tester.renderObject<RenderParagraph>(
+        find.descendant(
+            of: find.textContaining('Line 0'), matching: find.byType(RichText)),
+      );
+      final gesture = await tester.startGesture(
+        _textOffsetToGlobalPosition(paragraph, 0),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pump();
+      await gesture.moveTo(_textOffsetToGlobalPosition(paragraph, 4));
+      await gesture.up();
+      await tester.pump();
+      expect(paragraph.selections, isNotEmpty);
+
+      notifier.addReceived(Uint8List.fromList('incoming'.codeUnits));
+      await tester.pump();
+
+      expect(controller.offset, 0);
+    });
+
+    testWidgets('keeps text selection independent across two receive displays',
+        (tester) async {
+      LogChunk chunkFor(String text) {
+        final data = Uint8List.fromList(text.codeUnits);
+        return LogChunk(
+          entries: [
+            LogEntry(data, LogEntryType.received, DateTime.now()),
+          ],
+          totalBytes: data.length,
+          id: 0,
+        );
+      }
+
+      Widget scopedDisplay(String text) {
+        final chunks = [chunkFor(text)];
+        return ProviderScope(
+          overrides: [
+            sharedPreferencesProvider
+                .overrideWithValue(FakeSharedPreferences()),
+            dataLogProvider.overrideWith(
+              () => TestDataLogNotifier(
+                LogState(
+                  chunks: chunks,
+                  totalBytes: chunks.first.totalBytes,
+                  nextChunkId: 1,
+                ),
+              ),
+            ),
+            uiSettingsProvider.overrideWith(
+              () => TestUiSettingsNotifier(
+                const UiSettings(showTimestamp: false, showSent: false),
+              ),
+            ),
+          ],
+          child: const ReceiveDisplayWidget(),
+        );
+      }
+
+      RenderParagraph paragraphContaining(String text) {
+        return tester.renderObject<RenderParagraph>(
+          find.byWidgetPredicate(
+            (widget) =>
+                widget is RichText && widget.text.toPlainText().contains(text),
+          ),
+        );
+      }
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Row(
+              children: [
+                scopedDisplay('FIRST WINDOW'),
+                scopedDisplay('SECOND WINDOW'),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final firstParagraph = paragraphContaining('FIRST WINDOW');
+      final firstGesture = await tester.startGesture(
+        _textOffsetToGlobalPosition(firstParagraph, 0),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pump();
+      await firstGesture.moveTo(_textOffsetToGlobalPosition(firstParagraph, 5));
+      await firstGesture.up();
+      await tester.pump();
+      expect(firstParagraph.selections, isNotEmpty);
+
+      final secondParagraph = paragraphContaining('SECOND WINDOW');
+      final secondGesture = await tester.startGesture(
+        _textOffsetToGlobalPosition(secondParagraph, 0),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pump();
+      await secondGesture
+          .moveTo(_textOffsetToGlobalPosition(secondParagraph, 6));
+      await secondGesture.up();
+      await tester.pump();
+      expect(secondParagraph.selections, isNotEmpty);
     });
 
     testWidgets('handles scroll notifications', (tester) async {
