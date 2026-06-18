@@ -73,6 +73,7 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
   bool _isAtBottom = true;
   bool _stickToBottom = true;
   bool _programmaticScroll = false;
+  bool _hasActiveSelection = false;
 
   @override
   void initState() {
@@ -83,7 +84,8 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
       final currentScroll = _scrollController.position.pixels;
 
       // Use a more lenient threshold to determine if at bottom, to avoid floating point precision issues
-      final isBottom = currentScroll >= (maxScroll - SkyPortConstants.scrollBottomThreshold);
+      final isBottom =
+          currentScroll >= (maxScroll - SkyPortConstants.scrollBottomThreshold);
 
       if (_isAtBottom != isBottom) {
         // Only setState when the state actually changes
@@ -140,7 +142,8 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
         _scrollController
             .animateTo(
           maxScroll,
-          duration: Duration(milliseconds: SkyPortConstants.scrollAnimationDurationMs),
+          duration: Duration(
+              milliseconds: SkyPortConstants.scrollAnimationDurationMs),
           curve: Curves.easeOut,
         )
             .then((_) {
@@ -166,7 +169,7 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
       // breaks Stick Mode because the view grows but we never scroll.
       final prevBytes = previous?.totalBytes ?? 0;
       final nextBytes = next.totalBytes;
-      if (nextBytes > prevBytes) _scrollToBottom();
+      if (nextBytes > prevBytes && !_hasActiveSelection) _scrollToBottom();
     });
 
     return Expanded(
@@ -240,6 +243,13 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                             return false;
                           },
                           child: SelectionArea(
+                            onSelectionChanged: (content) {
+                              final hasSelection =
+                                  content?.plainText.isNotEmpty ?? false;
+                              if (_hasActiveSelection != hasSelection) {
+                                _hasActiveSelection = hasSelection;
+                              }
+                            },
                             child: ListView.builder(
                               controller: _scrollController,
                               padding:
