@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:ansi_escape_codes/ansi_escape_codes.dart' as ansi;
 
 import '../models/log_model.dart';
 import '../l10n/app_localizations.dart';
@@ -99,7 +100,7 @@ class LogExportService {
   }
 
   /// Generate WYSIWYG export content - exactly matches UI display
-  /// Includes: timestamp, TX/RX markers, data (hex/text), ANSI sequences
+  /// Includes: timestamp, TX/RX markers, rendered data text, ANSI parsing
   /// Package-visible for testing
   @visibleForTesting
   static String generateWysiwygContentForTest(
@@ -109,7 +110,8 @@ class LogExportService {
     bool showSent,
     bool enableAnsi,
   ) {
-    return _generateWysiwygContent(entries, hexDisplay, showTimestamp, showSent, enableAnsi);
+    return _generateWysiwygContent(
+        entries, hexDisplay, showTimestamp, showSent, enableAnsi);
   }
 
   static String _generateWysiwygContent(
@@ -124,7 +126,8 @@ class LogExportService {
 
     for (final entry in entries) {
       final isSent = entry.type == LogEntryType.sent;
-      final formattedTimestamp = DateFormat('HH:mm:ss.SSS').format(entry.timestamp);
+      final formattedTimestamp =
+          DateFormat('HH:mm:ss.SSS').format(entry.timestamp);
       String dataText = entry.getDisplayText(hexDisplay);
 
       // Truncation (same as UI)
@@ -154,8 +157,7 @@ class LogExportService {
 
         // Data content
         if (enableAnsi && !hexDisplay) {
-          // Keep ANSI sequences as-is for terminal compatibility
-          lineBuffer.write(line);
+          lineBuffer.write(ansi.AnsiParser(line).removeAll());
         } else {
           lineBuffer.write(line);
         }
@@ -167,7 +169,8 @@ class LogExportService {
 
         // Newline handling (same as UI)
         if (j < lines.length - 1) {
-          final isTrailingNewline = (j == lines.length - 2 && lines.last.isEmpty);
+          final isTrailingNewline =
+              (j == lines.length - 2 && lines.last.isEmpty);
           final isInternalEmptyLine = line.isEmpty;
           if (isTrailingNewline || isInternalEmptyLine) {
             lineBuffer.write('\n');
