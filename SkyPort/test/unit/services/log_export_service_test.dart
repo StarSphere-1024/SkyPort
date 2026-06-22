@@ -16,8 +16,10 @@ void main() {
         final now = DateTime.now();
         final chunk = LogChunk(
           entries: [
-            LogEntry(Uint8List.fromList('RX1'.codeUnits), LogEntryType.received, now),
-            LogEntry(Uint8List.fromList('TX1'.codeUnits), LogEntryType.sent, now),
+            LogEntry(Uint8List.fromList('RX1'.codeUnits), LogEntryType.received,
+                now),
+            LogEntry(
+                Uint8List.fromList('TX1'.codeUnits), LogEntryType.sent, now),
           ],
           totalBytes: 6,
           id: 1,
@@ -34,9 +36,12 @@ void main() {
         final now = DateTime.now();
         final chunk = LogChunk(
           entries: [
-            LogEntry(Uint8List.fromList('RX1'.codeUnits), LogEntryType.received, now),
-            LogEntry(Uint8List.fromList('TX1'.codeUnits), LogEntryType.sent, now),
-            LogEntry(Uint8List.fromList('RX2'.codeUnits), LogEntryType.received, now),
+            LogEntry(Uint8List.fromList('RX1'.codeUnits), LogEntryType.received,
+                now),
+            LogEntry(
+                Uint8List.fromList('TX1'.codeUnits), LogEntryType.sent, now),
+            LogEntry(Uint8List.fromList('RX2'.codeUnits), LogEntryType.received,
+                now),
           ],
           totalBytes: 9,
           id: 1,
@@ -57,20 +62,23 @@ void main() {
         final now = DateTime.now();
         final chunk1 = LogChunk(
           entries: [
-            LogEntry(Uint8List.fromList('RX1'.codeUnits), LogEntryType.received, now),
+            LogEntry(Uint8List.fromList('RX1'.codeUnits), LogEntryType.received,
+                now),
           ],
           totalBytes: 3,
           id: 1,
         );
         final chunk2 = LogChunk(
           entries: [
-            LogEntry(Uint8List.fromList('TX1'.codeUnits), LogEntryType.sent, now),
+            LogEntry(
+                Uint8List.fromList('TX1'.codeUnits), LogEntryType.sent, now),
           ],
           totalBytes: 3,
           id: 2,
         );
 
-        final result = LogExportService.filterEntriesForTest([chunk1, chunk2], true);
+        final result =
+            LogExportService.filterEntriesForTest([chunk1, chunk2], true);
 
         expect(result.length, 2);
       });
@@ -478,12 +486,52 @@ void main() {
           expect(result, 'Hello World\n');
         });
 
+        test('strips ANSI escapes when ANSI parsing is enabled', () {
+          final entry = LogEntry(
+            Uint8List.fromList('Normal \x1b[31mRed\x1b[0m Done'.codeUnits),
+            LogEntryType.received,
+            DateTime.now(),
+          );
+
+          final result = LogExportService.generateWysiwygContentForTest(
+            [entry],
+            false,
+            false,
+            false,
+            true,
+          );
+
+          expect(result, 'Normal Red Done\n');
+          expect(result.contains('\x1b'), false);
+        });
+
+        test('keeps ANSI escapes when ANSI parsing is disabled', () {
+          final entry = LogEntry(
+            Uint8List.fromList('Normal \x1b[31mRed\x1b[0m Done'.codeUnits),
+            LogEntryType.received,
+            DateTime.now(),
+          );
+
+          final result = LogExportService.generateWysiwygContentForTest(
+            [entry],
+            false,
+            false,
+            false,
+            false,
+          );
+
+          expect(result, 'Normal \x1b[31mRed\x1b[0m Done\n');
+        });
+
         test('multiple entries are output in order', () {
           final now = DateTime.now();
           final entries = [
-            LogEntry(Uint8List.fromList('First'.codeUnits), LogEntryType.received, now.add(Duration(milliseconds: 1))),
-            LogEntry(Uint8List.fromList('Second'.codeUnits), LogEntryType.sent, now.add(Duration(milliseconds: 2))),
-            LogEntry(Uint8List.fromList('Third'.codeUnits), LogEntryType.received, now.add(Duration(milliseconds: 3))),
+            LogEntry(Uint8List.fromList('First'.codeUnits),
+                LogEntryType.received, now.add(Duration(milliseconds: 1))),
+            LogEntry(Uint8List.fromList('Second'.codeUnits), LogEntryType.sent,
+                now.add(Duration(milliseconds: 2))),
+            LogEntry(Uint8List.fromList('Third'.codeUnits),
+                LogEntryType.received, now.add(Duration(milliseconds: 3))),
           ];
 
           final result = LogExportService.generateWysiwygContentForTest(
