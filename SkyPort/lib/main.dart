@@ -31,8 +31,7 @@ void main() async {
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
     await windowManager.ensureInitialized();
 
-    WindowOptions windowOptions = const WindowOptions(
-      size: Size(1200, 800),
+    const windowOptions = WindowOptions(
       minimumSize: Size(800, 600),
     );
     windowManager.waitUntilReadyToShow(windowOptions, () async {
