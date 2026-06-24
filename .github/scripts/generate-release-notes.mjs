@@ -56,16 +56,23 @@ function detectArchitecture(filename) {
   return "Universal";
 }
 
-function downloadLink(label, filename) {
+function badge(label, arch, color, logo, filename) {
+  const encodedArch = encodeURIComponent(arch);
+  const assetUrl = `https://github.com/${repo}/releases/download/${tagName}/${filename}`;
+  const badgeUrl = `https://img.shields.io/badge/${label}-${encodedArch}-${color}?logo=${logo}`;
+  return `[![${label}](${badgeUrl})](${assetUrl})`;
+}
+
+function textLink(label, filename) {
   const assetUrl = `https://github.com/${repo}/releases/download/${tagName}/${filename}`;
   return `[${label}](${assetUrl})`;
 }
 
-function addDownload(os, label, arch, filename) {
+function addDownload(os, label, arch, color, logo, filename) {
   if (!downloads[os].has(arch)) {
     downloads[os].set(arch, []);
   }
-  downloads[os].get(arch).push({ label, filename });
+  downloads[os].get(arch).push({ label, color, logo, filename });
 }
 
 for (const file of listFiles(artifactsDir)) {
@@ -74,22 +81,22 @@ for (const file of listFiles(artifactsDir)) {
   const arch = detectArchitecture(filename);
 
   if (lowerName.includes("windows") && lowerName.endsWith("setup.exe")) {
-    addDownload("Windows", "Installer", arch, filename);
+    addDownload("Windows", "Installer", arch, "blue", "windows", filename);
   } else if (
     lowerName.includes("windows") &&
     lowerName.endsWith("portable.zip")
   ) {
-    addDownload("Windows", "Portable", arch, filename);
+    addDownload("Windows", "Portable", arch, "blue", "windows", filename);
   } else if (lowerName.includes("macos") && lowerName.endsWith(".dmg")) {
-    addDownload("macOS", "DMG", arch, filename);
+    addDownload("macOS", "DMG", arch, "black", "apple", filename);
   } else if (lowerName.includes("linux") && lowerName.endsWith(".deb")) {
-    addDownload("Linux", "DEB", arch, filename);
+    addDownload("Linux", "DEB", arch, "orange", "linux", filename);
   } else if (lowerName.includes("linux") && lowerName.endsWith(".rpm")) {
-    addDownload("Linux", "RPM", arch, filename);
+    addDownload("Linux", "RPM", arch, "orange", "linux", filename);
   } else if (lowerName.includes("linux") && lowerName.endsWith(".appimage")) {
-    addDownload("Linux", "AppImage", arch, filename);
+    addDownload("Linux", "AppImage", arch, "orange", "linux", filename);
   } else {
-    addDownload("Other", filename, "-", filename);
+    addDownload("Other", filename, "-", null, null, filename);
   }
 }
 
@@ -129,7 +136,11 @@ function renderDownloadTable() {
             orderedIndex(downloadOrder[os], left.label) -
             orderedIndex(downloadOrder[os], right.label),
         )
-        .map(({ label, filename }) => downloadLink(label, filename))
+        .map(({ label, color, logo, filename }) =>
+          color && logo
+            ? badge(label, arch, color, logo, filename)
+            : textLink(label, filename),
+        )
         .join(" ");
       rows.push(`| ${index === 0 ? os : ""} | ${arch} | ${orderedLinks} |`);
     });
