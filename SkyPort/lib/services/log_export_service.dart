@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -43,18 +42,7 @@ class LogExportService {
         : portName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
     final defaultFilename = '${safePortName}_$timestamp.txt';
 
-    // 3. Let user pick save location
-    final result = await FilePicker.platform.saveFile(
-      dialogTitle: 'Save log file',
-      fileName: defaultFilename,
-      type: FileType.custom,
-      allowedExtensions: ['txt'],
-      initialDirectory: defaultPath.isNotEmpty ? defaultPath : null,
-    );
-
-    if (result == null) return null; // User cancelled
-
-    // 4. Generate WYSIWYG content - exactly what user sees
+    // 3. Generate WYSIWYG content - exactly what user sees
     final content = _generateWysiwygContent(
       entries,
       hexDisplay,
@@ -63,9 +51,19 @@ class LogExportService {
       enableAnsi,
     );
 
-    // 5. Write to file
+    // 4. Let user pick save location and write content
+    final result = await FilePicker.saveFile(
+      dialogTitle: 'Save log file',
+      fileName: defaultFilename,
+      type: FileType.custom,
+      allowedExtensions: ['txt'],
+      initialDirectory: defaultPath.isNotEmpty ? defaultPath : null,
+      bytes: utf8.encode(content),
+    );
+
+    if (result == null) return null; // User cancelled or web download
+
     try {
-      await File(result).writeAsString(content, encoding: utf8);
       if (context.mounted) {
         _showMessage(context, 'logsExportedTo', extra: result);
       }
@@ -152,7 +150,7 @@ class LogExportService {
 
         // Data content
         if (enableAnsi && !hexDisplay) {
-          lineBuffer.write(ansi.AnsiParser(line).removeAll());
+          lineBuffer.write(ansi.Parser(line).removeAll());
         } else {
           lineBuffer.write(line);
         }

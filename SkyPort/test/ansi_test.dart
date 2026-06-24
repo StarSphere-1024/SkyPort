@@ -8,7 +8,7 @@ void main() {
     test('parses basic ANSI escape sequence for red text', () {
       final text = 'Prefix\x1b[31mHello\x1b[0m World';
       print('Original text: $text');
-      final parser = AnsiParser(text);
+      final parser = Parser(text);
       print('Matches count: ${parser.matches.length}');
 
       expect(parser.matches.isNotEmpty, true);
@@ -23,42 +23,42 @@ void main() {
 
     test('parses green text ANSI sequence', () {
       final text = '\x1b[32mSuccess\x1b[0m';
-      final parser = AnsiParser(text);
+      final parser = Parser(text);
 
       expect(parser.matches.isNotEmpty, true);
     });
 
     test('parses yellow text ANSI sequence', () {
       final text = '\x1b[33mWarning\x1b[0m';
-      final parser = AnsiParser(text);
+      final parser = Parser(text);
 
       expect(parser.matches.isNotEmpty, true);
     });
 
     test('parses blue text ANSI sequence', () {
       final text = '\x1b[34mInfo\x1b[0m';
-      final parser = AnsiParser(text);
+      final parser = Parser(text);
 
       expect(parser.matches.isNotEmpty, true);
     });
 
     test('parses bold text ANSI sequence', () {
       final text = '\x1b[1mBold Text\x1b[0m';
-      final parser = AnsiParser(text);
+      final parser = Parser(text);
 
       expect(parser.matches.isNotEmpty, true);
     });
 
     test('parses combined bold and color ANSI sequence', () {
       final text = '\x1b[1;31mBold Red\x1b[0m';
-      final parser = AnsiParser(text);
+      final parser = Parser(text);
 
       expect(parser.matches.isNotEmpty, true);
     });
 
     test('handles text without ANSI codes', () {
       final text = 'Plain text without colors';
-      final parser = AnsiParser(text);
+      final parser = Parser(text);
 
       // Should have no escape sequences
       final hasEscapes = parser.matches.any((match) {
@@ -71,28 +71,29 @@ void main() {
 
     test('handles empty string', () {
       final text = '';
-      final parser = AnsiParser(text);
+      final parser = Parser(text);
 
       expect(parser.matches.isEmpty, true);
     });
 
     test('parses multiple ANSI codes in one string', () {
-      final text = '\x1b[31mRed\x1b[0m \x1b[32mGreen\x1b[0m \x1b[34mBlue\x1b[0m';
-      final parser = AnsiParser(text);
+      final text =
+          '\x1b[31mRed\x1b[0m \x1b[32mGreen\x1b[0m \x1b[34mBlue\x1b[0m';
+      final parser = Parser(text);
 
       expect(parser.matches.length, greaterThan(2));
     });
 
     test('handles ANSI reset sequence', () {
       final text = '\x1b[0mReset\x1b[0m';
-      final parser = AnsiParser(text);
+      final parser = Parser(text);
 
       expect(parser.matches.isNotEmpty, true);
     });
 
     test('parses cyan text ANSI sequence', () {
       final text = '\x1b[36mCyan\x1b[0m';
-      final parser = AnsiParser(text);
+      final parser = Parser(text);
 
       expect(parser.matches.isNotEmpty, true);
     });

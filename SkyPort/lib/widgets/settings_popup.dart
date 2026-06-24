@@ -162,8 +162,7 @@ class SettingsPopup extends ConsumerWidget {
                     Expanded(
                       child: InkWell(
                         onTap: () async {
-                          final path =
-                              await FilePicker.platform.getDirectoryPath();
+                          final path = await FilePicker.getDirectoryPath();
                           if (path != null) {
                             ref
                                 .read(uiSettingsProvider.notifier)
@@ -189,8 +188,7 @@ class SettingsPopup extends ConsumerWidget {
                       icon: const Icon(Icons.folder),
                       tooltip: AppLocalizations.of(context).exportPath,
                       onPressed: () async {
-                        final path =
-                            await FilePicker.platform.getDirectoryPath();
+                        final path = await FilePicker.getDirectoryPath();
                         if (path != null) {
                           ref
                               .read(uiSettingsProvider.notifier)

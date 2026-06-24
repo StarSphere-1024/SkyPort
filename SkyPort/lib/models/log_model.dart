@@ -213,7 +213,7 @@ class LogEntry {
       final contentStyle = baseStyle.copyWith(color: contentColor);
 
       if (enableAnsi) {
-        final parser = ansi.AnsiParser(lineText);
+        final parser = ansi.Parser(lineText);
         for (final match in parser.matches) {
           final textSegment = lineText.substring(match.start, match.end);
           if (textSegment.startsWith('\x1b')) continue;
