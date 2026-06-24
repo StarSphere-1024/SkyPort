@@ -33,6 +33,10 @@ jobs:
       - name: Download dependencies
         working-directory: SkyPort
         run: flutter pub get
+      - name: Analyze
+        working-directory: SkyPort
+        run: flutter analyze
+
 
       - name: Run tests
         working-directory: SkyPort
