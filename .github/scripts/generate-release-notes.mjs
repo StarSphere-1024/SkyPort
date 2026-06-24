@@ -17,9 +17,18 @@ if (!repo) {
 }
 
 const downloads = {
-  Windows: [],
-  macOS: [],
-  Linux: [],
+  Windows: new Map(),
+  Linux: new Map(),
+  macOS: new Map(),
+  Other: new Map(),
+};
+
+const osOrder = ["Windows", "Linux", "macOS", "Other"];
+const archOrder = ["x64", "ARM64", "Universal", "-"];
+const downloadOrder = {
+  Windows: ["Portable", "Installer"],
+  Linux: ["AppImage", "DEB", "RPM"],
+  macOS: ["DMG"],
   Other: [],
 };
 
@@ -33,43 +42,54 @@ function listFiles(directory) {
 }
 
 function detectArchitecture(filename) {
-  if (filename.includes("amd64")) return "x64";
-  if (filename.includes("arm64")) return "ARM64";
+  const lowerName = filename.toLowerCase();
+  if (
+    lowerName.includes("amd64") ||
+    lowerName.includes("x86_64") ||
+    lowerName.includes("x64")
+  ) {
+    return "x64";
+  }
+  if (lowerName.includes("arm64") || lowerName.includes("aarch64")) {
+    return "ARM64";
+  }
   return "Universal";
 }
 
-function badge(label, arch, color, logo, filename) {
-  const encodedArch = encodeURIComponent(arch);
+function downloadLink(label, filename) {
   const assetUrl = `https://github.com/${repo}/releases/download/${tagName}/${filename}`;
-  const badgeUrl = `https://img.shields.io/badge/${label}-${encodedArch}-${color}?logo=${logo}`;
-  return `[![${label}](${badgeUrl})](${assetUrl})`;
+  return `[${label}](${assetUrl})`;
 }
 
-function addDownload(os, label, arch, color, logo, filename) {
-  downloads[os].push(badge(label, arch, color, logo, filename));
+function addDownload(os, label, arch, filename) {
+  if (!downloads[os].has(arch)) {
+    downloads[os].set(arch, []);
+  }
+  downloads[os].get(arch).push({ label, filename });
 }
 
 for (const file of listFiles(artifactsDir)) {
   const filename = basename(file);
-  let arch = detectArchitecture(filename);
+  const lowerName = filename.toLowerCase();
+  const arch = detectArchitecture(filename);
 
-  if (filename.includes("windows") && filename.endsWith("setup.exe")) {
-    addDownload("Windows", "Installer", arch, "blue", "windows", filename);
+  if (lowerName.includes("windows") && lowerName.endsWith("setup.exe")) {
+    addDownload("Windows", "Installer", arch, filename);
   } else if (
-    filename.includes("windows") &&
-    filename.endsWith("portable.zip")
+    lowerName.includes("windows") &&
+    lowerName.endsWith("portable.zip")
   ) {
-    addDownload("Windows", "Portable", arch, "blue", "windows", filename);
-  } else if (filename.includes("macos") && filename.endsWith(".dmg")) {
-    if (arch === "ARM64") arch = "Apple Silicon";
-    addDownload("macOS", "DMG", arch, "black", "apple", filename);
-  } else if (filename.includes("linux") && filename.endsWith(".deb")) {
-    addDownload("Linux", "DEB", arch, "orange", "linux", filename);
-  } else if (filename.includes("linux") && filename.endsWith(".AppImage")) {
-    addDownload("Linux", "AppImage", arch, "orange", "linux", filename);
+    addDownload("Windows", "Portable", arch, filename);
+  } else if (lowerName.includes("macos") && lowerName.endsWith(".dmg")) {
+    addDownload("macOS", "DMG", arch, filename);
+  } else if (lowerName.includes("linux") && lowerName.endsWith(".deb")) {
+    addDownload("Linux", "DEB", arch, filename);
+  } else if (lowerName.includes("linux") && lowerName.endsWith(".rpm")) {
+    addDownload("Linux", "RPM", arch, filename);
+  } else if (lowerName.includes("linux") && lowerName.endsWith(".appimage")) {
+    addDownload("Linux", "AppImage", arch, filename);
   } else {
-    const assetUrl = `https://github.com/${repo}/releases/download/${tagName}/${filename}`;
-    downloads.Other.push(`[${filename}](${assetUrl})`);
+    addDownload("Other", filename, "-", filename);
   }
 }
 
@@ -88,13 +108,35 @@ function generatedNotes() {
   ).trimEnd();
 }
 
-function renderDownloadTable() {
-  const rows = Object.entries(downloads)
-    .filter(([, links]) => links.length > 0)
-    .map(([os, links]) => `| ${os} | ${links.join(" ")} |`);
+function orderedIndex(values, value) {
+  const index = values.indexOf(value);
+  return index === -1 ? values.length : index;
+}
 
-  return `| OS | Download |
-| --- | --- |
+function renderDownloadTable() {
+  const rows = [];
+
+  for (const os of osOrder) {
+    const archEntries = [...downloads[os].entries()].sort(
+      ([leftArch], [rightArch]) =>
+        orderedIndex(archOrder, leftArch) - orderedIndex(archOrder, rightArch),
+    );
+
+    archEntries.forEach(([arch, links], index) => {
+      const orderedLinks = links
+        .sort(
+          (left, right) =>
+            orderedIndex(downloadOrder[os], left.label) -
+            orderedIndex(downloadOrder[os], right.label),
+        )
+        .map(({ label, filename }) => downloadLink(label, filename))
+        .join(" ");
+      rows.push(`| ${index === 0 ? os : ""} | ${arch} | ${orderedLinks} |`);
+    });
+  }
+
+  return `| OS | Architecture | Download |
+| --- | --- | --- |
 ${rows.join("\n")}`;
 }
 
