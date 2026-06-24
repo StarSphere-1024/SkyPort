@@ -51,6 +51,64 @@ class LogEntry {
     return _cachedText!;
   }
 
+  bool get debugHasCachedDisplayText => _cachedText != null;
+
+  static int get debugSpanCacheSize => _spanCache.length;
+
+  void clearDisplayCache() {
+    _cachedText = null;
+    _cachedHexMode = null;
+    _spanCache.remove(this);
+  }
+
+  static void evictCachedData(Iterable<LogEntry> entries) {
+    for (final entry in entries) {
+      entry.clearDisplayCache();
+    }
+  }
+
+  static void clearSpanCache() {
+    final cachedEntries = _spanCache.keys.toList();
+    for (final entry in cachedEntries) {
+      entry.clearDisplayCache();
+    }
+    _spanCache.clear();
+  }
+
+  ({String text, bool truncated}) getDisplayTextPreview(bool hexDisplay) {
+    const maxLength = SkyPortConstants.logDisplayMaxLength;
+    if (hexDisplay) {
+      return _getHexDisplayPreview(maxLength);
+    }
+    if (data.length <= maxLength) {
+      return (text: getDisplayText(false), truncated: false);
+    }
+    return (
+      text: utf8.decode(
+        Uint8List.sublistView(data, 0, maxLength),
+        allowMalformed: true,
+      ),
+      truncated: true,
+    );
+  }
+
+  ({String text, bool truncated}) _getHexDisplayPreview(int maxLength) {
+    final buffer = StringBuffer();
+    for (int i = 0; i < data.length; i++) {
+      final token =
+          '${data[i].toRadixString(16).padLeft(2, '0').toUpperCase()} ';
+      final newline = (i + 1) % 32 == 0 ? '\n' : '';
+      if (buffer.length + token.length + newline.length > maxLength) {
+        return (text: buffer.toString(), truncated: true);
+      }
+      buffer.write(token);
+      if (newline.isNotEmpty) {
+        buffer.write(newline);
+      }
+    }
+    return (text: buffer.toString(), truncated: false);
+  }
+
   List<InlineSpan> getSpans({
     required bool hexDisplay,
     required bool showTimestamp,
@@ -97,7 +155,7 @@ class LogEntry {
 
     // 3. Update LRU Cache
     if (_spanCache.length >= _maxCacheSize) {
-      _spanCache.remove(_spanCache.keys.first); // Remove LRU (first)
+      _spanCache.keys.first.clearDisplayCache(); // Remove LRU (first)
     }
     _spanCache[this] = _CachedSpanData(key, spans); // Add to MRU (end)
 
@@ -116,17 +174,13 @@ class LogEntry {
   ) {
     final isSent = type == LogEntryType.sent;
     final formattedTimestamp = DateFormat('HH:mm:ss.SSS').format(timestamp);
-    final dataText = getDisplayText(hexDisplay);
+    final displayText = getDisplayTextPreview(hexDisplay);
+    final dataText = displayText.text;
 
-    // Truncation defense for text mode (hex mode already has soft line breaks)
-    const int maxDisplayLength = SkyPortConstants.logDisplayMaxLength;
-    bool truncated = false;
-    String text = dataText;
-
-    if (!hexDisplay && text.length > maxDisplayLength) {
-      text = text.substring(0, maxDisplayLength);
-      truncated = true;
-    }
+    // Truncation defense for both text and hex mode. Rendering must never
+    // decode or allocate for the full payload when the visible output is capped.
+    final truncated = displayText.truncated;
+    final text = dataText;
 
     final lines = text.split('\n');
     final spans = <InlineSpan>[];

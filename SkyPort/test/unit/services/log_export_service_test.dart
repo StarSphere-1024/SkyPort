@@ -328,7 +328,7 @@ void main() {
           expect(result.contains('... [TRUNCATED]'), false);
         });
 
-        test('does not truncate in hex mode', () {
+        test('truncates long hex mode output', () {
           // Create large data
           final data = Uint8List(10000);
           for (int i = 0; i < data.length; i++) {
@@ -344,8 +344,8 @@ void main() {
             false,
           );
 
-          // Hex mode should not have truncation indicator
-          expect(result.contains('... [TRUNCATED]'), false);
+          // Hex mode matches UI truncation to keep export generation bounded.
+          expect(result.contains('... [TRUNCATED]'), true);
         });
       });
 

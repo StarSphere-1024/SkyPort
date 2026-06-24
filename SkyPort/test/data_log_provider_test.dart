@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'dart:convert';
+import 'package:flutter/material.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,9 +10,9 @@ import 'package:skyport/providers/serial/data_log_provider.dart';
 import 'package:skyport/providers/serial/ui_settings_provider.dart';
 
 // Mock provider container setup
-ProviderContainer createTestContainer() {
+ProviderContainer createTestContainer({int logBufferSize = 128}) {
   // Create a simple mock for uiSettingsProvider
-  final uiSettings = const UiSettings(
+  final uiSettings = UiSettings(
     hexDisplay: false,
     hexSend: false,
     showTimestamp: true,
@@ -19,7 +20,7 @@ ProviderContainer createTestContainer() {
     appendNewline: false,
     newlineMode: NewlineMode.lf,
     enableAnsi: false,
-    logBufferSize: 128,
+    logBufferSize: logBufferSize,
     autoSendEnabled: false,
     autoSendIntervalMs: 1000,
   );
@@ -595,6 +596,49 @@ void main() {
             lastId = chunk.id;
           }
         }
+      });
+
+      test('prunes current buffer before it reaches chunk limit', () {
+        container.dispose();
+        container = createTestContainer(logBufferSize: 1);
+        final notifier = container.read(dataLogProvider.notifier);
+        final line = Uint8List(2049);
+        line.fillRange(0, 2048, 0x41);
+        line[2048] = 0x0A;
+
+        for (int i = 0; i < 700; i++) {
+          notifier.addReceived(line);
+        }
+
+        final state = container.read(dataLogProvider);
+        const maxBytes = 1024 * 1024;
+
+        expect(state.totalBytes, lessThanOrEqualTo(maxBytes));
+        expect(state.allEntries.length, lessThanOrEqualTo(maxBytes ~/ 2048));
+        expect(state.allEntries.last.data.length, 2048);
+      });
+
+      test('clear releases rendered span cache', () {
+        final notifier = container.read(dataLogProvider.notifier);
+        notifier.addReceived(Uint8List.fromList([0x48, 0x69, 0x0A]));
+
+        final entry = container.read(dataLogProvider).allEntries.single;
+        entry.getSpans(
+          hexDisplay: false,
+          showTimestamp: false,
+          showSent: false,
+          enableAnsi: false,
+          baseStyle: const TextStyle(fontSize: 14),
+          timestampStyle: const TextStyle(fontSize: 12),
+          primaryColor: Colors.blue,
+          onSurfaceColor: Colors.black,
+        );
+
+        expect(LogEntry.debugSpanCacheSize, greaterThan(0));
+
+        notifier.clear();
+
+        expect(LogEntry.debugSpanCacheSize, 0);
       });
     });
 

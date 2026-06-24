@@ -8,7 +8,6 @@ import 'package:ansi_escape_codes/ansi_escape_codes.dart' as ansi;
 
 import '../models/log_model.dart';
 import '../l10n/app_localizations.dart';
-import '../utils/constants.dart';
 
 /// Service class for exporting log entries to file
 /// WYSIWYG: Export content matches exactly what user sees in UI
@@ -122,20 +121,16 @@ class LogExportService {
     bool enableAnsi,
   ) {
     final buffer = StringBuffer();
-    const int maxDisplayLength = SkyPortConstants.logDisplayMaxLength;
 
     for (final entry in entries) {
       final isSent = entry.type == LogEntryType.sent;
       final formattedTimestamp =
           DateFormat('HH:mm:ss.SSS').format(entry.timestamp);
-      String dataText = entry.getDisplayText(hexDisplay);
+      final displayText = entry.getDisplayTextPreview(hexDisplay);
+      final dataText = displayText.text;
 
       // Truncation (same as UI)
-      bool truncated = false;
-      if (!hexDisplay && dataText.length > maxDisplayLength) {
-        dataText = dataText.substring(0, maxDisplayLength);
-        truncated = true;
-      }
+      final truncated = displayText.truncated;
 
       final lines = dataText.split('\n');
 
