@@ -8,7 +8,7 @@ import 'ui_settings_provider.dart';
 
 class DataLogNotifier extends Notifier<LogState> {
   // Stream buffering: pending data for current line
-  List<int> _pendingData = [];
+  BytesBuilder _pendingData = BytesBuilder(copy: true);
   DateTime? _pendingTimestamp;
 
   // Completed entries waiting to be packed into chunks
@@ -18,6 +18,7 @@ class DataLogNotifier extends Notifier<LogState> {
 
   @override
   LogState build() {
+    ref.onDispose(LogEntry.clearSpanCache);
     return const LogState();
   }
 
@@ -38,46 +39,27 @@ class DataLogNotifier extends Notifier<LogState> {
     final uiSettings = ref.read(uiSettingsProvider);
     final maxBytes = uiSettings.logBufferSize * 1024 * 1024;
 
-    // Recalculate fixed chunks size. Temporary display chunks are rebuilt from
-    // the notifier buffers on every update and must not become committed state.
+    // Temporary chunks are rebuilt from notifier-owned buffers on every update.
+    // Evict their render cache entries so pending LogEntry snapshots do not
+    // survive after the next byte arrives.
+    for (final tempChunk in state.chunks.where((c) => c.id == -1)) {
+      LogEntry.evictCachedData(tempChunk.entries);
+    }
+
     var finalizedChunks = state.chunks.where((c) => c.id != -1).toList();
     var nextChunkId = state.nextChunkId;
 
-    // Add completed buffer entries to current buffer
+    // Add completed entries to the mutable current buffer.
     if (_completedBuffer.isNotEmpty) {
-      // Convert to unmodifiable list to prevent accidental mutation
-      // This prevents duplicate entries in displayChunks
-      final newEntries = List<LogEntry>.unmodifiable(_completedBuffer);
-      _currentBuffer.addAll(newEntries);
-      for (var entry in _completedBuffer) {
+      _currentBuffer.addAll(_completedBuffer);
+      for (final entry in _completedBuffer) {
         _currentBufferBytes += entry.data.length;
       }
       _completedBuffer = [];
     }
 
-    // Calculate total size
-    var finalizedSize = finalizedChunks.fold(0, (sum, c) => sum + c.totalBytes);
-    final pendingBytes = _pendingData.length;
-    var newTotalBytes = finalizedSize + _currentBufferBytes + pendingBytes;
-
-    // Pruning old chunks if exceeding max bytes
-    final bytesToRemove = newTotalBytes - maxBytes;
-    if (bytesToRemove > 0 && finalizedChunks.isNotEmpty) {
-      var infoBytesRemoved = 0;
-      var chunksToRemove = 0;
-      for (final chunk in finalizedChunks) {
-        if (infoBytesRemoved >= bytesToRemove) break;
-        infoBytesRemoved += chunk.totalBytes;
-        chunksToRemove++;
-      }
-      if (chunksToRemove > 0) {
-        finalizedChunks = finalizedChunks.sublist(chunksToRemove);
-        finalizedSize -= infoBytesRemoved;
-        newTotalBytes -= infoBytesRemoved;
-      }
-    }
-
-    // Check if current buffer needs finalizing into a chunk
+    // Commit full buffers before pruning, otherwise an oversized current buffer
+    // can evade the byte limit until a later packet arrives.
     if (_currentBuffer.length >= SkyPortConstants.chunkSizeLimit) {
       final newChunk = LogChunk(
         entries: List.unmodifiable(_currentBuffer),
@@ -89,6 +71,30 @@ class DataLogNotifier extends Notifier<LogState> {
       finalizedChunks = [...finalizedChunks, newChunk];
       _currentBuffer = [];
       _currentBufferBytes = 0;
+    }
+
+    var finalizedSize = finalizedChunks.fold(0, (sum, c) => sum + c.totalBytes);
+    final pendingBytes = _pendingData.length;
+    var newTotalBytes = finalizedSize + _currentBufferBytes + pendingBytes;
+
+    while (finalizedChunks.isNotEmpty &&
+        newTotalBytes > maxBytes &&
+        (finalizedChunks.length > 1 ||
+            _currentBuffer.isNotEmpty ||
+            pendingBytes > 0)) {
+      final removed = finalizedChunks.removeAt(0);
+      finalizedSize -= removed.totalBytes;
+      newTotalBytes -= removed.totalBytes;
+      LogEntry.evictCachedData(removed.entries);
+    }
+
+    while (_currentBuffer.isNotEmpty &&
+        newTotalBytes > maxBytes &&
+        (_currentBuffer.length > 1 || pendingBytes > 0)) {
+      final removed = _currentBuffer.removeAt(0);
+      _currentBufferBytes -= removed.data.length;
+      newTotalBytes -= removed.data.length;
+      removed.clearDisplayCache();
     }
 
     // Build display chunks with pending data as last item
@@ -113,9 +119,9 @@ class DataLogNotifier extends Notifier<LogState> {
     }
 
     // Add pending data as the very last temp entry
-    if (_pendingData.isNotEmpty) {
+    if (_pendingData.length > 0) {
       final pendingEntry = LogEntry(
-        Uint8List.fromList(_pendingData),
+        _pendingData.toBytes(),
         LogEntryType.received,
         _pendingTimestamp ?? DateTime.now(),
       );
@@ -163,9 +169,19 @@ class DataLogNotifier extends Notifier<LogState> {
         final int lineEndExclusive =
             (i > processedIndex && data[i - 1] == 0x0D) ? i - 1 : i;
 
-        final chunk = data.sublist(processedIndex, lineEndExclusive);
-        final fullLine = Uint8List.fromList([..._pendingData, ...chunk]);
-
+        Uint8List fullLine;
+        if (_pendingData.length == 0) {
+          fullLine = Uint8List(lineEndExclusive - processedIndex);
+          fullLine.setRange(0, fullLine.length, data, processedIndex);
+        } else {
+          if (lineEndExclusive > processedIndex) {
+            _pendingData.add(
+              Uint8List.sublistView(data, processedIndex, lineEndExclusive),
+            );
+          }
+          fullLine = _pendingData.takeBytes();
+          _pendingData = BytesBuilder(copy: true);
+        }
         // Create completed entry
         _completedBuffer.add(LogEntry(
           fullLine,
@@ -174,7 +190,7 @@ class DataLogNotifier extends Notifier<LogState> {
         ));
 
         // Reset pending for next line
-        _pendingData = [];
+        _pendingData = BytesBuilder(copy: true);
         _pendingTimestamp = null; // Will be set on next byte
         processedIndex = i + 1; // Skip the newline
       }
@@ -182,17 +198,17 @@ class DataLogNotifier extends Notifier<LogState> {
 
     // Append remaining data (after last newline, or all if no newline found)
     if (processedIndex < data.length) {
-      _pendingData.addAll(data.sublist(processedIndex));
+      _pendingData.add(Uint8List.sublistView(data, processedIndex));
     }
 
     // Defense: Force flush if pending grows too large (no newline scenario)
     if (_pendingData.length > SkyPortConstants.maxPendingBytes) {
       _completedBuffer.add(LogEntry(
-        Uint8List.fromList(_pendingData),
+        _pendingData.takeBytes(),
         LogEntryType.received,
         _pendingTimestamp ?? DateTime.now(),
       ));
-      _pendingData = [];
+      _pendingData = BytesBuilder(copy: true);
       _pendingTimestamp = null;
     }
 
@@ -204,12 +220,13 @@ class DataLogNotifier extends Notifier<LogState> {
   }
 
   void clear() {
-    _pendingData = [];
+    _pendingData = BytesBuilder(copy: true);
     _pendingTimestamp = null;
     _completedBuffer = [];
     _currentBuffer = [];
     _currentBufferBytes = 0;
     state = const LogState();
+    LogEntry.clearSpanCache();
   }
 }
 

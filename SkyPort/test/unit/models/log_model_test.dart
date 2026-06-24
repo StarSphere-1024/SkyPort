@@ -307,6 +307,50 @@ void main() {
             (s) => s is TextSpan && (s.text?.contains('[TRUNCATED]') ?? false));
         expect(hasTruncation, isFalse);
       });
+
+      test('truncates long hex mode output', () {
+        final data = Uint8List(10000);
+        for (int i = 0; i < data.length; i++) {
+          data[i] = i & 0xFF;
+        }
+        final entry = LogEntry(data, LogEntryType.received, DateTime.now());
+
+        final spans = entry.getSpans(
+          hexDisplay: true,
+          showTimestamp: false,
+          showSent: false,
+          enableAnsi: false,
+          baseStyle: const TextStyle(fontSize: 14),
+          timestampStyle: const TextStyle(fontSize: 12),
+          primaryColor: Colors.blue,
+          onSurfaceColor: Colors.black,
+        );
+
+        final text =
+            spans.whereType<TextSpan>().map((span) => span.text ?? '').join();
+
+        expect(text, contains('[TRUNCATED]'));
+      });
+
+      test('does not cache full decoded text while rendering truncated spans',
+          () {
+        final data = Uint8List(6000);
+        data.fillRange(0, data.length, 0x41);
+        final entry = LogEntry(data, LogEntryType.received, DateTime.now());
+
+        entry.getSpans(
+          hexDisplay: false,
+          showTimestamp: false,
+          showSent: false,
+          enableAnsi: false,
+          baseStyle: const TextStyle(fontSize: 14),
+          timestampStyle: const TextStyle(fontSize: 12),
+          primaryColor: Colors.blue,
+          onSurfaceColor: Colors.black,
+        );
+
+        expect(entry.debugHasCachedDisplayText, isFalse);
+      });
     });
 
     group('getSpans newline handling', () {
