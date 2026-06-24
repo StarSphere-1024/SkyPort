@@ -3,8 +3,14 @@ name: CI
 on:
   push:
     branches: [ master, release ]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   pull_request:
     branches: [ master, dev ]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   workflow_dispatch:
 
 concurrency:
@@ -19,8 +25,11 @@ jobs:
     name: Run Tests
     uses: ./.github/workflows/test.yml
 
+  # Daily PR/push CI stays lightweight. Full package builds run on
+  # workflow_dispatch here, or through release/tag workflows.
   build:
     name: Build Packages
+    if: github.event_name == 'workflow_dispatch'
     needs: test
     uses: ./.github/workflows/build-matrix.yml
     with:
