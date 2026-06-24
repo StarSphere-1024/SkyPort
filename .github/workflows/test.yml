@@ -76,9 +76,3 @@ jobs:
             echo "✅ Coverage ${COVERAGE_PCT}% meets threshold ${THRESHOLD}%"
           fi
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v6
-        with:
-          files: SkyPort/coverage/lcov.info
-          flags: unittests
-          name: codecov-umbrella
