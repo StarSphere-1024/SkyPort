@@ -266,6 +266,22 @@ void main() {
         // Test verifies it doesn't throw
         expect(true, true);
       });
+      test('concurrent dispose calls share one teardown', () async {
+        final port = MockSerialPort();
+        final reader = MockSerialPortReader();
+        when(() => port.isOpen).thenReturn(false);
+        when(() => port.dispose()).thenReturn(null);
+        when(() => reader.close()).thenReturn(null);
+
+        final session = SerialPortSession(port: port, reader: reader);
+        final first = session.dispose();
+        final second = session.dispose();
+
+        expect(identical(first, second), true);
+        await Future.wait([first, second]);
+        verify(() => reader.close()).called(1);
+        verify(() => port.dispose()).called(1);
+      });
     });
 
     group('Integration with SerialConfig', () {
