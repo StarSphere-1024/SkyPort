@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +11,112 @@ import 'package:skyport/providers/serial/serial_port_manager.dart';
 import 'package:skyport/services/serial_port_service.dart';
 
 import '../../../helpers/mock_classes.dart';
+
+class _ControlledSession implements SerialPortSessionInterface {
+  final StreamController<Uint8List> _controller =
+      StreamController<Uint8List>.broadcast();
+  final Completer<void> disposeStarted = Completer<void>();
+  final Completer<void>? disposeGate;
+  final bool closeStreamOnDispose;
+  final bool ignoreCancellation;
+  int disposeCalls = 0;
+  int writeCalls = 0;
+  bool _disposeStarted = false;
+
+  _ControlledSession({
+    this.disposeGate,
+    this.closeStreamOnDispose = true,
+    this.ignoreCancellation = false,
+  });
+
+  @override
+  Stream<Uint8List> get stream => ignoreCancellation
+      ? _NonCancellingStream(_controller.stream)
+      : _controller.stream;
+
+  @override
+  int write(Uint8List data, {int timeoutMs = 100}) {
+    writeCalls++;
+    return data.length;
+  }
+
+  @override
+  Future<void> dispose() async {
+    disposeCalls++;
+    if (_disposeStarted) return;
+    _disposeStarted = true;
+    disposeStarted.complete();
+    if (disposeGate != null) {
+      await disposeGate!.future;
+    }
+    if (closeStreamOnDispose && !_controller.isClosed) {
+      await _controller.close();
+    }
+  }
+
+  void addData(Uint8List data) => _controller.add(data);
+
+  void addError(Object error) => _controller.addError(error);
+
+  Future<void> closeStream() => _controller.close();
+}
+
+class _NonCancellingStream extends Stream<Uint8List> {
+  final Stream<Uint8List> _source;
+
+  _NonCancellingStream(this._source);
+
+  @override
+  bool get isBroadcast => _source.isBroadcast;
+
+  @override
+  StreamSubscription<Uint8List> listen(
+    void Function(Uint8List)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) {
+    return _NonCancellingSubscription(
+      _source.listen(
+        onData,
+        onError: onError,
+        onDone: onDone,
+        cancelOnError: cancelOnError,
+      ),
+    );
+  }
+}
+
+class _NonCancellingSubscription implements StreamSubscription<Uint8List> {
+  final StreamSubscription<Uint8List> _source;
+
+  _NonCancellingSubscription(this._source);
+
+  @override
+  Future<void> cancel() => Future<void>.value();
+
+  @override
+  void onData(void Function(Uint8List)? handleData) =>
+      _source.onData(handleData);
+
+  @override
+  void onError(Function? handleError) => _source.onError(handleError);
+
+  @override
+  void onDone(void Function()? handleDone) => _source.onDone(handleDone);
+
+  @override
+  void pause([Future<void>? resumeSignal]) => _source.pause(resumeSignal);
+
+  @override
+  void resume() => _source.resume();
+
+  @override
+  bool get isPaused => _source.isPaused;
+
+  @override
+  Future<E> asFuture<E>([E? futureValue]) => _source.asFuture<E>(futureValue);
+}
 
 void main() {
   setUpAll(() {
@@ -36,6 +143,11 @@ void main() {
           sharedPreferencesProvider.overrideWithValue(mockPrefs),
         ],
       );
+      when(() => mockService.close(any())).thenAnswer((invocation) async {
+        final session =
+            invocation.positionalArguments.first as SerialPortSessionInterface;
+        await session.dispose();
+      });
     });
 
     tearDown(() {
@@ -399,6 +511,156 @@ void main() {
 
         final state = container.read(serialPortManagerProvider);
         expect(state.isInSync, true);
+      });
+      group('Lifecycle serialization', () {
+        test('connection loss and disconnect dispose a session once', () async {
+          final session = _ControlledSession();
+          when(() => mockService.open(any())).thenAnswer((_) async => session);
+
+          final manager = container.read(serialPortManagerProvider.notifier);
+          await manager.connect();
+          session.addError(StateError('connection lost'));
+          await manager.disconnect();
+          await Future<void>.delayed(Duration.zero);
+
+          expect(session.disposeCalls, 1);
+          expect(
+            container.read(serialPortManagerProvider).connection.state,
+            ConnectionState.disconnected,
+          );
+        });
+
+        test('reconfiguration opens only after the previous session closes',
+            () async {
+          final disposeGate = Completer<void>();
+          final first = _ControlledSession(disposeGate: disposeGate);
+          final second = _ControlledSession();
+          final secondOpened = Completer<void>();
+          var openCount = 0;
+          when(() => mockService.open(any())).thenAnswer((_) async {
+            openCount++;
+            if (openCount == 1) return first;
+            secondOpened.complete();
+            return second;
+          });
+
+          final manager = container.read(serialPortManagerProvider.notifier);
+          await manager.connect();
+          manager.setBaudRate(115200);
+          await first.disposeStarted.future;
+
+          expect(openCount, 1);
+          disposeGate.complete();
+          await secondOpened.future;
+          expect(second.disposeCalls, 0);
+        });
+
+        test('send does not write while reconfiguration is closing a session',
+            () async {
+          final disposeGate = Completer<void>();
+          final first = _ControlledSession(disposeGate: disposeGate);
+          final second = _ControlledSession();
+          final secondOpened = Completer<void>();
+          var openCount = 0;
+          when(() => mockService.open(any())).thenAnswer((_) async {
+            openCount++;
+            if (openCount == 1) return first;
+            secondOpened.complete();
+            return second;
+          });
+
+          final manager = container.read(serialPortManagerProvider.notifier);
+          await manager.connect();
+          manager.setBaudRate(115200);
+          await first.disposeStarted.future;
+          await manager.send('queued while closing');
+
+          expect(first.writeCalls, 0);
+          disposeGate.complete();
+          await secondOpened.future;
+          expect(second.writeCalls, 0);
+        });
+
+        test('disconnect waits for an in-progress teardown', () async {
+          final disposeGate = Completer<void>();
+          final first = _ControlledSession(disposeGate: disposeGate);
+          final second = _ControlledSession();
+          var openCount = 0;
+          when(() => mockService.open(any())).thenAnswer((_) async {
+            openCount++;
+            return openCount == 1 ? first : second;
+          });
+
+          final manager = container.read(serialPortManagerProvider.notifier);
+          await manager.connect();
+          manager.setBaudRate(115200);
+          await first.disposeStarted.future;
+
+          var disconnectCompleted = false;
+          final disconnectFuture = manager.disconnect().then((_) {
+            disconnectCompleted = true;
+          });
+          await Future<void>.delayed(Duration.zero);
+          expect(disconnectCompleted, false);
+
+          disposeGate.complete();
+          await disconnectFuture;
+          expect(disconnectCompleted, true);
+          expect(
+            container.read(serialPortManagerProvider).connection.state,
+            ConnectionState.disconnected,
+          );
+        });
+        test('old session callbacks do not affect the replacement session',
+            () async {
+          final oldSession = _ControlledSession(
+            closeStreamOnDispose: false,
+            ignoreCancellation: true,
+          );
+          final replacement = _ControlledSession();
+          final replacementOpened = Completer<void>();
+          var openCount = 0;
+          when(() => mockService.open(any())).thenAnswer((_) async {
+            openCount++;
+            if (openCount == 1) return oldSession;
+            replacementOpened.complete();
+            return replacement;
+          });
+
+          final manager = container.read(serialPortManagerProvider.notifier);
+          await manager.connect();
+          manager.setBaudRate(115200);
+          await replacementOpened.future;
+
+          final rxBytesBefore =
+              container.read(serialPortManagerProvider).connection.rxBytes;
+          oldSession.addData(Uint8List.fromList([1, 2, 3]));
+          oldSession.addError(StateError('late error'));
+          await oldSession.closeStream();
+          await Future<void>.delayed(Duration.zero);
+
+          expect(replacement.disposeCalls, 0);
+          expect(
+            container.read(serialPortManagerProvider).connection.state,
+            ConnectionState.connected,
+          );
+          expect(
+            container.read(serialPortManagerProvider).connection.rxBytes,
+            rxBytesBefore,
+          );
+        });
+        test('send after provider disposal does not access the session',
+            () async {
+          final session = _ControlledSession();
+          when(() => mockService.open(any())).thenAnswer((_) async => session);
+
+          final manager = container.read(serialPortManagerProvider.notifier);
+          await manager.connect();
+          container.dispose();
+          await manager.send('after dispose');
+
+          expect(session.writeCalls, 0);
+        });
       });
     });
   });

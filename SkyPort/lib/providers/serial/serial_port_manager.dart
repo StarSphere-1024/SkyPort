@@ -39,6 +39,10 @@ class SerialPortManager extends Notifier<SerialPortState> {
   bool _isReconciling = false;
   bool _isDisposed = false;
   int _operationToken = 0;
+  Future<void> _lifecycleTail = Future<void>.value();
+  int _sessionGeneration = 0;
+  bool _lifecycleBusy = false;
+  bool _teardownInProgress = false;
 
   @override
   SerialPortState build() {
@@ -51,7 +55,7 @@ class SerialPortManager extends Notifier<SerialPortState> {
       _invalidatePendingOperations();
       _stopReconnectTimer();
       _portPollTimer?.cancel();
-      unawaited(_cleanupOnDispose());
+      unawaited(_enqueueLifecycle(_cleanupOnDisposeInternal));
     });
 
     final initialState = _loadInitialState(_prefs);
@@ -101,39 +105,65 @@ class SerialPortManager extends Notifier<SerialPortState> {
     updateConfig(state.targetConfig.copyWith(autoReconnect: value));
   }
 
-  Future<void> connect() async {
-    if (_isDisposed || _isBusy) return;
-    await _openTargetConfig(
-      pendingState: ConnectionState.connecting,
-      allowReconnectOnFailure: false,
-    );
+  Future<void> connect() {
+    return _enqueueLifecycle(() async {
+      if (_isDisposed || _isBusy) return;
+      await _openTargetConfigInternal(
+        pendingState: ConnectionState.connecting,
+        allowReconnectOnFailure: false,
+      );
+    });
   }
 
-  Future<void> disconnect() async {
+  Future<void> disconnect() {
     if (_isDisposed || state.connection.state == ConnectionState.disconnected) {
-      return;
+      return Future<void>.value();
+    }
+    if (_isBusy) {
+      _nextOperationToken();
+      _stopReconnectTimer();
+
+      if (_session == null && !_teardownInProgress) {
+        _setDisconnectedState();
+        unawaited(
+          _enqueueLifecycle(() async {
+            if (_isDisposed) return;
+            await _cleanupInternal();
+          }),
+        );
+        return Future<void>.value();
+      }
+
+      return _enqueueLifecycle(() async {
+        if (_isDisposed) return;
+        await _cleanupInternal();
+        if (!_isDisposed) {
+          _setDisconnectedState();
+        }
+      });
     }
 
-    final token = _nextOperationToken();
-    _stopReconnectTimer();
-    _setConnectionState(ConnectionState.disconnecting);
-    await _cleanup();
+    return _enqueueLifecycle(() async {
+      if (_isDisposed ||
+          state.connection.state == ConnectionState.disconnected) {
+        return;
+      }
 
-    if (!_shouldApplyOperation(token)) {
-      return;
-    }
+      final token = _nextOperationToken();
+      _stopReconnectTimer();
+      _setConnectionState(ConnectionState.disconnecting);
+      await _cleanupInternal();
 
-    _setDisconnectedState();
+      if (!_shouldApplyOperation(token)) {
+        return;
+      }
+
+      _setDisconnectedState();
+    });
   }
 
   Future<void> send(String data) async {
-    if (_isDisposed) return;
-    if (_session == null ||
-        state.connection.state != ConnectionState.connected) {
-      return;
-    }
-
-    ref.read(errorProvider.notifier).clear();
+    if (_isDisposed || _lifecycleBusy) return;
     final uiSettings = ref.read(uiSettingsProvider);
     Uint8List bytesToSend;
 
@@ -162,26 +192,35 @@ class SerialPortManager extends Notifier<SerialPortState> {
       return;
     }
 
-    try {
-      final bytesWritten = _session!.write(
-        bytesToSend,
-        timeoutMs: SkyPortConstants.defaultWriteTimeoutMs,
-      );
-      if (bytesWritten > 0) {
-        ref
-            .read(dataLogProvider.notifier)
-            .addSent(bytesToSend.sublist(0, bytesWritten));
+    await _enqueueLifecycle(() async {
+      if (_isDisposed ||
+          _session == null ||
+          state.connection.state != ConnectionState.connected) {
+        return;
       }
-      state = state.copyWith(
-        connection: state.connection.copyWith(
-          txBytes: state.connection.txBytes + bytesWritten,
-        ),
-      );
-    } on SerialPortWriteException catch (e) {
-      ref
-          .read(errorProvider.notifier)
-          .setError(AppErrorType.writeFailed, e.message);
-    }
+
+      ref.read(errorProvider.notifier).clear();
+      try {
+        final bytesWritten = _session!.write(
+          bytesToSend,
+          timeoutMs: SkyPortConstants.defaultWriteTimeoutMs,
+        );
+        if (bytesWritten > 0) {
+          ref
+              .read(dataLogProvider.notifier)
+              .addSent(bytesToSend.sublist(0, bytesWritten));
+        }
+        state = state.copyWith(
+          connection: state.connection.copyWith(
+            txBytes: state.connection.txBytes + bytesWritten,
+          ),
+        );
+      } on SerialPortWriteException catch (e) {
+        ref
+            .read(errorProvider.notifier)
+            .setError(AppErrorType.writeFailed, e.message);
+      }
+    });
   }
 
   void resetStats() {
@@ -196,49 +235,51 @@ class SerialPortManager extends Notifier<SerialPortState> {
     );
   }
 
-  Future<void> _triggerReconciliation() async {
-    if (_isReconciling || _isDisposed) return;
+  Future<void> _triggerReconciliation() {
+    return _enqueueLifecycle(() async {
+      if (_isReconciling || _isDisposed) return;
 
-    _isReconciling = true;
-    state = state.copyWith(isReconciling: true);
-    final token = _nextOperationToken();
+      _isReconciling = true;
+      state = state.copyWith(isReconciling: true);
+      final token = _nextOperationToken();
 
-    try {
-      while (!_isDisposed &&
-          _shouldApplyOperation(token) &&
-          !_isConfigApplied(state.targetConfig)) {
-        final configToApply = state.targetConfig;
-        _setConnectionState(ConnectionState.reconfiguring);
+      try {
+        while (!_isDisposed &&
+            _shouldApplyOperation(token) &&
+            !_isConfigApplied(state.targetConfig)) {
+          final configToApply = state.targetConfig;
+          _setConnectionState(ConnectionState.reconfiguring);
 
-        try {
-          await _cleanup();
-          if (!_shouldApplyOperation(token)) {
+          try {
+            await _cleanupInternal();
+            if (!_shouldApplyOperation(token)) {
+              break;
+            }
+
+            final session = await _service.open(configToApply);
+            if (!_shouldApplyOperation(token)) {
+              await _service.close(session);
+              break;
+            }
+
+            _onConnected(session, configToApply);
+          } catch (e) {
+            if (_shouldApplyOperation(token)) {
+              _onConnectError(e);
+            }
             break;
           }
-
-          final session = await _service.open(configToApply);
-          if (!_shouldApplyOperation(token)) {
-            await session.dispose();
-            break;
-          }
-
-          _onConnected(session, configToApply);
-        } catch (e) {
-          if (_shouldApplyOperation(token)) {
-            _onConnectError(e);
-          }
-          break;
+        }
+      } finally {
+        _isReconciling = false;
+        if (!_isDisposed) {
+          state = state.copyWith(isReconciling: false);
         }
       }
-    } finally {
-      _isReconciling = false;
-      if (!_isDisposed) {
-        state = state.copyWith(isReconciling: false);
-      }
-    }
+    });
   }
 
-  Future<void> _openTargetConfig({
+  Future<void> _openTargetConfigInternal({
     required ConnectionState pendingState,
     required bool allowReconnectOnFailure,
   }) async {
@@ -249,7 +290,7 @@ class SerialPortManager extends Notifier<SerialPortState> {
     try {
       final session = await _service.open(configToOpen);
       if (!_shouldApplyOperation(token)) {
-        await session.dispose();
+        await _service.close(session);
         return;
       }
       _onConnected(session, configToOpen);
@@ -267,43 +308,53 @@ class SerialPortManager extends Notifier<SerialPortState> {
     }
   }
 
-  Future<void> _handleConnectionLoss(Object error) async {
-    if (_isDisposed) return;
+  Future<void> _handleConnectionLoss(
+    Object error,
+    SerialPortSessionInterface session,
+    int generation,
+  ) {
+    return _enqueueLifecycle(() async {
+      if (_isDisposed || !_isCurrentSession(session, generation)) {
+        return;
+      }
 
-    final shouldReconnect = state.connection.appliedConfig?.autoReconnect ??
-        state.targetConfig.autoReconnect;
-    _invalidatePendingOperations();
-    await _cleanup();
+      final shouldReconnect = state.connection.appliedConfig?.autoReconnect ??
+          state.targetConfig.autoReconnect;
+      _invalidatePendingOperations();
+      await _cleanupInternal();
 
-    if (_isDisposed) return;
+      if (_isDisposed) return;
 
-    if (shouldReconnect) {
-      _enterReconnectingState(error.toString());
-      _reportPortDisconnected(error);
-      unawaited(_refreshAvailablePorts());
-    } else {
-      _reportPortDisconnected(error);
-      _setDisconnectedState(errorMessage: error.toString());
-    }
+      if (shouldReconnect) {
+        _enterReconnectingState(error.toString());
+        _reportPortDisconnected(error);
+        unawaited(_refreshAvailablePorts());
+      } else {
+        _reportPortDisconnected(error);
+        _setDisconnectedState(errorMessage: error.toString());
+      }
+    });
   }
 
-  Future<void> _attemptReconnect() async {
-    if (_isDisposed ||
-        _isBusy ||
-        state.connection.state != ConnectionState.reconnecting) {
-      return;
-    }
+  Future<void> _attemptReconnect() {
+    return _enqueueLifecycle(() async {
+      if (_isDisposed ||
+          _isBusy ||
+          state.connection.state != ConnectionState.reconnecting) {
+        return;
+      }
 
-    final targetPort = state.targetConfig.portName;
-    if (targetPort.isEmpty || !state.availablePorts.contains(targetPort)) {
-      _startReconnectTimer();
-      return;
-    }
+      final targetPort = state.targetConfig.portName;
+      if (targetPort.isEmpty || !state.availablePorts.contains(targetPort)) {
+        _startReconnectTimer();
+        return;
+      }
 
-    await _openTargetConfig(
-      pendingState: ConnectionState.connecting,
-      allowReconnectOnFailure: true,
-    );
+      await _openTargetConfigInternal(
+        pendingState: ConnectionState.connecting,
+        allowReconnectOnFailure: true,
+      );
+    });
   }
 
   void _onConnected(
@@ -311,14 +362,27 @@ class SerialPortManager extends Notifier<SerialPortState> {
     SerialConfig appliedConfig,
   ) {
     _stopReconnectTimer();
+    final generation = ++_sessionGeneration;
     _session = session;
     _dataSub = session.stream.listen(
       (data) {
+        if (!_isCurrentSession(session, generation)) return;
         ref.read(dataLogProvider.notifier).addReceived(data);
         _onDataReceived(data);
       },
-      onError: (error) {
-        unawaited(_handleConnectionLoss(error));
+      onError: (error, _) {
+        if (!_isCurrentSession(session, generation)) return;
+        unawaited(_handleConnectionLoss(error, session, generation));
+      },
+      onDone: () {
+        if (!_isCurrentSession(session, generation)) return;
+        unawaited(
+          _handleConnectionLoss(
+            StateError('Serial port connection closed'),
+            session,
+            generation,
+          ),
+        );
       },
     );
 
@@ -372,29 +436,44 @@ class SerialPortManager extends Notifier<SerialPortState> {
     }
   }
 
-  Future<void> _cleanup() async {
-    await _dataSub?.cancel();
+  Future<void> _cleanupInternal() async {
+    final dataSub = _dataSub;
     _dataSub = null;
+    final session = _session;
+    _session = null;
+    _teardownInProgress = true;
 
-    if (_session != null) {
-      await _service.close(_session);
-      _session = null;
+    try {
+      try {
+        await dataSub?.cancel();
+      } catch (_) {}
+      if (session != null) {
+        await _service.close(session);
+      }
+      await Future.delayed(
+        const Duration(milliseconds: SkyPortConstants.connectionSettleDelayMs),
+      );
+    } finally {
+      _teardownInProgress = false;
     }
-
-    await Future.delayed(
-      const Duration(milliseconds: SkyPortConstants.connectionSettleDelayMs),
-    );
   }
 
-  Future<void> _cleanupOnDispose() async {
-    await _dataSub?.cancel();
+  Future<void> _cleanupOnDisposeInternal() async {
+    final dataSub = _dataSub;
     _dataSub = null;
+    final session = _session;
+    _session = null;
+    _teardownInProgress = true;
 
-    if (_session != null) {
+    try {
       try {
-        await _session!.dispose();
+        await dataSub?.cancel();
       } catch (_) {}
-      _session = null;
+      if (session != null) {
+        await _service.close(session);
+      }
+    } finally {
+      _teardownInProgress = false;
     }
   }
 
@@ -478,6 +557,34 @@ class SerialPortManager extends Notifier<SerialPortState> {
 
   bool _shouldApplyOperation(int token) {
     return !_isDisposed && token == _operationToken;
+  }
+
+  Future<T> _enqueueLifecycle<T>(Future<T> Function() operation) {
+    final previous = _lifecycleTail;
+    final next = Completer<void>();
+    _lifecycleTail = next.future;
+
+    return (() async {
+      if (_lifecycleBusy) {
+        await previous;
+      }
+      _lifecycleBusy = true;
+      try {
+        return await operation();
+      } finally {
+        _lifecycleBusy = false;
+        next.complete();
+      }
+    })();
+  }
+
+  bool _isCurrentSession(
+    SerialPortSessionInterface session,
+    int generation,
+  ) {
+    return !_isDisposed &&
+        identical(_session, session) &&
+        _sessionGeneration == generation;
   }
 
   void _saveConfig(SerialConfig config) {

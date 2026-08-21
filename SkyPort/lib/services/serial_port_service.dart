@@ -31,6 +31,7 @@ abstract class SerialPortSessionInterface {
 class SerialPortSession implements SerialPortSessionInterface {
   final SerialPort _port;
   final SerialPortReader _reader;
+  Future<void>? _disposeFuture;
 
   SerialPortSession(
       {required SerialPort port, required SerialPortReader reader})
@@ -57,12 +58,17 @@ class SerialPortSession implements SerialPortSessionInterface {
   }
 
   @override
-  Future<void> dispose() async {
+  Future<void> dispose() {
+    return _disposeFuture ??= _disposeInternal();
+  }
+
+  Future<void> _disposeInternal() async {
     try {
       _reader.close();
     } catch (_) {}
     await Future.delayed(
-      const Duration(milliseconds: SkyPortConstants.serialReaderShutdownDelayMs),
+      const Duration(
+          milliseconds: SkyPortConstants.serialReaderShutdownDelayMs),
     );
     try {
       if (_port.isOpen) {
@@ -70,7 +76,8 @@ class SerialPortSession implements SerialPortSessionInterface {
       }
     } catch (_) {}
     await Future.delayed(
-      const Duration(milliseconds: SkyPortConstants.serialReaderShutdownDelayMs),
+      const Duration(
+          milliseconds: SkyPortConstants.serialReaderShutdownDelayMs),
     );
     try {
       _port.dispose();
