@@ -9,15 +9,18 @@ void main() {
       final text = 'Prefix\x1b[31mHello\x1b[0m World';
       print('Original text: $text');
       final parser = Parser(text);
-      print('Matches count: ${parser.matches.length}');
+      print('Pieces count: ${parser.pieces.length}');
 
-      expect(parser.matches.isNotEmpty, true);
+      expect(
+        parser.pieces.any((piece) => piece.entity is EscapeCode),
+        true,
+      );
 
-      for (final match in parser.matches) {
-        final substring = text.substring(match.start, match.end);
-        final isEscape = substring.startsWith('\x1b');
+      for (final piece in parser.pieces) {
+        final substring = text.substring(piece.start, piece.end);
+        final isEscape = piece.entity is EscapeCode;
         print(
-            'Substring: "$substring", isEscape: $isEscape, State: ${match.state}');
+            'Substring: "$substring", isEscape: $isEscape, State: ${piece.state}');
       }
     });
 
@@ -25,35 +28,35 @@ void main() {
       final text = '\x1b[32mSuccess\x1b[0m';
       final parser = Parser(text);
 
-      expect(parser.matches.isNotEmpty, true);
+      expect(parser.pieces.isNotEmpty, true);
     });
 
     test('parses yellow text ANSI sequence', () {
       final text = '\x1b[33mWarning\x1b[0m';
       final parser = Parser(text);
 
-      expect(parser.matches.isNotEmpty, true);
+      expect(parser.pieces.isNotEmpty, true);
     });
 
     test('parses blue text ANSI sequence', () {
       final text = '\x1b[34mInfo\x1b[0m';
       final parser = Parser(text);
 
-      expect(parser.matches.isNotEmpty, true);
+      expect(parser.pieces.isNotEmpty, true);
     });
 
     test('parses bold text ANSI sequence', () {
       final text = '\x1b[1mBold Text\x1b[0m';
       final parser = Parser(text);
 
-      expect(parser.matches.isNotEmpty, true);
+      expect(parser.pieces.isNotEmpty, true);
     });
 
     test('parses combined bold and color ANSI sequence', () {
       final text = '\x1b[1;31mBold Red\x1b[0m';
       final parser = Parser(text);
 
-      expect(parser.matches.isNotEmpty, true);
+      expect(parser.pieces.isNotEmpty, true);
     });
 
     test('handles text without ANSI codes', () {
@@ -61,10 +64,9 @@ void main() {
       final parser = Parser(text);
 
       // Should have no escape sequences
-      final hasEscapes = parser.matches.any((match) {
-        final substring = text.substring(match.start, match.end);
-        return substring.startsWith('\x1b');
-      });
+      final hasEscapes = parser.pieces.any(
+        (piece) => piece.entity is EscapeCode,
+      );
 
       expect(hasEscapes, false);
     });
@@ -73,7 +75,7 @@ void main() {
       final text = '';
       final parser = Parser(text);
 
-      expect(parser.matches.isEmpty, true);
+      expect(parser.pieces.isEmpty, true);
     });
 
     test('parses multiple ANSI codes in one string', () {
@@ -81,21 +83,21 @@ void main() {
           '\x1b[31mRed\x1b[0m \x1b[32mGreen\x1b[0m \x1b[34mBlue\x1b[0m';
       final parser = Parser(text);
 
-      expect(parser.matches.length, greaterThan(2));
+      expect(parser.pieces.length, greaterThan(2));
     });
 
     test('handles ANSI reset sequence', () {
       final text = '\x1b[0mReset\x1b[0m';
       final parser = Parser(text);
 
-      expect(parser.matches.isNotEmpty, true);
+      expect(parser.pieces.isNotEmpty, true);
     });
 
     test('parses cyan text ANSI sequence', () {
       final text = '\x1b[36mCyan\x1b[0m';
       final parser = Parser(text);
 
-      expect(parser.matches.isNotEmpty, true);
+      expect(parser.pieces.isNotEmpty, true);
     });
   });
 }
