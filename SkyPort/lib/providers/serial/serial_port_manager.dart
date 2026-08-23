@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -187,8 +188,14 @@ class SerialPortManager extends Notifier<SerialPortState> {
         }
         bytesToSend = Uint8List.fromList(utf8.encode(textToSend));
       }
-    } catch (_) {
-      ref.read(errorProvider.notifier).setError(AppErrorType.invalidHexFormat);
+    } catch (e, stackTrace) {
+      developer.log(
+        'Failed to prepare serial data for sending',
+        name: 'skyport.serial',
+        level: 1000,
+        error: e,
+        stackTrace: stackTrace,
+      );
       return;
     }
 
@@ -215,10 +222,26 @@ class SerialPortManager extends Notifier<SerialPortState> {
             txBytes: state.connection.txBytes + bytesWritten,
           ),
         );
-      } on SerialPortWriteException catch (e) {
+      } on SerialPortWriteException catch (e, stackTrace) {
+        developer.log(
+          'Serial port write failed',
+          name: 'skyport.serial',
+          level: 1000,
+          error: e,
+          stackTrace: stackTrace,
+        );
         ref
             .read(errorProvider.notifier)
             .setError(AppErrorType.writeFailed, e.message);
+      } catch (e, stackTrace) {
+        developer.log(
+          'Unexpected serial send failure',
+          name: 'skyport.serial',
+          level: 1000,
+          error: e,
+          stackTrace: stackTrace,
+        );
+        rethrow;
       }
     });
   }
@@ -263,7 +286,14 @@ class SerialPortManager extends Notifier<SerialPortState> {
             }
 
             _onConnected(session, configToApply);
-          } catch (e) {
+          } catch (e, stackTrace) {
+            developer.log(
+              'Serial port reconciliation failed',
+              name: 'skyport.serial',
+              level: 1000,
+              error: e,
+              stackTrace: stackTrace,
+            );
             if (_shouldApplyOperation(token)) {
               _onConnectError(e);
             }
@@ -294,7 +324,14 @@ class SerialPortManager extends Notifier<SerialPortState> {
         return;
       }
       _onConnected(session, configToOpen);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      developer.log(
+        'Serial port connection failed',
+        name: 'skyport.serial',
+        level: 1000,
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (!_shouldApplyOperation(token)) {
         return;
       }
@@ -311,8 +348,16 @@ class SerialPortManager extends Notifier<SerialPortState> {
   Future<void> _handleConnectionLoss(
     Object error,
     SerialPortSessionInterface session,
-    int generation,
-  ) {
+    int generation, [
+    StackTrace? stackTrace,
+  ]) {
+    developer.log(
+      'Serial port connection lost',
+      name: 'skyport.serial',
+      level: 1000,
+      error: error,
+      stackTrace: stackTrace,
+    );
     return _enqueueLifecycle(() async {
       if (_isDisposed || !_isCurrentSession(session, generation)) {
         return;
@@ -370,9 +415,11 @@ class SerialPortManager extends Notifier<SerialPortState> {
         ref.read(dataLogProvider.notifier).addReceived(data);
         _onDataReceived(data);
       },
-      onError: (error, _) {
+      onError: (error, stackTrace) {
         if (!_isCurrentSession(session, generation)) return;
-        unawaited(_handleConnectionLoss(error, session, generation));
+        unawaited(
+          _handleConnectionLoss(error, session, generation, stackTrace),
+        );
       },
       onDone: () {
         if (!_isCurrentSession(session, generation)) return;
@@ -381,6 +428,7 @@ class SerialPortManager extends Notifier<SerialPortState> {
             StateError('Serial port connection closed'),
             session,
             generation,
+            StackTrace.current,
           ),
         );
       },
@@ -431,8 +479,14 @@ class SerialPortManager extends Notifier<SerialPortState> {
           ports.contains(state.targetConfig.portName)) {
         unawaited(_attemptReconnect());
       }
-    } catch (_) {
-      // Ignore port enumeration failures and keep the previous list.
+    } catch (e, stackTrace) {
+      developer.log(
+        'Failed to refresh serial ports',
+        name: 'skyport.serial',
+        level: 900,
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -446,9 +500,28 @@ class SerialPortManager extends Notifier<SerialPortState> {
     try {
       try {
         await dataSub?.cancel();
-      } catch (_) {}
+      } catch (e, stackTrace) {
+        developer.log(
+          'Failed to cancel serial data subscription',
+          name: 'skyport.serial',
+          level: 900,
+          error: e,
+          stackTrace: stackTrace,
+        );
+      }
       if (session != null) {
-        await _service.close(session);
+        try {
+          await _service.close(session);
+        } catch (e, stackTrace) {
+          developer.log(
+            'Failed to close serial port session',
+            name: 'skyport.serial',
+            level: 900,
+            error: e,
+            stackTrace: stackTrace,
+          );
+          rethrow;
+        }
       }
       await Future.delayed(
         const Duration(milliseconds: SkyPortConstants.connectionSettleDelayMs),
@@ -468,9 +541,28 @@ class SerialPortManager extends Notifier<SerialPortState> {
     try {
       try {
         await dataSub?.cancel();
-      } catch (_) {}
+      } catch (e, stackTrace) {
+        developer.log(
+          'Failed to cancel serial data subscription during dispose',
+          name: 'skyport.serial',
+          level: 900,
+          error: e,
+          stackTrace: stackTrace,
+        );
+      }
       if (session != null) {
-        await _service.close(session);
+        try {
+          await _service.close(session);
+        } catch (e, stackTrace) {
+          developer.log(
+            'Failed to close serial port session during dispose',
+            name: 'skyport.serial',
+            level: 900,
+            error: e,
+            stackTrace: stackTrace,
+          );
+          rethrow;
+        }
       }
     } finally {
       _teardownInProgress = false;
