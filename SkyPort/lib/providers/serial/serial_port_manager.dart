@@ -340,16 +340,16 @@ class SerialPortManager extends Notifier<SerialPortState> {
     int generation, [
     StackTrace? stackTrace,
   ]) {
-    AppLogger.instance.warning(
-      'Serial port connection lost',
-      name: 'skyport.serial',
-      error: error,
-      stackTrace: stackTrace,
-    );
     return _enqueueLifecycle(() async {
       if (_isDisposed || !_isCurrentSession(session, generation)) {
         return;
       }
+      AppLogger.instance.warning(
+        'Serial port connection lost',
+        name: 'skyport.serial',
+        error: error,
+        stackTrace: stackTrace,
+      );
 
       final shouldReconnect = state.connection.appliedConfig?.autoReconnect ??
           state.targetConfig.autoReconnect;

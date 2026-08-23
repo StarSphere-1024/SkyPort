@@ -26,25 +26,33 @@ abstract class SerialPortSessionInterface {
 
 /// Production implementation of SerialPortSessionInterface.
 ///
-/// Encapsulates an opened serial port session and its reader.
+/// Encapsulates an opened serial port session and its lifecycle.
 /// This class contains FFI dependencies and should only be used
 /// in production code, not in tests.
 class SerialPortSession implements SerialPortSessionInterface {
   final SerialPort _port;
-  final SerialPortReader _reader;
+  final StreamController<Uint8List> _controller =
+      StreamController<Uint8List>.broadcast();
+  Timer? _pollTimer;
   Future<void>? _disposeFuture;
+  _SerialPortSessionState _state = _SerialPortSessionState.active;
+  bool _pollingFailed = false;
 
-  SerialPortSession(
-      {required SerialPort port, required SerialPortReader reader})
-      : _port = port,
-        _reader = reader;
+  SerialPortSession({required SerialPort port}) : _port = port {
+    _controller
+      ..onListen = _startPolling
+      ..onCancel = _stopPolling;
+  }
 
   @override
-  Stream<Uint8List> get stream => _reader.stream;
+  Stream<Uint8List> get stream => _controller.stream;
 
   @override
   int write(Uint8List data,
       {int timeoutMs = SkyPortConstants.defaultWriteTimeoutMs}) {
+    if (_state != _SerialPortSessionState.active || _pollingFailed) {
+      throw SerialPortWriteException('Serial port session is disposed');
+    }
     try {
       final written = _port.write(data, timeout: timeoutMs);
       if (written <= 0) {
@@ -72,52 +80,75 @@ class SerialPortSession implements SerialPortSessionInterface {
 
   @override
   Future<void> dispose() {
-    return _disposeFuture ??= _disposeInternal();
+    if (_disposeFuture != null) return _disposeFuture!;
+    _state = _SerialPortSessionState.disposing;
+    _stopPolling();
+    return _disposeFuture = _disposeInternal();
   }
 
   Future<void> _disposeInternal() async {
     try {
-      _reader.close();
-    } catch (e, stackTrace) {
-      AppLogger.instance.warning(
-        'Failed to close serial port reader',
-        name: 'skyport.serial',
-        error: e,
-        stackTrace: stackTrace,
-      );
-    }
-    await Future.delayed(
-      const Duration(
-          milliseconds: SkyPortConstants.serialReaderShutdownDelayMs),
-    );
-    try {
-      if (_port.isOpen) {
-        _port.close();
+      await _controller.close();
+    } finally {
+      try {
+        if (_port.isOpen) {
+          _port.close();
+        }
+      } catch (e, stackTrace) {
+        AppLogger.instance.warning(
+          'Failed to close serial port',
+          name: 'skyport.serial',
+          error: e,
+          stackTrace: stackTrace,
+        );
       }
-    } catch (e, stackTrace) {
-      AppLogger.instance.warning(
-        'Failed to close serial port',
-        name: 'skyport.serial',
-        error: e,
-        stackTrace: stackTrace,
-      );
+      try {
+        _port.dispose();
+      } catch (e, stackTrace) {
+        AppLogger.instance.warning(
+          'Failed to dispose serial port',
+          name: 'skyport.serial',
+          error: e,
+          stackTrace: stackTrace,
+        );
+      }
+      _state = _SerialPortSessionState.disposed;
     }
-    await Future.delayed(
-      const Duration(
-          milliseconds: SkyPortConstants.serialReaderShutdownDelayMs),
+  }
+
+  void _startPolling() {
+    if (_state != _SerialPortSessionState.active ||
+        _pollingFailed ||
+        _pollTimer != null) {
+      return;
+    }
+    _pollTimer = Timer.periodic(
+      const Duration(milliseconds: SkyPortConstants.serialReadPollTimeoutMs),
+      (_) => _poll(),
     );
+  }
+
+  void _stopPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
+  }
+
+  void _poll() {
+    if (_state != _SerialPortSessionState.active || _pollingFailed) return;
     try {
-      _port.dispose();
+      final available = _port.bytesAvailable;
+      if (available <= 0) return;
+      final data = _port.read(available, timeout: 0);
+      if (data.isNotEmpty) _controller.add(data);
     } catch (e, stackTrace) {
-      AppLogger.instance.warning(
-        'Failed to dispose serial port',
-        name: 'skyport.serial',
-        error: e,
-        stackTrace: stackTrace,
-      );
+      _pollingFailed = true;
+      _stopPolling();
+      _controller.addError(e, stackTrace);
     }
   }
 }
+
+enum _SerialPortSessionState { active, disposing, disposed }
 
 /// Custom exceptions to allow precise error handling in the provider layer.
 class SerialPortOpenTimeoutException implements Exception {
@@ -192,12 +223,8 @@ class SerialPortService implements SerialPortServiceInterface {
         throw SerialPortOpenException('Failed to open port');
       }
       port.config = portConfig;
-      final reader = SerialPortReader(
-        port,
-        timeout: SkyPortConstants.serialReadPollTimeoutMs,
-      );
       success = true;
-      return SerialPortSession(port: port, reader: reader);
+      return SerialPortSession(port: port);
     } on SerialPortOpenException catch (e, stackTrace) {
       AppLogger.instance.error(
         'Serial port open failed',
