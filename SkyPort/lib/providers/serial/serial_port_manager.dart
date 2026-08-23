@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -12,6 +11,7 @@ import '../../models/serial_config.dart';
 import '../../models/serial_port_state.dart';
 import '../../models/ui_settings.dart';
 import '../../services/serial_port_service.dart';
+import '../../services/app_logger.dart';
 import '../../utils/constants.dart';
 import '../../utils/hex_parser.dart';
 import '../common_providers.dart';
@@ -189,10 +189,9 @@ class SerialPortManager extends Notifier<SerialPortState> {
         bytesToSend = Uint8List.fromList(utf8.encode(textToSend));
       }
     } catch (e, stackTrace) {
-      developer.log(
+      AppLogger.instance.error(
         'Failed to prepare serial data for sending',
         name: 'skyport.serial',
-        level: 1000,
         error: e,
         stackTrace: stackTrace,
       );
@@ -222,22 +221,14 @@ class SerialPortManager extends Notifier<SerialPortState> {
             txBytes: state.connection.txBytes + bytesWritten,
           ),
         );
-      } on SerialPortWriteException catch (e, stackTrace) {
-        developer.log(
-          'Serial port write failed',
-          name: 'skyport.serial',
-          level: 1000,
-          error: e,
-          stackTrace: stackTrace,
-        );
+      } on SerialPortWriteException catch (e) {
         ref
             .read(errorProvider.notifier)
             .setError(AppErrorType.writeFailed, e.message);
       } catch (e, stackTrace) {
-        developer.log(
+        AppLogger.instance.error(
           'Unexpected serial send failure',
           name: 'skyport.serial',
-          level: 1000,
           error: e,
           stackTrace: stackTrace,
         );
@@ -287,10 +278,9 @@ class SerialPortManager extends Notifier<SerialPortState> {
 
             _onConnected(session, configToApply);
           } catch (e, stackTrace) {
-            developer.log(
+            AppLogger.instance.error(
               'Serial port reconciliation failed',
               name: 'skyport.serial',
-              level: 1000,
               error: e,
               stackTrace: stackTrace,
             );
@@ -325,10 +315,9 @@ class SerialPortManager extends Notifier<SerialPortState> {
       }
       _onConnected(session, configToOpen);
     } catch (e, stackTrace) {
-      developer.log(
+      AppLogger.instance.error(
         'Serial port connection failed',
         name: 'skyport.serial',
-        level: 1000,
         error: e,
         stackTrace: stackTrace,
       );
@@ -351,10 +340,9 @@ class SerialPortManager extends Notifier<SerialPortState> {
     int generation, [
     StackTrace? stackTrace,
   ]) {
-    developer.log(
+    AppLogger.instance.warning(
       'Serial port connection lost',
       name: 'skyport.serial',
-      level: 1000,
       error: error,
       stackTrace: stackTrace,
     );
@@ -480,10 +468,9 @@ class SerialPortManager extends Notifier<SerialPortState> {
         unawaited(_attemptReconnect());
       }
     } catch (e, stackTrace) {
-      developer.log(
+      AppLogger.instance.warning(
         'Failed to refresh serial ports',
         name: 'skyport.serial',
-        level: 900,
         error: e,
         stackTrace: stackTrace,
       );
@@ -501,10 +488,9 @@ class SerialPortManager extends Notifier<SerialPortState> {
       try {
         await dataSub?.cancel();
       } catch (e, stackTrace) {
-        developer.log(
+        AppLogger.instance.warning(
           'Failed to cancel serial data subscription',
           name: 'skyport.serial',
-          level: 900,
           error: e,
           stackTrace: stackTrace,
         );
@@ -513,10 +499,9 @@ class SerialPortManager extends Notifier<SerialPortState> {
         try {
           await _service.close(session);
         } catch (e, stackTrace) {
-          developer.log(
+          AppLogger.instance.warning(
             'Failed to close serial port session',
             name: 'skyport.serial',
-            level: 900,
             error: e,
             stackTrace: stackTrace,
           );
@@ -542,10 +527,9 @@ class SerialPortManager extends Notifier<SerialPortState> {
       try {
         await dataSub?.cancel();
       } catch (e, stackTrace) {
-        developer.log(
+        AppLogger.instance.warning(
           'Failed to cancel serial data subscription during dispose',
           name: 'skyport.serial',
-          level: 900,
           error: e,
           stackTrace: stackTrace,
         );
@@ -554,10 +538,9 @@ class SerialPortManager extends Notifier<SerialPortState> {
         try {
           await _service.close(session);
         } catch (e, stackTrace) {
-          developer.log(
+          AppLogger.instance.warning(
             'Failed to close serial port session during dispose',
             name: 'skyport.serial',
-            level: 900,
             error: e,
             stackTrace: stackTrace,
           );
