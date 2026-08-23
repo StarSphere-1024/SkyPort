@@ -190,13 +190,10 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
 
                       final monoStyle = theme.textTheme.bodyMedium!.copyWith(
                         fontFamily: 'monospace',
-                        fontSize: 15.0,
+                        fontSize: 18.0,
                         height: 1.2, // Compact line height
                       );
-
-                      final dataTextStyle = monoStyle.copyWith(
-                        fontSize: 18.0,
-                      );
+                      final dataTextStyle = monoStyle;
 
                       return Scrollbar(
                         controller: _scrollController,
