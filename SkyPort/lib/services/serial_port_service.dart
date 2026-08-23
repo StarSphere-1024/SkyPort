@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:typed_data';
 
 import 'package:flutter_libserialport/flutter_libserialport.dart';
@@ -50,9 +51,23 @@ class SerialPortSession implements SerialPortSessionInterface {
         throw SerialPortWriteException('No bytes written (written=$written).');
       }
       return written;
-    } on SerialPortError catch (e) {
+    } on SerialPortError catch (e, stackTrace) {
+      developer.log(
+        'Serial port write failed',
+        name: 'skyport.serial',
+        level: 1000,
+        error: e,
+        stackTrace: stackTrace,
+      );
       throw SerialPortWriteException(e.message);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      developer.log(
+        'Serial port write failed',
+        name: 'skyport.serial',
+        level: 1000,
+        error: e,
+        stackTrace: stackTrace,
+      );
       throw SerialPortWriteException('Unknown write error: $e');
     }
   }
@@ -65,7 +80,15 @@ class SerialPortSession implements SerialPortSessionInterface {
   Future<void> _disposeInternal() async {
     try {
       _reader.close();
-    } catch (_) {}
+    } catch (e, stackTrace) {
+      developer.log(
+        'Failed to close serial port reader',
+        name: 'skyport.serial',
+        level: 900,
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
     await Future.delayed(
       const Duration(
           milliseconds: SkyPortConstants.serialReaderShutdownDelayMs),
@@ -74,14 +97,30 @@ class SerialPortSession implements SerialPortSessionInterface {
       if (_port.isOpen) {
         _port.close();
       }
-    } catch (_) {}
+    } catch (e, stackTrace) {
+      developer.log(
+        'Failed to close serial port',
+        name: 'skyport.serial',
+        level: 900,
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
     await Future.delayed(
       const Duration(
           milliseconds: SkyPortConstants.serialReaderShutdownDelayMs),
     );
     try {
       _port.dispose();
-    } catch (_) {}
+    } catch (e, stackTrace) {
+      developer.log(
+        'Failed to dispose serial port',
+        name: 'skyport.serial',
+        level: 900,
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
 }
 
@@ -130,7 +169,15 @@ class SerialPortService implements SerialPortServiceInterface {
   @override
   Future<SerialPortSessionInterface> open(SerialConfig config) async {
     if (config.portName.isEmpty) {
-      throw SerialPortOpenException('Port name cannot be empty');
+      final error = SerialPortOpenException('Port name cannot be empty');
+      developer.log(
+        'Serial port open failed',
+        name: 'skyport.serial',
+        level: 1000,
+        error: error,
+        stackTrace: StackTrace.current,
+      );
+      throw error;
     }
     final port = SerialPort(config.portName);
     final portConfig = SerialPortConfig()
@@ -157,17 +204,61 @@ class SerialPortService implements SerialPortServiceInterface {
       );
       success = true;
       return SerialPortSession(port: port, reader: reader);
-    } on SerialPortOpenException {
+    } on SerialPortOpenException catch (e, stackTrace) {
+      developer.log(
+        'Serial port open failed',
+        name: 'skyport.serial',
+        level: 1000,
+        error: e,
+        stackTrace: stackTrace,
+      );
       rethrow;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      developer.log(
+        'Serial port open failed',
+        name: 'skyport.serial',
+        level: 1000,
+        error: e,
+        stackTrace: stackTrace,
+      );
       throw SerialPortOpenException('Error opening port: $e');
     } finally {
-      portConfig.dispose();
+      try {
+        portConfig.dispose();
+      } catch (e, stackTrace) {
+        developer.log(
+          'Failed to dispose serial port configuration',
+          name: 'skyport.serial',
+          level: 900,
+          error: e,
+          stackTrace: stackTrace,
+        );
+        rethrow;
+      }
       if (!success) {
         try {
           if (port.isOpen) port.close();
-        } catch (_) {}
-        port.dispose();
+        } catch (e, stackTrace) {
+          developer.log(
+            'Failed to close serial port after open failure',
+            name: 'skyport.serial',
+            level: 900,
+            error: e,
+            stackTrace: stackTrace,
+          );
+        }
+        try {
+          port.dispose();
+        } catch (e, stackTrace) {
+          developer.log(
+            'Failed to dispose serial port after open failure',
+            name: 'skyport.serial',
+            level: 900,
+            error: e,
+            stackTrace: stackTrace,
+          );
+          rethrow;
+        }
       }
     }
   }
@@ -177,8 +268,14 @@ class SerialPortService implements SerialPortServiceInterface {
     if (session == null) return;
     try {
       await session.dispose();
-    } catch (e) {
-      // Intentionally ignore: provider decides whether to surface the error.
+    } catch (e, stackTrace) {
+      developer.log(
+        'Failed to close serial port session',
+        name: 'skyport.serial',
+        level: 900,
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 }
