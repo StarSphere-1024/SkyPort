@@ -331,16 +331,16 @@ class LogEntry {
 
     try {
       if (state != null) {
-        fg = getFlutterColor(state.foreground);
-        bg = getFlutterColor(state.background);
+        fg = getFlutterColor(state.foregroundColor);
+        bg = getFlutterColor(state.backgroundColor);
         try {
           if (state.isBold == true) bold = true;
         } catch (_) {}
         try {
-          if (state.isItalicized == true) italic = true;
+          if (state.isItalic == true) italic = true;
         } catch (_) {}
         try {
-          if (state.isSinglyUnderlined == true) underline = true;
+          if (state.isUnderline == true) underline = true;
         } catch (_) {}
       }
     } catch (e) {
