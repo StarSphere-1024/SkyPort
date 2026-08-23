@@ -250,6 +250,10 @@ void main() {
         );
 
         expect(spans, isNotEmpty);
+        final colorSpan = spans.whereType<TextSpan>().firstWhere(
+              (span) => span.text == 'Hi',
+            );
+        expect(colorSpan.style?.color, Colors.green);
       });
     });
 
