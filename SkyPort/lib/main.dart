@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,12 +15,31 @@ import 'widgets/settings_popup.dart';
 import 'widgets/left_panel.dart';
 import 'widgets/right_panel.dart';
 import 'widgets/status_bar.dart';
+import 'services/app_logger.dart';
 import 'services/log_export_service.dart';
 import 'l10n/app_localizations.dart';
 import 'utils/constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppLogger.instance.initialize();
+
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    AppLogger.instance.error(
+      'Unhandled Flutter framework error',
+      error: details.exception,
+      stackTrace: details.stack ?? StackTrace.current,
+    );
+  };
+  PlatformDispatcher.instance.onError = (error, stackTrace) {
+    AppLogger.instance.error(
+      'Unhandled async error',
+      error: error,
+      stackTrace: stackTrace,
+    );
+    return false;
+  };
 
   final prefs = await SharedPreferences.getInstance();
 
