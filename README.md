@@ -39,7 +39,7 @@
     *   窗口尺寸、位置和串口偏好会被记忆，提升日常使用效率。
 
 *   **跨平台**
-    *   当前支持 Windows 和 Linux 桌面平台（MacOS 与 Android 在规划中）。
+    *   当前支持 Windows 和 Linux 桌面平台；macOS 项目文件存在，但暂不视为已支持平台。
 
 ## 📥 下载安装
 
@@ -70,18 +70,19 @@
     ```
 
 4.  **构建发布版本**
+    在对应宿主机及其平台工具链上执行：
     ```bash
-    flutter build windows  # Windows
-    flutter build linux    # Linux
+    flutter build windows --release  # Windows host
+    flutter build linux --release    # Linux host
     ```
+    macOS 项目文件存在，但当前不在正式支持范围内；macOS 构建需要 macOS 宿主机。
 
 ## 📦 主要依赖
 
 *   [flutter_riverpod](https://pub.dev/packages/flutter_riverpod) (v3.0.3): 用于状态管理。
 *   [flutter_libserialport](https://pub.dev/packages/flutter_libserialport) (v0.6.0): 用于串口通信。
 *   [shared_preferences](https://pub.dev/packages/shared_preferences) (v2.5.3): 用于记忆用户偏好和串口参数。
-*   [window_manager](https://pub.dev/packages/window_manager) (v0.5.1): 用于桌面端窗口管理。
-*   [ansi_escape_codes](https://pub.dev/packages/ansi_escape_codes) (v2.1.0): 用于 ANSI 转义序列解析和渲染。
+*   [ansi_escape_codes](https://pub.dev/packages/ansi_escape_codes) (v4.0.1): 用于 ANSI 转义序列解析和渲染。
 *   [flutter_localizations](https://api.flutter.dev/flutter/flutter_localizations/flutter_localizations-library.html) + [intl](https://pub.dev/packages/intl) (v0.20.2): 用于国际化支持。
 
 ## 🤝 贡献
@@ -95,7 +96,7 @@
 5. 开启一个 Pull Request
 
 ### 开发环境设置
-- 安装 Flutter 3.4.1+
+- 安装满足 `SkyPort/pubspec.yaml` 要求的 Flutter SDK（Dart SDK `>=3.10.0`）。
 - 运行 `flutter pub get` 安装依赖
 - 使用 `flutter run` 启动开发版本
 
