@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -58,16 +59,17 @@ class LogExportService {
       type: FileType.custom,
       allowedExtensions: ['txt'],
       initialDirectory: defaultPath.isNotEmpty ? defaultPath : null,
-      bytes: utf8.encode(content),
+      bytes: Uint8List.fromList(utf8.encode(content)),
     );
 
     if (result == null) return null; // User cancelled or web download
 
     try {
+      final path = result.toFilePath();
       if (context.mounted) {
-        _showMessage(context, 'logsExportedTo', extra: result);
+        _showMessage(context, 'logsExportedTo', extra: path);
       }
-      return result;
+      return path;
     } catch (e) {
       if (context.mounted) {
         _showMessage(context, 'exportFailed', extra: e.toString());
@@ -86,10 +88,7 @@ class LogExportService {
     return _filterEntries(chunks, showSent);
   }
 
-  static List<LogEntry> _filterEntries(
-    List<LogChunk> chunks,
-    bool showSent,
-  ) {
+  static List<LogEntry> _filterEntries(List<LogChunk> chunks, bool showSent) {
     // Return entries matching current UI display setting
     return showSent
         ? chunks.expand((c) => c.entries).toList()
@@ -108,7 +107,12 @@ class LogExportService {
     bool enableAnsi,
   ) {
     return _generateWysiwygContent(
-        entries, hexDisplay, showTimestamp, showSent, enableAnsi);
+      entries,
+      hexDisplay,
+      showTimestamp,
+      showSent,
+      enableAnsi,
+    );
   }
 
   static String _generateWysiwygContent(
@@ -122,8 +126,9 @@ class LogExportService {
 
     for (final entry in entries) {
       final isSent = entry.type == LogEntryType.sent;
-      final formattedTimestamp =
-          DateFormat('HH:mm:ss.SSS').format(entry.timestamp);
+      final formattedTimestamp = DateFormat(
+        'HH:mm:ss.SSS',
+      ).format(entry.timestamp);
       final displayText = entry.getDisplayTextPreview(hexDisplay);
       final dataText = displayText.text;
 
@@ -203,8 +208,8 @@ class LogExportService {
       'exportFailed' => '${l10n.exportFailed}$extra',
       _ => key,
     };
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }

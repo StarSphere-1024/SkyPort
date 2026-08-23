@@ -214,13 +214,13 @@ class LogEntry {
 
       if (enableAnsi) {
         final parser = ansi.Parser(lineText);
-        for (final match in parser.matches) {
-          final textSegment = lineText.substring(match.start, match.end);
-          if (textSegment.startsWith('\x1b')) continue;
+        for (final piece in parser.pieces) {
+          final textSegment = lineText.substring(piece.start, piece.end);
+          if (piece.entity is ansi.EscapeCode) continue;
 
           spans.add(TextSpan(
             text: textSegment,
-            style: _ansiStateToStyle(match.state, contentStyle),
+            style: _ansiStateToStyle(piece.state, contentStyle),
           ));
         }
       } else {
