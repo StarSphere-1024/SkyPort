@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_libserialport/flutter_libserialport.dart';
 import 'package:mocktail/mocktail.dart';
@@ -9,8 +10,6 @@ import 'package:skyport/services/serial_port_service.dart';
 
 // Mock classes for testing
 class MockSerialPort extends Mock implements SerialPort {}
-
-class MockSerialPortReader extends Mock implements SerialPortReader {}
 
 class MockSerialPortConfig extends Mock implements SerialPortConfig {}
 
@@ -261,25 +260,108 @@ void main() {
     });
 
     group('SerialPortSession', () {
-      test('dispose handles errors gracefully', () {
-        // dispose() has try-catch that ignores errors
-        // Test verifies it doesn't throw
-        expect(true, true);
-      });
-      test('concurrent dispose calls share one teardown', () async {
+      test('polls available bytes and emits data', () async {
         final port = MockSerialPort();
-        final reader = MockSerialPortReader();
+        final data = Uint8List.fromList([1, 2, 3]);
+        when(() => port.bytesAvailable).thenReturn(data.length);
+        when(() => port.read(data.length, timeout: 0)).thenReturn(data);
         when(() => port.isOpen).thenReturn(false);
         when(() => port.dispose()).thenReturn(null);
-        when(() => reader.close()).thenReturn(null);
+        final session = SerialPortSession(port: port);
+        final received = <Uint8List>[];
+        final fake = FakeAsync();
 
-        final session = SerialPortSession(port: port, reader: reader);
+        fake.run((async) {
+          session.stream.listen(received.add);
+          async.elapse(const Duration(milliseconds: 50));
+          async.flushMicrotasks();
+        });
+
+        expect(received, [same(data)]);
+        verify(() => port.bytesAvailable).called(1);
+        verify(() => port.read(data.length, timeout: 0)).called(1);
+        await session.dispose();
+      });
+
+      test('polling errors stop subsequent reads', () async {
+        final port = MockSerialPort();
+        const error = SerialPortError('read failed');
+        when(() => port.bytesAvailable).thenThrow(error);
+        when(() => port.isOpen).thenReturn(false);
+        when(() => port.dispose()).thenReturn(null);
+        final session = SerialPortSession(port: port);
+        final errors = <Object>[];
+        final fake = FakeAsync();
+
+        fake.run((async) {
+          session.stream.listen((_) {}, onError: (Object error, StackTrace _) {
+            errors.add(error);
+          });
+          async.elapse(const Duration(milliseconds: 50));
+          async.elapse(const Duration(milliseconds: 250));
+          async.flushMicrotasks();
+        });
+
+        expect(errors, [same(error)]);
+        verify(() => port.bytesAvailable).called(1);
+        verifyNever(
+          () => port.read(any(), timeout: any(named: 'timeout')),
+        );
+        await session.dispose();
+      });
+
+      test('dispose stops polling and blocks writes', () async {
+        final port = MockSerialPort();
+        final data = Uint8List.fromList([1, 2, 3]);
+        when(() => port.bytesAvailable).thenReturn(data.length);
+        when(() => port.read(data.length, timeout: 0)).thenReturn(data);
+        when(() => port.isOpen).thenReturn(false);
+        when(() => port.dispose()).thenReturn(null);
+        final session = SerialPortSession(port: port);
+        final fake = FakeAsync();
+        late Future<void> disposeFuture;
+
+        fake.run((async) {
+          session.stream.listen((_) {});
+          async.elapse(const Duration(milliseconds: 50));
+        });
+        disposeFuture = session.dispose();
+        await disposeFuture;
+        fake.run((async) {
+          async.elapse(const Duration(milliseconds: 250));
+          async.flushMicrotasks();
+        });
+        expect(
+          () => session.write(Uint8List.fromList([4])),
+          throwsA(
+            isA<SerialPortWriteException>().having(
+              (error) => error.message,
+              'message',
+              'Serial port session is disposed',
+            ),
+          ),
+        );
+        verify(() => port.bytesAvailable).called(1);
+        verify(() => port.read(data.length, timeout: 0)).called(1);
+        verifyNever(
+          () => port.write(data, timeout: 100),
+        );
+        verify(() => port.dispose()).called(1);
+      });
+
+      test('concurrent dispose calls share one teardown', () async {
+        final port = MockSerialPort();
+        when(() => port.isOpen).thenReturn(true);
+        when(() => port.close()).thenReturn(true);
+        when(() => port.dispose()).thenReturn(null);
+
+        final session = SerialPortSession(port: port);
         final first = session.dispose();
         final second = session.dispose();
 
         expect(identical(first, second), true);
         await Future.wait([first, second]);
-        verify(() => reader.close()).called(1);
+        verify(() => port.close()).called(1);
         verify(() => port.dispose()).called(1);
       });
     });
