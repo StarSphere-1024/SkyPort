@@ -47,7 +47,6 @@ class UiState {
   final int trimmedRecords;
   final bool logIncomplete;
   final bool dataGap;
-  final Map<int, int> _chunkIndices;
 
   UiState({
     required this.sequence,
@@ -77,17 +76,14 @@ class UiState {
     required this.trimmedRecords,
     required this.logIncomplete,
     this.dataGap = false,
-    required Map<int, int> chunkIndices,
-  }) : _chunkIndices = chunkIndices;
+  });
 
   factory UiState.fromSnapshot(
     rust.AppSnapshot snapshot, {
     bool dataGap = false,
   }) {
     final chunks = <LogChunk>[];
-    final indices = <int, int>{};
     for (final record in snapshot.log.records) {
-      indices[record.id] = chunks.length;
       chunks.add(_chunk(record));
     }
     return UiState(
@@ -118,7 +114,6 @@ class UiState {
       trimmedRecords: snapshot.log.trimmedRecords,
       logIncomplete: snapshot.log.incomplete,
       dataGap: dataGap,
-      chunkIndices: indices,
     );
   }
 
@@ -150,90 +145,109 @@ class UiState {
     trimmedRecords: trimmedRecords,
     logIncomplete: logIncomplete,
     dataGap: dataGap,
-    chunkIndices: _chunkIndices,
   );
 
-  UiState withEvent(rust.Event event) {
+  UiState withEvent(rust.Event event) => withEvents([event]);
+
+  UiState withEvents(Iterable<rust.Event> events) {
     var next = this;
-    switch (event.kind) {
-      case rust.EventType.stateChanged:
-        next = event.state == null ? this : withState(event.state!);
-      case rust.EventType.portsChanged:
-        next = _copy(sequence: event.sequence, ports: event.ports ?? ports);
-      case rust.EventType.logChanged:
-        if (event.log != null) {
-          next = withLogDelta(event.log!, sequence: event.sequence);
-        }
-      case rust.EventType.dataReceived:
-        if (event.log != null) {
-          next = withLogDelta(event.log!, sequence: event.sequence);
-        }
-        next = next._copy(
-          sequence: event.sequence,
-          rxBytes: event.rxBytes ?? rxBytes,
-          lastRxBytes: event.lastRxBytes ?? lastRxBytes,
-        );
-      case rust.EventType.dataSent:
-        if (event.log != null) {
-          next = withLogDelta(event.log!, sequence: event.sequence);
-        }
-        next = next._copy(
-          sequence: event.sequence,
-          txBytes: event.txBytes ?? txBytes,
-        );
-      case rust.EventType.disconnected:
-      case rust.EventType.writeFailed:
-      case rust.EventType.queueOverflow:
-      case rust.EventType.taskFailed:
-      case rust.EventType.commandFailed:
-        next = _copy(
-          sequence: event.sequence,
-          error: event.error,
-          replaceError: true,
-        );
-      case rust.EventType.reconnecting:
-      case rust.EventType.commandCompleted:
-        next = _copy(sequence: event.sequence);
+    final deltas = <rust.LogDelta>[];
+    for (final event in events) {
+      if (event.sequence <= next.sequence) continue;
+      switch (event.kind) {
+        case rust.EventType.stateChanged:
+          if (event.state != null) next = next.withState(event.state!);
+        case rust.EventType.portsChanged:
+          next = next._copy(sequence: event.sequence, ports: event.ports);
+        case rust.EventType.logChanged:
+        case rust.EventType.dataReceived:
+        case rust.EventType.dataSent:
+          if (event.log != null) deltas.add(event.log!);
+          next = next._copy(
+            sequence: event.sequence,
+            rxBytes: event.rxBytes,
+            lastRxBytes: event.lastRxBytes,
+            txBytes: event.txBytes,
+          );
+        case rust.EventType.disconnected:
+        case rust.EventType.writeFailed:
+        case rust.EventType.queueOverflow:
+        case rust.EventType.taskFailed:
+        case rust.EventType.commandFailed:
+          next = next._copy(
+            sequence: event.sequence,
+            error: event.error,
+            replaceError: true,
+          );
+        case rust.EventType.reconnecting:
+        case rust.EventType.commandCompleted:
+          next = next._copy(sequence: event.sequence);
+      }
     }
-    return next;
+    if (deltas.isEmpty) return next;
+    if (deltas.length == 1) return next.withLogDelta(deltas.single);
+
+    final upsert = <int, rust.LogRecord>{};
+    final removed = <int>{};
+    for (final delta in deltas) {
+      for (final id in delta.removedIds) {
+        upsert.remove(id);
+        removed.add(id);
+      }
+      for (final record in delta.upsert) {
+        removed.remove(record.id);
+        upsert[record.id] = record;
+      }
+    }
+    final last = deltas.last;
+    return next.withLogDelta(
+      rust.LogDelta(
+        upsert: [
+          for (final record in upsert.values)
+            if (record.id == 0xFFFFFFFFFFFFFFFF || record.id >= last.earliestId)
+              record,
+        ],
+        removedIds: removed.toList(),
+        earliestId: last.earliestId,
+        totalBytes: last.totalBytes,
+        trimmedBytes: last.trimmedBytes,
+        trimmedRecords: last.trimmedRecords,
+        incomplete: last.incomplete,
+      ),
+    );
   }
 
   UiState withLogDelta(rust.LogDelta delta, {int? sequence}) {
     // ponytail: O(retained rows) metadata copies are capped at 65,536; group immutable chunks if measured jank.
     final chunks = List<LogChunk>.of(logs.chunks);
-    final indices = Map<int, int>.of(_chunkIndices);
-    final removed = delta.removedIds.toSet();
-    final before = chunks.length;
-    chunks.removeWhere((chunk) {
-      final remove =
-          removed.contains(chunk.id) ||
-          (chunk.id != 0xFFFFFFFFFFFFFFFF && chunk.id < delta.earliestId);
-      if (remove) LogEntry.evictCachedData(chunk.entries);
-      return remove;
-    });
-    if (chunks.length != before) _reindex(chunks, indices);
+    final removed = delta.removedIds.isEmpty
+        ? const <int>{}
+        : delta.removedIds.toSet();
+    if (removed.isNotEmpty ||
+        (chunks.isNotEmpty &&
+            chunks.first.id != 0xFFFFFFFFFFFFFFFF &&
+            chunks.first.id < delta.earliestId)) {
+      chunks.removeWhere((chunk) {
+        final remove =
+            removed.contains(chunk.id) ||
+            (chunk.id != 0xFFFFFFFFFFFFFFFF && chunk.id < delta.earliestId);
+        if (remove) LogEntry.evictCachedData(chunk.entries);
+        return remove;
+      });
+    }
 
     for (final record in delta.upsert) {
-      final index = indices[record.id];
-      if (index != null && _sameRecord(chunks[index].entries.first, record)) {
+      final index = LogChunk.insertionIndex(chunks, record.id);
+      final exists = index < chunks.length && chunks[index].id == record.id;
+      if (exists && _sameRecord(chunks[index].entries.first, record)) {
         continue;
       }
-      if (index != null) LogEntry.evictCachedData(chunks[index].entries);
+      if (exists) LogEntry.evictCachedData(chunks[index].entries);
       final chunk = _chunk(record);
-      if (index == null) {
-        if (record.id == 0xFFFFFFFFFFFFFFFF) {
-          indices[record.id] = chunks.length;
-          chunks.add(chunk);
-        } else {
-          final pending = chunks.indexWhere(
-            (row) => row.id == 0xFFFFFFFFFFFFFFFF,
-          );
-          final insertion = pending < 0 ? chunks.length : pending;
-          chunks.insert(insertion, chunk);
-          _reindex(chunks, indices);
-        }
-      } else {
+      if (exists) {
         chunks[index] = chunk;
+      } else {
+        chunks.insert(index, chunk);
       }
     }
     return _copy(
@@ -242,7 +256,6 @@ class UiState {
       trimmedBytes: delta.trimmedBytes,
       trimmedRecords: delta.trimmedRecords,
       logIncomplete: delta.incomplete,
-      chunkIndices: indices,
     );
   }
 
@@ -262,7 +275,6 @@ class UiState {
     int? trimmedBytes,
     int? trimmedRecords,
     bool? logIncomplete,
-    Map<int, int>? chunkIndices,
     bool? dataGap,
   }) => UiState(
     sequence: sequence ?? this.sequence,
@@ -292,7 +304,6 @@ class UiState {
     trimmedRecords: trimmedRecords ?? this.trimmedRecords,
     logIncomplete: logIncomplete ?? this.logIncomplete,
     dataGap: dataGap ?? this.dataGap,
-    chunkIndices: chunkIndices ?? _chunkIndices,
   );
 
   static LogChunk _chunk(rust.LogRecord record) {
@@ -324,14 +335,6 @@ class UiState {
       if (entry.data[i] != record.data[i]) return false;
     }
     return true;
-  }
-
-  static void _reindex(List<LogChunk> chunks, Map<int, int> indices) {
-    indices
-      ..clear()
-      ..addEntries([
-        for (var i = 0; i < chunks.length; i++) MapEntry(chunks[i].id, i),
-      ]);
   }
 
   static UiConnection _connection(rust.ConnectionState value) =>

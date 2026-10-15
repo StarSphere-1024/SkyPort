@@ -10,8 +10,11 @@ class SerialParamsWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(uiControllerProvider);
-    final isReconfiguring = state.connection == UiConnection.reconfiguring;
+    final isReconfiguring = ref.watch(
+      uiControllerProvider.select(
+        (state) => state.connection == UiConnection.reconfiguring,
+      ),
+    );
 
     return _buildSerialParamsGrid(context, ref, isReconfiguring);
   }
@@ -21,7 +24,16 @@ class SerialParamsWidget extends ConsumerWidget {
     WidgetRef ref,
     bool isReconfiguring,
   ) {
-    final state = ref.watch(uiControllerProvider);
+    final state = ref.watch(
+      uiControllerProvider.select(
+        (state) => (
+          baudRate: state.baudRate,
+          dataBits: state.dataBits,
+          parity: state.parity,
+          stopBits: state.stopBits,
+        ),
+      ),
+    );
     final controller = ref.read(uiControllerProvider.notifier);
 
     return Column(

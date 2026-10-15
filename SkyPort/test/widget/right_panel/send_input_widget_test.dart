@@ -61,7 +61,6 @@ UiState sendState({
   trimmedBytes: 0,
   trimmedRecords: 0,
   logIncomplete: false,
-  chunkIndices: const {},
 );
 
 Widget app(FakeUiController controller) => ProviderScope(

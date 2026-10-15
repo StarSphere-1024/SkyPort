@@ -4,6 +4,9 @@ use crate::{CoreError, ErrorKind, Newline, Parity, SerialConfig};
 use serialport::{DataBits, Parity as PortParity, StopBits};
 use std::time::Duration;
 
+// Bound command waiting while the single worker polls serial input.
+pub(crate) const READ_POLL_TIMEOUT: Duration = Duration::from_millis(5);
+
 pub(crate) fn ports() -> Result<Vec<String>, CoreError> {
     serialport::available_ports()
         .map(|ports| ports.into_iter().map(|p| p.port_name).collect())
@@ -49,7 +52,7 @@ pub(crate) fn open(config: &SerialConfig) -> Result<Box<dyn serialport::SerialPo
         .parity(parity)
         .stop_bits(stop_bits)
         .flow_control(serialport::FlowControl::None)
-        .timeout(Duration::from_millis(30));
+        .timeout(READ_POLL_TIMEOUT);
     #[cfg(unix)]
     {
         let mut port = builder

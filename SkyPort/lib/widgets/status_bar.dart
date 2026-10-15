@@ -10,7 +10,18 @@ class StatusBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(uiControllerProvider);
+    final state = ref.watch(
+      uiControllerProvider.select(
+        (state) => (
+          connection: state.connection,
+          portName: state.portName,
+          baudRate: state.baudRate,
+          rxBytes: state.rxBytes,
+          txBytes: state.txBytes,
+          lastRxBytes: state.lastRxBytes,
+        ),
+      ),
+    );
     final connection = state.connection;
     final colorScheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context);

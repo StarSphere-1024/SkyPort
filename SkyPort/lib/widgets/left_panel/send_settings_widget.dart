@@ -12,7 +12,18 @@ class SendSettingsWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(uiControllerProvider);
+    final settings = ref.watch(
+      uiControllerProvider.select(
+        (state) => (
+          hexSend: state.hexSend,
+          autoSendEnabled: state.autoSendEnabled,
+          autoSendIntervalMs: state.autoSendIntervalMs,
+          autoSendError: state.autoSendError,
+          appendNewline: state.appendNewline,
+          newline: state.newline,
+        ),
+      ),
+    );
     final controller = ref.read(uiControllerProvider.notifier);
     final l10n = AppLocalizations.of(context);
 

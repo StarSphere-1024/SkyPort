@@ -258,8 +258,8 @@ pub struct SubscribeReply {
     pub subscription: Option<SubscriptionHandle>,
     pub error: Option<CoreError>,
 }
-pub struct EventReply {
-    pub event: Option<Event>,
+pub struct EventsReply {
+    pub events: Vec<Event>,
     pub error: Option<CoreError>,
 }
 pub struct DispatchReply {
@@ -619,19 +619,32 @@ pub fn subscribe(handle: &CoreHandle) -> SubscribeReply {
         },
     }
 }
-pub fn next_event(subscription: &SubscriptionHandle) -> EventReply {
-    let result = subscription
-        .0
-        .lock()
-        .map_err(|_| core::CoreError::new(core::ErrorKind::Internal, "subscription lock poisoned"))
-        .and_then(|events| events.recv_timeout(Duration::from_millis(250)));
+pub fn next_events(subscription: &SubscriptionHandle) -> EventsReply {
+    let result = (|| {
+        let receiver = subscription.0.lock().map_err(|_| {
+            core::CoreError::new(core::ErrorKind::Internal, "subscription lock poisoned")
+        })?;
+        let mut batch = Vec::new();
+        for index in 0..32 {
+            let timeout = if index == 0 {
+                Duration::from_millis(250)
+            } else {
+                Duration::ZERO
+            };
+            match receiver.recv_timeout(timeout)? {
+                Some(event) => batch.push(event.into()),
+                None => break,
+            }
+        }
+        Ok::<_, core::CoreError>(batch)
+    })();
     match result {
-        Ok(event) => EventReply {
-            event: event.map(Into::into),
+        Ok(events) => EventsReply {
+            events,
             error: None,
         },
-        Err(error) => EventReply {
-            event: None,
+        Err(error) => EventsReply {
+            events: Vec::new(),
             error: Some(error.into()),
         },
     }

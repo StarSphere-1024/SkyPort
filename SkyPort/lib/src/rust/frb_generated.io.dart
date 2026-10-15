@@ -114,9 +114,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CoreError dco_decode_box_autoadd_core_error(dynamic raw);
 
   @protected
-  Event dco_decode_box_autoadd_event(dynamic raw);
-
-  @protected
   ExportOptions dco_decode_box_autoadd_export_options(dynamic raw);
 
   @protected
@@ -168,10 +165,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Event dco_decode_event(dynamic raw);
 
   @protected
-  EventReply dco_decode_event_reply(dynamic raw);
+  EventType dco_decode_event_type(dynamic raw);
 
   @protected
-  EventType dco_decode_event_type(dynamic raw);
+  EventsReply dco_decode_events_reply(dynamic raw);
 
   @protected
   ExportOptions dco_decode_export_options(dynamic raw);
@@ -190,6 +187,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<Event> dco_decode_list_event(dynamic raw);
 
   @protected
   List<LogRecord> dco_decode_list_log_record(dynamic raw);
@@ -241,9 +241,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CoreError? dco_decode_opt_box_autoadd_core_error(dynamic raw);
-
-  @protected
-  Event? dco_decode_opt_box_autoadd_event(dynamic raw);
 
   @protected
   LegacyConfig? dco_decode_opt_box_autoadd_legacy_config(dynamic raw);
@@ -390,9 +387,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CoreError sse_decode_box_autoadd_core_error(SseDeserializer deserializer);
 
   @protected
-  Event sse_decode_box_autoadd_event(SseDeserializer deserializer);
-
-  @protected
   ExportOptions sse_decode_box_autoadd_export_options(
     SseDeserializer deserializer,
   );
@@ -450,10 +444,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Event sse_decode_event(SseDeserializer deserializer);
 
   @protected
-  EventReply sse_decode_event_reply(SseDeserializer deserializer);
+  EventType sse_decode_event_type(SseDeserializer deserializer);
 
   @protected
-  EventType sse_decode_event_type(SseDeserializer deserializer);
+  EventsReply sse_decode_events_reply(SseDeserializer deserializer);
 
   @protected
   ExportOptions sse_decode_export_options(SseDeserializer deserializer);
@@ -472,6 +466,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<Event> sse_decode_list_event(SseDeserializer deserializer);
 
   @protected
   List<LogRecord> sse_decode_list_log_record(SseDeserializer deserializer);
@@ -527,9 +524,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CoreError? sse_decode_opt_box_autoadd_core_error(
     SseDeserializer deserializer,
   );
-
-  @protected
-  Event? sse_decode_opt_box_autoadd_event(SseDeserializer deserializer);
 
   @protected
   LegacyConfig? sse_decode_opt_box_autoadd_legacy_config(
@@ -703,9 +697,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_box_autoadd_event(Event self, SseSerializer serializer);
-
-  @protected
   void sse_encode_box_autoadd_export_options(
     ExportOptions self,
     SseSerializer serializer,
@@ -775,10 +766,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_event(Event self, SseSerializer serializer);
 
   @protected
-  void sse_encode_event_reply(EventReply self, SseSerializer serializer);
+  void sse_encode_event_type(EventType self, SseSerializer serializer);
 
   @protected
-  void sse_encode_event_type(EventType self, SseSerializer serializer);
+  void sse_encode_events_reply(EventsReply self, SseSerializer serializer);
 
   @protected
   void sse_encode_export_options(ExportOptions self, SseSerializer serializer);
@@ -800,6 +791,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_event(List<Event> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_log_record(
@@ -868,9 +862,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     CoreError? self,
     SseSerializer serializer,
   );
-
-  @protected
-  void sse_encode_opt_box_autoadd_event(Event? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_legacy_config(

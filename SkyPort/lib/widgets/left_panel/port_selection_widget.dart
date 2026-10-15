@@ -10,7 +10,15 @@ class PortSelectionWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(uiControllerProvider);
+    final state = ref.watch(
+      uiControllerProvider.select(
+        (state) => (
+          connection: state.connection,
+          ports: state.ports,
+          portName: state.portName,
+        ),
+      ),
+    );
     final controller = ref.read(uiControllerProvider.notifier);
 
     final connectionState = state.connection;

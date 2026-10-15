@@ -120,8 +120,9 @@ class UiController extends Notifier<UiState> {
 
   Future<void> _consume() async {
     try {
+      consume:
       while (!_disposed) {
-        final reply = await rust.nextEvent(subscription: _subscription);
+        final reply = await rust.nextEvents(subscription: _subscription);
         if (_disposed) return;
         if (reply.error != null) {
           final error = reply.error!;
@@ -137,32 +138,36 @@ class UiController extends Notifier<UiState> {
           }
           return;
         }
-        final event = reply.event;
-        if (event == null || event.sequence <= state.sequence) continue;
-        if (event.kind == rust.EventType.queueOverflow ||
-            event.sequence != state.sequence + 1) {
-          final error =
-              event.error ??
-              const rust.CoreError(
-                kind: rust.ErrorKind.queueOverflow,
-                message: 'Event sequence gap; resubscribing to current state.',
-                bytesWritten: 0,
-              );
-          _failPending(error);
-          state = state.withBridgeError(error).withDataGap(true);
-          if (!await _resubscribe()) return;
-          continue;
+        var sequence = state.sequence;
+        for (final event in reply.events) {
+          if (event.sequence <= sequence) continue;
+          if (event.kind == rust.EventType.queueOverflow ||
+              event.sequence != sequence + 1) {
+            final error =
+                event.error ??
+                const rust.CoreError(
+                  kind: rust.ErrorKind.queueOverflow,
+                  message:
+                      'Event sequence gap; resubscribing to current state.',
+                  bytesWritten: 0,
+                );
+            _failPending(error);
+            state = state.withBridgeError(error).withDataGap(true);
+            if (!await _resubscribe()) return;
+            continue consume;
+          }
+          switch (event.kind) {
+            case rust.EventType.commandCompleted:
+            case rust.EventType.commandFailed:
+            case rust.EventType.dataSent:
+            case rust.EventType.writeFailed:
+              _recordTerminal(event);
+            default:
+              break;
+          }
+          sequence = event.sequence;
         }
-        switch (event.kind) {
-          case rust.EventType.commandCompleted:
-          case rust.EventType.commandFailed:
-          case rust.EventType.dataSent:
-          case rust.EventType.writeFailed:
-            _recordTerminal(event);
-          default:
-            break;
-        }
-        state = state.withEvent(event);
+        if (sequence != state.sequence) state = state.withEvents(reply.events);
       }
     } catch (error) {
       if (_disposed) return;

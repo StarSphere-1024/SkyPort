@@ -23,12 +23,6 @@ class SkyPortConstants {
   /// Threshold in pixels to determine if scrolled to bottom
   static const int scrollBottomThreshold = 50;
 
-  /// Distance threshold to force jump scroll instead of animation
-  static const int forceScrollDistance = 1000;
-
-  /// Scroll animation duration in milliseconds
-  static const int scrollAnimationDurationMs = 100;
-
   // =====================================================
   // History & Cache Constants
   // =====================================================
