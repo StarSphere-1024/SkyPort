@@ -55,7 +55,7 @@ pub(crate) fn open(config: &SerialConfig) -> Result<Box<dyn serialport::SerialPo
         .timeout(READ_POLL_TIMEOUT);
     #[cfg(unix)]
     {
-        let mut port = builder
+        let port = builder
             .open_native()
             .map_err(|error| port_error(error, "open", &config.port_name, ErrorKind::OpenFailed))?;
         // serialport polls before write(), but a blocking POSIX write can still
@@ -72,12 +72,38 @@ pub(crate) fn open(config: &SerialConfig) -> Result<Box<dyn serialport::SerialPo
                 ),
             ));
         }
+        // Keep closing/reopening from dropping modem lines behind our back.
+        let mut termios = std::mem::MaybeUninit::<libc::termios>::uninit();
+        if unsafe { libc::tcgetattr(fd, termios.as_mut_ptr()) } < 0 {
+            return Err(CoreError::new(
+                ErrorKind::OpenFailed,
+                format!(
+                    "read serial hangup settings: {}",
+                    std::io::Error::last_os_error()
+                ),
+            ));
+        }
+        let mut termios = unsafe { termios.assume_init() };
+        termios.c_cflag &= !libc::HUPCL;
+        if unsafe { libc::tcsetattr(fd, libc::TCSANOW, &termios) } < 0 {
+            return Err(CoreError::new(
+                ErrorKind::OpenFailed,
+                format!("disable serial hangup: {}", std::io::Error::last_os_error()),
+            ));
+        }
         #[cfg(target_os = "linux")]
         let devpts = is_devpts(&port);
         #[cfg(not(target_os = "linux"))]
         let devpts = false;
         if !devpts {
-            disable_modem_lines(&mut port, &config.port_name)?;
+            // Separate DTR/RTS writes pass through the ESP USB/UART reset state.
+            let lines: libc::c_int = libc::TIOCM_DTR | libc::TIOCM_RTS;
+            if unsafe { libc::ioctl(fd, libc::TIOCMBIC, &lines) } < 0 {
+                return Err(CoreError::new(
+                    ErrorKind::OpenFailed,
+                    format!("clear serial DTR/RTS: {}", std::io::Error::last_os_error()),
+                ));
+            }
         }
         Ok(Box::new(port))
     }
@@ -125,6 +151,7 @@ pub(crate) fn set_read_timeout(
     })
 }
 
+#[cfg(windows)]
 fn disable_modem_lines(port: &mut dyn serialport::SerialPort, name: &str) -> Result<(), CoreError> {
     port.write_data_terminal_ready(false)
         .map_err(|error| port_error(error, "clear DTR on", name, ErrorKind::OpenFailed))?;

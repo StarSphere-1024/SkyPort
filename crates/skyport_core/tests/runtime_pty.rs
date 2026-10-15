@@ -7,7 +7,7 @@ use skyport_core::{
 use std::{
     ffi::CStr,
     fs,
-    os::fd::RawFd,
+    os::fd::{AsRawFd, RawFd},
     path::PathBuf,
     thread,
     time::{Duration, Instant},
@@ -239,6 +239,61 @@ fn queued_config_patches_merge_against_latest_state() {
                 && snapshot.auto_send_input == "new draft"
         })
     });
+    core.close().unwrap();
+}
+
+#[test]
+fn pty_connect_disconnect_and_reconfigure_keep_hangup_disabled() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut pty = Pty::new();
+    let observer = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(&pty.slave)
+        .unwrap();
+    let mut settings = std::mem::MaybeUninit::<libc::termios>::uninit();
+    assert_eq!(
+        unsafe { libc::tcgetattr(observer.as_raw_fd(), settings.as_mut_ptr()) },
+        0
+    );
+    let mut settings = unsafe { settings.assume_init() };
+    settings.c_cflag |= libc::HUPCL;
+    assert_eq!(
+        unsafe { libc::tcsetattr(observer.as_raw_fd(), libc::TCSANOW, &settings) },
+        0
+    );
+    let core = AppCore::create(options(
+        dir.path().into(),
+        pty.slave.to_string_lossy().into_owned(),
+    ))
+    .unwrap();
+    for _ in 0..3 {
+        core.dispatch(Command::Connect).unwrap();
+        wait_for(|| core.snapshot().unwrap().connection == ConnectionState::Connected);
+        let mut config = core.snapshot().unwrap().config;
+        config.serial.baud_rate += 1200;
+        let baud_rate = config.serial.baud_rate;
+        core.dispatch(Command::SetConfig(config)).unwrap();
+        wait_for(|| {
+            core.snapshot()
+                .unwrap()
+                .applied_config
+                .is_some_and(|config| config.baud_rate == baud_rate)
+        });
+        core.dispatch(Command::SendHex {
+            input: "00 FF".into(),
+        })
+        .unwrap();
+        wait_for(|| pty.has_bytes(&[0, 0xff]));
+        pty.observed.clear();
+        core.dispatch(Command::Disconnect).unwrap();
+        wait_for(|| core.snapshot().unwrap().connection == ConnectionState::Disconnected);
+        assert_eq!(
+            unsafe { libc::tcgetattr(observer.as_raw_fd(), &mut settings) },
+            0
+        );
+        assert_eq!(settings.c_cflag & libc::HUPCL, 0);
+    }
     core.close().unwrap();
 }
 
