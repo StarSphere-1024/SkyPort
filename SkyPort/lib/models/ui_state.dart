@@ -1,0 +1,359 @@
+import 'dart:typed_data';
+
+import 'package:skyport/src/rust/api.dart' as rust;
+
+import 'log_model.dart';
+
+enum UiConnection {
+  disconnected,
+  connecting,
+  connected,
+  reconfiguring,
+  disconnecting,
+  reconnecting,
+  closing,
+  closed,
+}
+
+enum UiParity { none, odd, even }
+
+enum UiNewline { none, lf, cr, crlf }
+
+class UiState {
+  final int sequence;
+  final UiConnection connection;
+  final String portName;
+  final int baudRate;
+  final int dataBits;
+  final UiParity parity;
+  final int stopBits;
+  final bool autoReconnect;
+  final bool hexSend;
+  final UiNewline newline;
+  final bool appendNewline;
+  final bool autoSendEnabled;
+  final int autoSendIntervalMs;
+  final int logCapacityBytes;
+  final List<String> sendHistory;
+  final String autoSendInput;
+  final List<String> ports;
+  final int rxBytes;
+  final int txBytes;
+  final int lastRxBytes;
+  final rust.CoreError? error;
+  final rust.CoreError? autoSendError;
+  final LogState logs;
+  final int trimmedBytes;
+  final int trimmedRecords;
+  final bool logIncomplete;
+  final bool dataGap;
+  final Map<int, int> _chunkIndices;
+
+  UiState({
+    required this.sequence,
+    required this.connection,
+    required this.portName,
+    required this.baudRate,
+    required this.dataBits,
+    required this.parity,
+    required this.stopBits,
+    required this.autoReconnect,
+    required this.hexSend,
+    required this.newline,
+    this.appendNewline = false,
+    required this.autoSendEnabled,
+    required this.autoSendIntervalMs,
+    required this.logCapacityBytes,
+    required this.sendHistory,
+    required this.autoSendInput,
+    required this.ports,
+    required this.rxBytes,
+    required this.txBytes,
+    required this.lastRxBytes,
+    required this.error,
+    this.autoSendError,
+    required this.logs,
+    required this.trimmedBytes,
+    required this.trimmedRecords,
+    required this.logIncomplete,
+    this.dataGap = false,
+    required Map<int, int> chunkIndices,
+  }) : _chunkIndices = chunkIndices;
+
+  factory UiState.fromSnapshot(
+    rust.AppSnapshot snapshot, {
+    bool dataGap = false,
+  }) {
+    final chunks = <LogChunk>[];
+    final indices = <int, int>{};
+    for (final record in snapshot.log.records) {
+      indices[record.id] = chunks.length;
+      chunks.add(_chunk(record));
+    }
+    return UiState(
+      sequence: snapshot.sequence,
+      connection: _connection(snapshot.connection),
+      portName: snapshot.config.serial.portName,
+      baudRate: snapshot.config.serial.baudRate,
+      dataBits: snapshot.config.serial.dataBits,
+      parity: _parity(snapshot.config.serial.parity),
+      stopBits: snapshot.config.serial.stopBits,
+      autoReconnect: snapshot.config.serial.autoReconnect,
+      hexSend: snapshot.config.send.hex,
+      newline: _newline(snapshot.config.send.newline),
+      appendNewline: snapshot.config.send.appendNewline,
+      autoSendEnabled: snapshot.config.send.autoSendEnabled,
+      autoSendIntervalMs: snapshot.config.send.autoSendIntervalMs,
+      logCapacityBytes: snapshot.config.logCapacityBytes,
+      sendHistory: snapshot.config.history,
+      autoSendInput: snapshot.autoSendInput,
+      ports: snapshot.ports,
+      rxBytes: snapshot.rxBytes,
+      txBytes: snapshot.txBytes,
+      lastRxBytes: snapshot.lastRxBytes,
+      error: snapshot.error,
+      autoSendError: snapshot.autoSendError,
+      logs: LogState(chunks: chunks, totalBytes: snapshot.log.totalBytes),
+      trimmedBytes: snapshot.log.trimmedBytes,
+      trimmedRecords: snapshot.log.trimmedRecords,
+      logIncomplete: snapshot.log.incomplete,
+      dataGap: dataGap,
+      chunkIndices: indices,
+    );
+  }
+
+  UiState withState(rust.AppState update) => UiState(
+    sequence: update.sequence,
+    connection: _connection(update.connection),
+    portName: update.config.serial.portName,
+    baudRate: update.config.serial.baudRate,
+    dataBits: update.config.serial.dataBits,
+    parity: _parity(update.config.serial.parity),
+    stopBits: update.config.serial.stopBits,
+    autoReconnect: update.config.serial.autoReconnect,
+    hexSend: update.config.send.hex,
+    newline: _newline(update.config.send.newline),
+    appendNewline: update.config.send.appendNewline,
+    autoSendEnabled: update.config.send.autoSendEnabled,
+    autoSendIntervalMs: update.config.send.autoSendIntervalMs,
+    logCapacityBytes: update.config.logCapacityBytes,
+    sendHistory: update.config.history,
+    autoSendInput: update.autoSendInput,
+    ports: update.ports,
+    rxBytes: update.rxBytes,
+    txBytes: update.txBytes,
+    lastRxBytes: update.lastRxBytes,
+    error: update.error,
+    autoSendError: update.autoSendError,
+    logs: logs,
+    trimmedBytes: trimmedBytes,
+    trimmedRecords: trimmedRecords,
+    logIncomplete: logIncomplete,
+    dataGap: dataGap,
+    chunkIndices: _chunkIndices,
+  );
+
+  UiState withEvent(rust.Event event) {
+    var next = this;
+    switch (event.kind) {
+      case rust.EventType.stateChanged:
+        next = event.state == null ? this : withState(event.state!);
+      case rust.EventType.portsChanged:
+        next = _copy(sequence: event.sequence, ports: event.ports ?? ports);
+      case rust.EventType.logChanged:
+        if (event.log != null) {
+          next = withLogDelta(event.log!, sequence: event.sequence);
+        }
+      case rust.EventType.dataReceived:
+        if (event.log != null) {
+          next = withLogDelta(event.log!, sequence: event.sequence);
+        }
+        next = next._copy(
+          sequence: event.sequence,
+          rxBytes: event.rxBytes ?? rxBytes,
+          lastRxBytes: event.lastRxBytes ?? lastRxBytes,
+        );
+      case rust.EventType.dataSent:
+        if (event.log != null) {
+          next = withLogDelta(event.log!, sequence: event.sequence);
+        }
+        next = next._copy(
+          sequence: event.sequence,
+          txBytes: event.txBytes ?? txBytes,
+        );
+      case rust.EventType.disconnected:
+      case rust.EventType.writeFailed:
+      case rust.EventType.queueOverflow:
+      case rust.EventType.taskFailed:
+      case rust.EventType.commandFailed:
+        next = _copy(
+          sequence: event.sequence,
+          error: event.error,
+          replaceError: true,
+        );
+      case rust.EventType.reconnecting:
+      case rust.EventType.commandCompleted:
+        next = _copy(sequence: event.sequence);
+    }
+    return next;
+  }
+
+  UiState withLogDelta(rust.LogDelta delta, {int? sequence}) {
+    // ponytail: O(retained rows) metadata copies are capped at 65,536; group immutable chunks if measured jank.
+    final chunks = List<LogChunk>.of(logs.chunks);
+    final indices = Map<int, int>.of(_chunkIndices);
+    final removed = delta.removedIds.toSet();
+    final before = chunks.length;
+    chunks.removeWhere((chunk) {
+      final remove =
+          removed.contains(chunk.id) ||
+          (chunk.id != 0xFFFFFFFFFFFFFFFF && chunk.id < delta.earliestId);
+      if (remove) LogEntry.evictCachedData(chunk.entries);
+      return remove;
+    });
+    if (chunks.length != before) _reindex(chunks, indices);
+
+    for (final record in delta.upsert) {
+      final index = indices[record.id];
+      if (index != null && _sameRecord(chunks[index].entries.first, record)) {
+        continue;
+      }
+      if (index != null) LogEntry.evictCachedData(chunks[index].entries);
+      final chunk = _chunk(record);
+      if (index == null) {
+        if (record.id == 0xFFFFFFFFFFFFFFFF) {
+          indices[record.id] = chunks.length;
+          chunks.add(chunk);
+        } else {
+          final pending = chunks.indexWhere(
+            (row) => row.id == 0xFFFFFFFFFFFFFFFF,
+          );
+          final insertion = pending < 0 ? chunks.length : pending;
+          chunks.insert(insertion, chunk);
+          _reindex(chunks, indices);
+        }
+      } else {
+        chunks[index] = chunk;
+      }
+    }
+    return _copy(
+      sequence: sequence ?? this.sequence,
+      logs: LogState(chunks: chunks, totalBytes: delta.totalBytes),
+      trimmedBytes: delta.trimmedBytes,
+      trimmedRecords: delta.trimmedRecords,
+      logIncomplete: delta.incomplete,
+      chunkIndices: indices,
+    );
+  }
+
+  UiState withDataGap(bool value) => _copy(dataGap: value);
+  UiState withBridgeError(rust.CoreError value) =>
+      _copy(error: value, replaceError: true);
+
+  UiState _copy({
+    int? sequence,
+    List<String>? ports,
+    int? rxBytes,
+    int? txBytes,
+    int? lastRxBytes,
+    bool replaceError = false,
+    rust.CoreError? error,
+    LogState? logs,
+    int? trimmedBytes,
+    int? trimmedRecords,
+    bool? logIncomplete,
+    Map<int, int>? chunkIndices,
+    bool? dataGap,
+  }) => UiState(
+    sequence: sequence ?? this.sequence,
+    connection: connection,
+    portName: portName,
+    baudRate: baudRate,
+    dataBits: dataBits,
+    parity: parity,
+    stopBits: stopBits,
+    autoReconnect: autoReconnect,
+    hexSend: hexSend,
+    newline: newline,
+    appendNewline: appendNewline,
+    logCapacityBytes: logCapacityBytes,
+    sendHistory: sendHistory,
+    autoSendEnabled: autoSendEnabled,
+    autoSendIntervalMs: autoSendIntervalMs,
+    autoSendInput: autoSendInput,
+    ports: ports ?? this.ports,
+    rxBytes: rxBytes ?? this.rxBytes,
+    txBytes: txBytes ?? this.txBytes,
+    lastRxBytes: lastRxBytes ?? this.lastRxBytes,
+    error: replaceError ? error : this.error,
+    autoSendError: autoSendError,
+    logs: logs ?? this.logs,
+    trimmedBytes: trimmedBytes ?? this.trimmedBytes,
+    trimmedRecords: trimmedRecords ?? this.trimmedRecords,
+    logIncomplete: logIncomplete ?? this.logIncomplete,
+    dataGap: dataGap ?? this.dataGap,
+    chunkIndices: chunkIndices ?? _chunkIndices,
+  );
+
+  static LogChunk _chunk(rust.LogRecord record) {
+    final entry = LogEntry(
+      Uint8List.fromList(record.data),
+      record.direction == rust.Direction.sent
+          ? LogEntryType.sent
+          : LogEntryType.received,
+      DateTime.fromMillisecondsSinceEpoch(record.timestampMs),
+      id: record.id,
+    );
+    return LogChunk(
+      entries: [entry],
+      totalBytes: entry.data.length,
+      id: record.id,
+    );
+  }
+
+  static bool _sameRecord(LogEntry entry, rust.LogRecord record) {
+    if (entry.type !=
+            (record.direction == rust.Direction.sent
+                ? LogEntryType.sent
+                : LogEntryType.received) ||
+        entry.timestamp.millisecondsSinceEpoch != record.timestampMs ||
+        entry.data.length != record.data.length) {
+      return false;
+    }
+    for (var i = 0; i < entry.data.length; i++) {
+      if (entry.data[i] != record.data[i]) return false;
+    }
+    return true;
+  }
+
+  static void _reindex(List<LogChunk> chunks, Map<int, int> indices) {
+    indices
+      ..clear()
+      ..addEntries([
+        for (var i = 0; i < chunks.length; i++) MapEntry(chunks[i].id, i),
+      ]);
+  }
+
+  static UiConnection _connection(rust.ConnectionState value) =>
+      switch (value) {
+        rust.ConnectionState.disconnected => UiConnection.disconnected,
+        rust.ConnectionState.connecting => UiConnection.connecting,
+        rust.ConnectionState.connected => UiConnection.connected,
+        rust.ConnectionState.reconfiguring => UiConnection.reconfiguring,
+        rust.ConnectionState.disconnecting => UiConnection.disconnecting,
+        rust.ConnectionState.reconnecting => UiConnection.reconnecting,
+        rust.ConnectionState.closing => UiConnection.closing,
+        rust.ConnectionState.closed => UiConnection.closed,
+      };
+  static UiParity _parity(rust.Parity value) => switch (value) {
+    rust.Parity.none => UiParity.none,
+    rust.Parity.odd => UiParity.odd,
+    rust.Parity.even => UiParity.even,
+  };
+  static UiNewline _newline(rust.Newline value) => switch (value) {
+    rust.Newline.none => UiNewline.none,
+    rust.Newline.lf => UiNewline.lf,
+    rust.Newline.cr => UiNewline.cr,
+    rust.Newline.crLf => UiNewline.crlf,
+  };
+}

@@ -11,16 +11,14 @@ void main() {
       final parser = Parser(text);
       print('Pieces count: ${parser.pieces.length}');
 
-      expect(
-        parser.pieces.any((piece) => piece.entity is EscapeCode),
-        true,
-      );
+      expect(parser.pieces.any((piece) => piece.entity is EscapeCode), true);
 
       for (final piece in parser.pieces) {
         final substring = text.substring(piece.start, piece.end);
         final isEscape = piece.entity is EscapeCode;
         print(
-            'Substring: "$substring", isEscape: $isEscape, State: ${piece.state}');
+          'Substring: "$substring", isEscape: $isEscape, State: ${piece.state}',
+        );
       }
     });
 

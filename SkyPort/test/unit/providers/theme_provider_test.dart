@@ -26,9 +26,7 @@ void main() {
 
       // Act
       final container = ProviderContainer(
-        overrides: [
-          sharedPreferencesProvider.overrideWithValue(mockPrefs),
-        ],
+        overrides: [sharedPreferencesProvider.overrideWithValue(mockPrefs)],
       );
       addTearDown(container.dispose);
 
@@ -43,9 +41,7 @@ void main() {
 
       // Act
       final container = ProviderContainer(
-        overrides: [
-          sharedPreferencesProvider.overrideWithValue(mockPrefs),
-        ],
+        overrides: [sharedPreferencesProvider.overrideWithValue(mockPrefs)],
       );
       addTearDown(container.dispose);
 
@@ -60,9 +56,7 @@ void main() {
 
       // Act
       final container = ProviderContainer(
-        overrides: [
-          sharedPreferencesProvider.overrideWithValue(mockPrefs),
-        ],
+        overrides: [sharedPreferencesProvider.overrideWithValue(mockPrefs)],
       );
       addTearDown(container.dispose);
 
@@ -74,13 +68,13 @@ void main() {
     test('toggleTheme() switches from light to dark and saves', () {
       // Arrange
       when(() => mockPrefs.getString(any())).thenReturn('light');
-      when(() => mockPrefs.setString(any(), any())).thenAnswer((_) => Future.value(true));
+      when(
+        () => mockPrefs.setString(any(), any()),
+      ).thenAnswer((_) => Future.value(true));
 
       // Act
       final container = ProviderContainer(
-        overrides: [
-          sharedPreferencesProvider.overrideWithValue(mockPrefs),
-        ],
+        overrides: [sharedPreferencesProvider.overrideWithValue(mockPrefs)],
       );
       addTearDown(container.dispose);
 
@@ -98,13 +92,13 @@ void main() {
     test('toggleTheme() switches from dark to light and saves', () {
       // Arrange
       when(() => mockPrefs.getString(any())).thenReturn('dark');
-      when(() => mockPrefs.setString(any(), any())).thenAnswer((_) => Future.value(true));
+      when(
+        () => mockPrefs.setString(any(), any()),
+      ).thenAnswer((_) => Future.value(true));
 
       // Act
       final container = ProviderContainer(
-        overrides: [
-          sharedPreferencesProvider.overrideWithValue(mockPrefs),
-        ],
+        overrides: [sharedPreferencesProvider.overrideWithValue(mockPrefs)],
       );
       addTearDown(container.dispose);
 
@@ -122,13 +116,13 @@ void main() {
     test('toggleTheme() switches from system to light and saves', () {
       // Arrange
       when(() => mockPrefs.getString(any())).thenReturn(null);
-      when(() => mockPrefs.setString(any(), any())).thenAnswer((_) => Future.value(true));
+      when(
+        () => mockPrefs.setString(any(), any()),
+      ).thenAnswer((_) => Future.value(true));
 
       // Act
       final container = ProviderContainer(
-        overrides: [
-          sharedPreferencesProvider.overrideWithValue(mockPrefs),
-        ],
+        overrides: [sharedPreferencesProvider.overrideWithValue(mockPrefs)],
       );
       addTearDown(container.dispose);
 
@@ -146,13 +140,13 @@ void main() {
     test('setThemeMode() sets specific mode and saves', () {
       // Arrange
       when(() => mockPrefs.getString(any())).thenReturn(null);
-      when(() => mockPrefs.setString(any(), any())).thenAnswer((_) => Future.value(true));
+      when(
+        () => mockPrefs.setString(any(), any()),
+      ).thenAnswer((_) => Future.value(true));
 
       // Act
       final container = ProviderContainer(
-        overrides: [
-          sharedPreferencesProvider.overrideWithValue(mockPrefs),
-        ],
+        overrides: [sharedPreferencesProvider.overrideWithValue(mockPrefs)],
       );
       addTearDown(container.dispose);
 
@@ -178,9 +172,7 @@ void main() {
 
       // Act
       final container = ProviderContainer(
-        overrides: [
-          sharedPreferencesProvider.overrideWithValue(mockPrefs),
-        ],
+        overrides: [sharedPreferencesProvider.overrideWithValue(mockPrefs)],
       );
       addTearDown(container.dispose);
 
@@ -196,9 +188,7 @@ void main() {
 
       // Act
       final container = ProviderContainer(
-        overrides: [
-          sharedPreferencesProvider.overrideWithValue(mockPrefs),
-        ],
+        overrides: [sharedPreferencesProvider.overrideWithValue(mockPrefs)],
       );
       addTearDown(container.dispose);
 
@@ -210,13 +200,13 @@ void main() {
     test('setThemeColor() sets color and saves', () {
       // Arrange
       when(() => mockPrefs.getInt(any())).thenReturn(null);
-      when(() => mockPrefs.setInt(any(), any())).thenAnswer((_) => Future.value(true));
+      when(
+        () => mockPrefs.setInt(any(), any()),
+      ).thenAnswer((_) => Future.value(true));
 
       // Act
       final container = ProviderContainer(
-        overrides: [
-          sharedPreferencesProvider.overrideWithValue(mockPrefs),
-        ],
+        overrides: [sharedPreferencesProvider.overrideWithValue(mockPrefs)],
       );
       addTearDown(container.dispose);
 
@@ -226,8 +216,9 @@ void main() {
 
       // Assert
       expect(container.read(themeColorProvider), customColor);
-      verify(() => mockPrefs.setInt('theme_color', customColor.toARGB32()))
-          .called(1);
+      verify(
+        () => mockPrefs.setInt('theme_color', customColor.toARGB32()),
+      ).called(1);
     });
   });
 }

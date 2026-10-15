@@ -2,6 +2,8 @@
 
 #include <optional>
 #include <windows.h>
+#include <flutter/standard_method_codec.h>
+#include <flutter/method_result_functions.h>
 
 #include "flutter/generated_plugin_registrant.h"
 
@@ -26,6 +28,9 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
+  host_channel_ = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+      flutter_controller_->engine()->messenger(), "skyport/host",
+      &flutter::StandardMethodCodec::GetInstance());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
@@ -41,6 +46,7 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  host_channel_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }
@@ -52,6 +58,27 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
+  if (message == WM_CLOSE && host_channel_) {
+    if (!close_pending_) {
+      close_pending_ = true;
+      host_channel_->InvokeMethod(
+          "requestClose", nullptr,
+          std::make_unique<flutter::MethodResultFunctions<flutter::EncodableValue>>(
+              [this, hwnd](const flutter::EncodableValue* result) {
+                close_pending_ = false;
+                const bool* approved = result == nullptr
+                    ? nullptr : std::get_if<bool>(result);
+                if (approved != nullptr && *approved) {
+                  DestroyWindow(hwnd);
+                }
+              },
+              [this](const std::string&, const std::string&,
+                     const flutter::EncodableValue*) { close_pending_ = false; },
+              [this]() { close_pending_ = false; }));
+    }
+    return 0;
+  }
+
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     std::optional<LRESULT> result =

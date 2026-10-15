@@ -1,14 +1,16 @@
 import 'dart:ui';
+import 'dart:io';
+
+import 'package:file_selector/file_selector.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skyport/src/rust/api.dart' as rust;
+import 'host_core.dart';
 import 'providers/common_providers.dart';
-import 'providers/serial/error_provider.dart';
-import 'providers/serial/ui_settings_provider.dart';
-import 'providers/serial/data_log_provider.dart';
-import 'providers/serial/serial_port_manager.dart';
-import 'models/app_error.dart';
+import 'providers/ui_settings_provider.dart';
+import 'providers/ui_controller.dart';
 import 'providers/theme_provider.dart';
 import 'theme.dart';
 import 'widgets/settings_popup.dart';
@@ -20,9 +22,8 @@ import 'services/log_export_service.dart';
 import 'l10n/app_localizations.dart';
 import 'utils/constants.dart';
 
-void main() async {
+Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
-  await AppLogger.instance.initialize();
 
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
@@ -41,26 +42,60 @@ void main() async {
     return false;
   };
 
-  final prefs = await SharedPreferences.getInstance();
+  if (args.contains('--kernel-smoke')) {
+    try {
+      await runKernelSmoke(args);
+      exit(0);
+    } catch (error, stackTrace) {
+      stderr.writeln('$error\n$stackTrace');
+      exit(1);
+    }
+  }
 
+  SharedPreferences? prefs;
+  CoreBootstrap? bootstrap;
+  Object? startupFailure;
+  try {
+    await AppLogger.instance.initialize();
+    prefs = await SharedPreferences.getInstance();
+    bootstrap = await createCoreFromHost(prefs);
+  } catch (error, stackTrace) {
+    startupFailure = error;
+    AppLogger.instance.error(
+      'Core startup failed',
+      error: error,
+      stackTrace: stackTrace,
+    );
+  }
+  await installHostCloseHandler(bootstrap);
   final container = ProviderContainer(
     overrides: [
-      sharedPreferencesProvider.overrideWithValue(prefs),
+      if (prefs != null) sharedPreferencesProvider.overrideWithValue(prefs),
+      if (bootstrap != null) coreBootstrapProvider.overrideWithValue(bootstrap),
     ],
   );
   runApp(
     UncontrolledProviderScope(
       container: container,
-      child: const SerialDebuggerApp(),
+      child: SerialDebuggerApp(startupFailure: startupFailure),
     ),
   );
 }
 
 class SerialDebuggerApp extends ConsumerWidget {
-  const SerialDebuggerApp({super.key});
+  const SerialDebuggerApp({super.key, this.startupFailure});
+  final Object? startupFailure;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (startupFailure != null) {
+      return MaterialApp(
+        onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: StartupFailurePage(details: startupFailure!),
+      );
+    }
     final themeMode = ref.watch(themeModeProvider);
     final themeColor = ref.watch(themeColorProvider);
     return MaterialApp(
@@ -71,6 +106,38 @@ class SerialDebuggerApp extends ConsumerWidget {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: const HomePage(),
+    );
+  }
+}
+
+class StartupFailurePage extends StatelessWidget {
+  const StartupFailurePage({required this.details, super.key});
+  final Object details;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                l10n.startupFailed,
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 12),
+              SelectableText(
+                details is CoreHostException
+                    ? _errorMessage(l10n, (details as CoreHostException).error)
+                    : '$details',
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -90,8 +157,9 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   void initState() {
     super.initState();
-    final initialSize = ref.read(uiSettingsProvider).logBufferSize;
-    _bufferController = TextEditingController(text: '$initialSize');
+    final megabytes =
+        ref.read(uiControllerProvider).logCapacityBytes ~/ (1024 * 1024);
+    _bufferController = TextEditingController(text: '$megabytes');
   }
 
   @override
@@ -102,30 +170,26 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AppError?>(errorProvider, (prev, next) {
-      final error = next;
-      if (error != null && error.type != AppErrorType.none) {
-        final loc = AppLocalizations.of(context);
-        final message = ref.read(errorProvider.notifier).getErrorMessage(loc);
-
-        if (message.isNotEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: SelectableText(
-                message,
-              ),
-            ),
-          );
-          ref.read(errorProvider.notifier).clear();
+    ref.listen<rust.CoreError?>(
+      uiControllerProvider.select((value) => value.error),
+      (previous, next) {
+        if (next != null && previous != next) {
+          final message = _errorMessage(AppLocalizations.of(context), next);
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: SelectableText(message)));
         }
-      }
-    });
-    ref.listen<int>(uiSettingsProvider.select((s) => s.logBufferSize),
-        (prev, next) {
-      if (_bufferController.text != '$next') {
-        _bufferController.text = '$next';
-      }
-    });
+      },
+    );
+    ref.listen<int>(
+      uiControllerProvider.select((value) => value.logCapacityBytes),
+      (previous, next) {
+        final megabytes = next ~/ (1024 * 1024);
+        if (_bufferController.text != '$megabytes') {
+          _bufferController.text = '$megabytes';
+        }
+      },
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -136,24 +200,35 @@ class _HomePageState extends ConsumerState<HomePage> {
             icon: const Icon(Icons.file_download),
             tooltip: AppLocalizations.of(context).exportLogs,
             onPressed: () async {
-              if (!context.mounted) return;
-
-              // Get current state - export matches current UI display (WYSIWYG)
-              final logState = ref.read(dataLogProvider);
               final settings = ref.read(uiSettingsProvider);
-              final serialState = ref.read(serialPortManagerProvider);
-
-              // Export logs with all UI settings for WYSIWYG output
+              final state = ref.read(uiControllerProvider);
               await LogExportService.exportLogs(
                 context: context,
-                chunks: logState.chunks,
-                showSent: settings.showSent,
-                hexDisplay: settings.hexDisplay,
-                showTimestamp: settings.showTimestamp,
-                enableAnsi: settings.enableAnsi,
                 defaultPath: settings.logExportPath,
-                portName: serialState.targetConfig.portName,
+                portName: state.portName,
+                export: (path) => ref
+                    .read(uiControllerProvider.notifier)
+                    .exportLog(
+                      path,
+                      rust.ExportOptions(
+                        showSent: settings.showSent,
+                        hex: settings.hexDisplay,
+                        timestamps: settings.showTimestamp,
+                        stripAnsi: settings.enableAnsi,
+                      ),
+                    ),
               );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.upload_file),
+            tooltip: AppLocalizations.of(context).importFile,
+            onPressed: () async {
+              final file = await openFile();
+              final path = file?.path;
+              if (path != null && context.mounted) {
+                await ref.read(uiControllerProvider.notifier).importFile(path);
+              }
             },
           ),
           Padding(
@@ -203,13 +278,34 @@ class _HomePageState extends ConsumerState<HomePage> {
               child: LeftPanel(),
             ),
             VerticalDivider(width: 1),
-            Expanded(
-              child: RightPanel(),
-            ),
+            Expanded(child: RightPanel()),
           ],
         ),
       ),
       bottomNavigationBar: const StatusBar(),
     );
   }
+}
+
+String _errorMessage(AppLocalizations l10n, rust.CoreError error) {
+  if (error.kind == rust.ErrorKind.writeFailed || error.bytesWritten > 0) {
+    return l10n.writeFailure(error.bytesWritten, error.message);
+  }
+  final label = switch (error.kind) {
+    rust.ErrorKind.invalidArgument => l10n.errorInvalidArgument,
+    rust.ErrorKind.portNotFound => l10n.errorPortNotFound,
+    rust.ErrorKind.openFailed => l10n.errorOpenFailed,
+    rust.ErrorKind.permissionDenied => l10n.errorPermissionDenied,
+    rust.ErrorKind.unsupportedConfiguration =>
+      l10n.errorUnsupportedConfiguration,
+    rust.ErrorKind.readFailed => l10n.errorReadFailed,
+    rust.ErrorKind.disconnected => l10n.errorDisconnected,
+    rust.ErrorKind.timeout => l10n.errorTimeout,
+    rust.ErrorKind.closed => l10n.errorClosed,
+    rust.ErrorKind.queueOverflow => l10n.errorQueueOverflow,
+    rust.ErrorKind.taskFailed => l10n.errorTaskFailed,
+    rust.ErrorKind.internal => l10n.errorInternal,
+    rust.ErrorKind.writeFailed => l10n.writeFailure(0, error.message),
+  };
+  return '$label: ${error.message}';
 }

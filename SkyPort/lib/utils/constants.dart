@@ -55,7 +55,6 @@ class SkyPortConstants {
   /// Serial reader native event wait timeout in milliseconds
   static const int serialReadPollTimeoutMs = 50;
 
-
   /// Port polling interval in milliseconds
   static const int portPollIntervalMs = 500;
 

@@ -48,7 +48,7 @@
 ## 🚀 如何构建
 
 ### 环境准备
-确保你已安装 Flutter SDK 和 Dart SDK。详情请参考 [Flutter 官方文档](https://flutter.dev/docs/get-started/install)。
+安装满足 `SkyPort/pubspec.yaml` 的 Flutter/Dart SDK、Rust stable 和对应桌面平台编译工具链。Linux 需要 GTK3、`pkg-config` 和 libudev 开发包（Debian/Ubuntu：`libgtk-3-dev libudev-dev`）。核心可单独构建，不需要 Flutter SDK。
 
 ### 构建步骤
 
@@ -58,8 +58,11 @@
     cd SkyPort
     ```
 
-2.  **获取依赖**
+2.  **验证核心并获取 Flutter 依赖**
+    从仓库根目录执行：
     ```bash
+    cargo test --locked -p skyport_core
+    cd SkyPort
     flutter pub get
     ```
 
@@ -75,13 +78,36 @@
     flutter build windows --release  # Windows host
     flutter build linux --release    # Linux host
     ```
-    macOS 项目文件存在，但当前不在正式支持范围内；macOS 构建需要 macOS 宿主机。
+    macOS 项目文件保留，但未接入本次 native 打包和验收，不在当前正式支持范围内。
+
+Flutter 的 Linux/Windows CMake 构建会调用 Cargo，并将 bridge 动态库放入最终 bundle。不要只复制可执行文件；Linux 库位于 `lib/libskyport_flutter_bridge.so`，Windows 库与 `.exe` 相邻。
+
+从仓库根目录运行检查：
+
+```bash
+tool/test_quiet.sh
+python3 scripts/pty_ui_smoke.py                  # Linux，真实 bridge + UI + 伪终端
+python3 scripts/package_smoke.py <bundle或发行包> # 验证打包后的真实加载与生命周期
+```
+
+有显示环境时可直接运行 smoke；无显示的 Linux CI 使用 `xvfb-run -a`。支持检查目录、deb、rpm、AppImage 和 Windows portable zip。Windows 安装程序须先安装到隔离目录，再检查该目录；物理串口和不同架构仍需各自验收。
+
+修改 bridge API 后，从仓库根目录安装生成器，再进入 `SkyPort/` 生成绑定：
+
+```bash
+cargo install flutter_rust_bridge_codegen --version 2.13.0 --locked
+cd SkyPort
+flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml
+```
+
+架构与队列、日志、迁移合同见 [Rust 核心设计](docs/rust-serial-kernel-design.md)。核心保存版本化 `config.json`；Flutter 只保存主题、显示等前端偏好，并在 Rust 成功写入新配置后标记旧串口偏好迁移完成。
 
 ## 📦 主要依赖
 
 *   [flutter_riverpod](https://pub.dev/packages/flutter_riverpod) (v3.0.3): 用于状态管理。
-*   [flutter_libserialport](https://pub.dev/packages/flutter_libserialport) (v0.6.0): 用于串口通信。
-*   [shared_preferences](https://pub.dev/packages/shared_preferences) (v2.5.3): 用于记忆用户偏好和串口参数。
+*   [serialport](https://docs.rs/serialport) (Cargo 锁定 4.10.1): 独立 Rust 核心的串口通信。
+*   [flutter_rust_bridge](https://pub.dev/packages/flutter_rust_bridge) (v2.13.0): Flutter 的类型化 native 接入，核心不依赖它。
+*   [shared_preferences](https://pub.dev/packages/shared_preferences) (v2.5.3): 前端显示偏好及旧配置的一次性读取。
 *   [ansi_escape_codes](https://pub.dev/packages/ansi_escape_codes) (v4.0.1): 用于 ANSI 转义序列解析和渲染。
 *   [flutter_localizations](https://api.flutter.dev/flutter/flutter_localizations/flutter_localizations-library.html) + [intl](https://pub.dev/packages/intl) (v0.20.2): 用于国际化支持。
 
@@ -97,8 +123,8 @@
 
 ### 开发环境设置
 - 安装满足 `SkyPort/pubspec.yaml` 要求的 Flutter SDK（Dart SDK `>=3.10.0`）。
-- 运行 `flutter pub get` 安装依赖
-- 使用 `flutter run` 启动开发版本
+- 从仓库根目录执行 `cargo test --locked -p skyport_core`；从 `SkyPort/` 执行 `flutter pub get`。
+- 从 `SkyPort/` 使用 `flutter run -d linux` 或在 Windows 宿主机上使用 `flutter run -d windows`。
 
 ## 🐛 问题报告
 

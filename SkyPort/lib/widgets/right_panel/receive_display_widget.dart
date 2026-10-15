@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../providers/serial/data_log_provider.dart';
-import '../../providers/serial/ui_settings_provider.dart';
+import '../../providers/ui_settings_provider.dart';
+import '../../providers/ui_controller.dart';
 import '../../models/log_model.dart';
 import '../../utils/constants.dart';
+import '../../l10n/app_localizations.dart';
 
 class LogIndexMapper {
   final List<LogChunk> chunks;
@@ -14,11 +15,11 @@ class LogIndexMapper {
   final int totalCount;
 
   LogIndexMapper(this.chunks, {required this.showSent})
-      : _chunkStartIndices = [],
-        totalCount = chunks.fold(
-            0,
-            (sum, c) =>
-                sum + (showSent ? c.entries.length : c.rxEntries.length)) {
+    : _chunkStartIndices = [],
+      totalCount = chunks.fold(
+        0,
+        (sum, c) => sum + (showSent ? c.entries.length : c.rxEntries.length),
+      ) {
     int current = 0;
     for (var c in chunks) {
       _chunkStartIndices.add(current);
@@ -141,17 +142,19 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
       } else {
         _scrollController
             .animateTo(
-          maxScroll,
-          duration: Duration(
-              milliseconds: SkyPortConstants.scrollAnimationDurationMs),
-          curve: Curves.easeOut,
-        )
+              maxScroll,
+              duration: Duration(
+                milliseconds: SkyPortConstants.scrollAnimationDurationMs,
+              ),
+              curve: Curves.easeOut,
+            )
             .then((_) {
-          onScrollComplete();
-        }).catchError((_) {
-          // Animation might be interrupted
-          onScrollComplete();
-        });
+              onScrollComplete();
+            })
+            .catchError((_) {
+              // Animation might be interrupted
+              onScrollComplete();
+            });
       }
     });
   }
@@ -162,14 +165,11 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
     final colorScheme = theme.colorScheme;
     final settings = ref.watch(uiSettingsProvider);
 
-    ref.listen(dataLogProvider, (previous, next) {
-      // IMPORTANT:
-      // In block receive mode, new bytes may be appended into the last entry
-      // (replacing it) without increasing the entry count. Using counts here
-      // breaks Stick Mode because the view grows but we never scroll.
-      final prevBytes = previous?.totalBytes ?? 0;
-      final nextBytes = next.totalBytes;
-      if (nextBytes > prevBytes && !_hasActiveSelection) _scrollToBottom();
+    ref.listen(uiControllerProvider, (previous, next) {
+      final prevBytes = previous?.logs.totalBytes ?? 0;
+      if (next.logs.totalBytes > prevBytes && !_hasActiveSelection) {
+        _scrollToBottom();
+      }
     });
 
     return Expanded(
@@ -183,9 +183,12 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                 children: [
                   Consumer(
                     builder: (context, ref, child) {
-                      final logState = ref.watch(dataLogProvider);
-                      final mapper = LogIndexMapper(logState.chunks,
-                          showSent: settings.showSent);
+                      final uiState = ref.watch(uiControllerProvider);
+                      final logState = uiState.logs;
+                      final mapper = LogIndexMapper(
+                        logState.chunks,
+                        showSent: settings.showSent,
+                      );
                       final int listLength = mapper.totalCount;
 
                       final monoStyle = theme.textTheme.bodyMedium!.copyWith(
@@ -249,8 +252,9 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                             },
                             child: ListView.builder(
                               controller: _scrollController,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 8.0),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 8.0,
+                              ),
                               itemCount: listLength,
                               itemBuilder: (context, index) {
                                 final entry = mapper[index];
@@ -270,10 +274,7 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                                 return SizedBox(
                                   width: constraints.maxWidth,
                                   child: Text.rich(
-                                    TextSpan(
-                                      style: monoStyle,
-                                      children: spans,
-                                    ),
+                                    TextSpan(style: monoStyle, children: spans),
                                     textAlign: TextAlign.left,
                                     softWrap: true,
                                     overflow: TextOverflow.visible,
@@ -285,6 +286,39 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                         ),
                       );
                     },
+                  ),
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    right: 8,
+                    child: Consumer(
+                      builder: (context, ref, _) {
+                        final state = ref.watch(uiControllerProvider);
+                        if (!state.dataGap &&
+                            !state.logIncomplete &&
+                            state.trimmedRecords == 0) {
+                          return const SizedBox.shrink();
+                        }
+                        final l10n = AppLocalizations.of(context);
+                        final messages = <String>[
+                          if (state.dataGap) l10n.logDataGap,
+                          if (state.logIncomplete) l10n.logIncomplete,
+                          if (state.trimmedRecords > 0)
+                            l10n.logTrimmed(
+                              state.trimmedRecords,
+                              state.trimmedBytes,
+                            ),
+                        ];
+                        return Material(
+                          color: colorScheme.errorContainer,
+                          borderRadius: BorderRadius.circular(6),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Text(messages.join(' ')),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                   if (!_stickToBottom)
                     Positioned(

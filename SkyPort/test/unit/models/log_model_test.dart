@@ -43,8 +43,12 @@ void main() {
       });
 
       test('handles malformed UTF-8 gracefully', () {
-        final data =
-            Uint8List.fromList([0xFF, 0xFE, 0x80, 0xC0]); // Invalid UTF-8
+        final data = Uint8List.fromList([
+          0xFF,
+          0xFE,
+          0x80,
+          0xC0,
+        ]); // Invalid UTF-8
         final entry = LogEntry(data, LogEntryType.received, DateTime.now());
 
         final text = entry.getDisplayText(false);
@@ -226,15 +230,24 @@ void main() {
         );
 
         // ANSI parsing should produce more spans (text segments with different styles)
-        expect(spansWithAnsi.length,
-            greaterThanOrEqualTo(spansWithoutAnsi.length));
+        expect(
+          spansWithAnsi.length,
+          greaterThanOrEqualTo(spansWithoutAnsi.length),
+        );
       });
 
       test('ANSI colors mapped to Flutter colors', () {
         // Test that _ansiStateToStyle handles different ANSI color types
         // This is more of an integration test for the color mapping
-        final data = Uint8List.fromList(
-            [27, 91, 51, 50, 109, 72, 105]); // ESC[32m + "Hi"
+        final data = Uint8List.fromList([
+          27,
+          91,
+          51,
+          50,
+          109,
+          72,
+          105,
+        ]); // ESC[32m + "Hi"
         final entry = LogEntry(data, LogEntryType.received, DateTime.now());
 
         final baseStyle = const TextStyle(fontSize: 14);
@@ -251,8 +264,8 @@ void main() {
 
         expect(spans, isNotEmpty);
         final colorSpan = spans.whereType<TextSpan>().firstWhere(
-              (span) => span.text == 'Hi',
-            );
+          (span) => span.text == 'Hi',
+        );
         expect(colorSpan.style?.color, Colors.green);
       });
     });
@@ -308,7 +321,8 @@ void main() {
 
         // Should not contain truncation indicator
         final hasTruncation = spans.any(
-            (s) => s is TextSpan && (s.text?.contains('[TRUNCATED]') ?? false));
+          (s) => s is TextSpan && (s.text?.contains('[TRUNCATED]') ?? false),
+        );
         expect(hasTruncation, isFalse);
       });
 
@@ -330,31 +344,35 @@ void main() {
           onSurfaceColor: Colors.black,
         );
 
-        final text =
-            spans.whereType<TextSpan>().map((span) => span.text ?? '').join();
+        final text = spans
+            .whereType<TextSpan>()
+            .map((span) => span.text ?? '')
+            .join();
 
         expect(text, contains('[TRUNCATED]'));
       });
 
-      test('does not cache full decoded text while rendering truncated spans',
-          () {
-        final data = Uint8List(6000);
-        data.fillRange(0, data.length, 0x41);
-        final entry = LogEntry(data, LogEntryType.received, DateTime.now());
+      test(
+        'does not cache full decoded text while rendering truncated spans',
+        () {
+          final data = Uint8List(6000);
+          data.fillRange(0, data.length, 0x41);
+          final entry = LogEntry(data, LogEntryType.received, DateTime.now());
 
-        entry.getSpans(
-          hexDisplay: false,
-          showTimestamp: false,
-          showSent: false,
-          enableAnsi: false,
-          baseStyle: const TextStyle(fontSize: 14),
-          timestampStyle: const TextStyle(fontSize: 12),
-          primaryColor: Colors.blue,
-          onSurfaceColor: Colors.black,
-        );
+          entry.getSpans(
+            hexDisplay: false,
+            showTimestamp: false,
+            showSent: false,
+            enableAnsi: false,
+            baseStyle: const TextStyle(fontSize: 14),
+            timestampStyle: const TextStyle(fontSize: 12),
+            primaryColor: Colors.blue,
+            onSurfaceColor: Colors.black,
+          );
 
-        expect(entry.debugHasCachedDisplayText, isFalse);
-      });
+          expect(entry.debugHasCachedDisplayText, isFalse);
+        },
+      );
     });
 
     group('getSpans newline handling', () {
@@ -379,8 +397,14 @@ void main() {
       });
 
       test('handles consecutive newlines', () {
-        final data =
-            Uint8List.fromList([72, 105, 10, 10, 72, 111]); // "Hi\n\nHo"
+        final data = Uint8List.fromList([
+          72,
+          105,
+          10,
+          10,
+          72,
+          111,
+        ]); // "Hi\n\nHo"
         final entry = LogEntry(data, LogEntryType.received, DateTime.now());
 
         final baseStyle = const TextStyle(fontSize: 14);
@@ -468,47 +492,6 @@ void main() {
       test('empty chunk has empty rxEntries', () {
         final chunk = LogChunk(entries: [], totalBytes: 0, id: 1);
         expect(chunk.rxEntries.length, 0);
-      });
-    });
-
-    group('LogState', () {
-      test('default constructor creates empty state', () {
-        final state = const LogState();
-
-        expect(state.chunks.length, 0);
-        expect(state.totalBytes, 0);
-        expect(state.nextChunkId, 0);
-      });
-
-      test('allEntries returns flattened entries', () {
-        final now = DateTime.now();
-        final chunks = [
-          LogChunk(
-            entries: [
-              LogEntry(Uint8List.fromList([1]), LogEntryType.received, now),
-              LogEntry(Uint8List.fromList([2]), LogEntryType.sent, now),
-            ],
-            totalBytes: 2,
-            id: 1,
-          ),
-          LogChunk(
-            entries: [
-              LogEntry(Uint8List.fromList([3]), LogEntryType.received, now),
-            ],
-            totalBytes: 1,
-            id: 2,
-          ),
-        ];
-
-        final state = LogState(chunks: chunks, totalBytes: 3, nextChunkId: 3);
-        final allEntries = state.allEntries;
-
-        expect(allEntries.length, 3);
-      });
-
-      test('empty state has empty allEntries', () {
-        final state = const LogState();
-        expect(state.allEntries.length, 0);
       });
     });
   });

@@ -41,6 +41,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> SkyPort/build/windows/${{ matrix.arch }}/rust"
+
       - name: Setup Flutter (Standard for x64)
         if: matrix.arch == 'x64'
         uses: subosito/flutter-action@v2
@@ -149,6 +157,20 @@ jobs:
           $ZipName = "SkyPort-v$Env:APP_VERSION-windows-${{ matrix.arch_name }}-portable.zip"
           Compress-Archive -Path "$BuildDir/*" -DestinationPath $ZipName -Force
           Write-Host "Created $ZipName"
+
+      - name: Exercise unpacked portable package and Rust bridge
+        shell: pwsh
+        run: python scripts/package_smoke.py "SkyPort/SkyPort-v$Env:APP_VERSION-windows-${{ matrix.arch_name }}-portable.zip"
+
+      - name: Exercise installed setup package and Rust bridge
+        shell: pwsh
+        run: |
+          $InstallDir = Join-Path $env:RUNNER_TEMP "skyport-setup-smoke"
+          $Installer = Resolve-Path "SkyPort/SkyPort-v$Env:APP_VERSION-windows-${{ matrix.arch_name }}-setup.exe"
+          $Process = Start-Process -FilePath $Installer -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=$InstallDir" -PassThru -Wait
+          if ($Process.ExitCode -ne 0) { throw "Installer exited $($Process.ExitCode)" }
+          python scripts/package_smoke.py "$InstallDir"
+          if ($LASTEXITCODE -ne 0) { throw "Installed host smoke failed" }
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7

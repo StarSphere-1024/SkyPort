@@ -11,6 +11,7 @@ import '../utils/constants.dart';
 enum LogEntryType { received, sent }
 
 class LogEntry {
+  final int id;
   final Uint8List data;
   final LogEntryType type;
   final DateTime timestamp;
@@ -23,7 +24,7 @@ class LogEntry {
   static final LinkedHashMap<LogEntry, _CachedSpanData> _spanCache =
       LinkedHashMap<LogEntry, _CachedSpanData>();
 
-  LogEntry(this.data, this.type, this.timestamp);
+  LogEntry(this.data, this.type, this.timestamp, {this.id = -1});
 
   String getDisplayText(bool hexDisplay) {
     if (_cachedText != null && _cachedHexMode == hexDisplay) {
@@ -190,25 +191,25 @@ class LogEntry {
 
       if (j == 0 && showTimestamp) {
         spans.add(
-          TextSpan(
-            text: '$formattedTimestamp ',
-            style: timestampStyle,
-          ),
+          TextSpan(text: '$formattedTimestamp ', style: timestampStyle),
         );
       }
 
       if (j == 0 && showSent) {
-        spans.add(TextSpan(
-          text: isSent ? 'TX > ' : 'RX < ',
-          style: baseStyle.copyWith(
-            color: isSent ? primaryColor : onSurfaceColor,
-            fontWeight: FontWeight.bold,
+        spans.add(
+          TextSpan(
+            text: isSent ? 'TX > ' : 'RX < ',
+            style: baseStyle.copyWith(
+              color: isSent ? primaryColor : onSurfaceColor,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ));
+        );
       }
 
-      final contentColor =
-          isSent ? primaryColor.withValues(alpha: 0.8) : onSurfaceColor;
+      final contentColor = isSent
+          ? primaryColor.withValues(alpha: 0.8)
+          : onSurfaceColor;
 
       final contentStyle = baseStyle.copyWith(color: contentColor);
 
@@ -218,16 +219,15 @@ class LogEntry {
           final textSegment = lineText.substring(piece.start, piece.end);
           if (piece.entity is ansi.EscapeCode) continue;
 
-          spans.add(TextSpan(
-            text: textSegment,
-            style: _ansiStateToStyle(piece.state, contentStyle),
-          ));
+          spans.add(
+            TextSpan(
+              text: textSegment,
+              style: _ansiStateToStyle(piece.state, contentStyle),
+            ),
+          );
         }
       } else {
-        spans.add(TextSpan(
-          text: lineText,
-          style: contentStyle,
-        ));
+        spans.add(TextSpan(text: lineText, style: contentStyle));
       }
 
       // Handle newlines
@@ -241,32 +241,30 @@ class LogEntry {
           // Use a zero-sized WidgetSpan for trailing newlines OR internal empty lines.
           // This creates a "compact" view where empty lines don't take up visual space
           // but are still present when copied to clipboard.
-          spans.add(WidgetSpan(
-            child: SizedBox(
-              width: 0,
-              height: 0,
-              child: Text(
-                '\n',
-                style: contentStyle.copyWith(fontSize: 1),
+          spans.add(
+            WidgetSpan(
+              child: SizedBox(
+                width: 0,
+                height: 0,
+                child: Text('\n', style: contentStyle.copyWith(fontSize: 1)),
               ),
             ),
-          ));
+          );
         } else {
           // Normal internal newline after text, render as visible text to break the line
-          spans.add(TextSpan(
-            text: '\n',
-            style: contentStyle,
-          ));
+          spans.add(TextSpan(text: '\n', style: contentStyle));
         }
       }
     }
 
     // Add truncation indicator if text was cut
     if (truncated) {
-      spans.add(TextSpan(
-        text: ' ... [TRUNCATED]',
-        style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
-      ));
+      spans.add(
+        TextSpan(
+          text: ' ... [TRUNCATED]',
+          style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+        ),
+      );
     }
 
     return spans;
@@ -369,8 +367,9 @@ class LogChunk {
   final int id;
 
   List<LogEntry>? _rxEntries;
-  List<LogEntry> get rxEntries => _rxEntries ??=
-      entries.where((e) => e.type == LogEntryType.received).toList();
+  List<LogEntry> get rxEntries => _rxEntries ??= entries
+      .where((e) => e.type == LogEntryType.received)
+      .toList();
 
   LogChunk({required this.entries, required this.totalBytes, required this.id});
 }
@@ -378,13 +377,6 @@ class LogChunk {
 class LogState {
   final List<LogChunk> chunks;
   final int totalBytes;
-  final int nextChunkId;
 
-  const LogState({
-    this.chunks = const [],
-    this.totalBytes = 0,
-    this.nextChunkId = 0,
-  });
-
-  List<LogEntry> get allEntries => chunks.expand((c) => c.entries).toList();
+  const LogState({this.chunks = const [], this.totalBytes = 0});
 }

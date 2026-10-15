@@ -18,7 +18,8 @@ class AppLogger {
     if (_initialized) return;
 
     try {
-      _file = _injectedFile ??
+      _file =
+          _injectedFile ??
           File(
             '${(await getApplicationSupportDirectory()).path}'
             '${Platform.pathSeparator}logs${Platform.pathSeparator}skyport.log',

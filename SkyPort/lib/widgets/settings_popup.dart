@@ -1,10 +1,10 @@
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/app_localizations.dart';
-import '../providers/serial/serial_port_manager.dart';
-import '../providers/serial/ui_settings_provider.dart';
+import '../providers/ui_controller.dart';
+import '../providers/ui_settings_provider.dart';
 import '../providers/theme_provider.dart';
 import '../theme.dart';
 import '../widgets/shared/compact_switch.dart';
@@ -21,8 +21,8 @@ class SettingsPopup extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final serialState = ref.watch(serialPortManagerProvider);
-    final serialManager = ref.read(serialPortManagerProvider.notifier);
+    final coreState = ref.watch(uiControllerProvider);
+    final controllerNotifier = ref.read(uiControllerProvider.notifier);
     final uiSettings = ref.watch(uiSettingsProvider);
 
     return Form(
@@ -33,9 +33,7 @@ class SettingsPopup extends ConsumerWidget {
           ListTile(
             title: Text(
               AppLocalizations.of(context).theme,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-              ),
+              style: TextStyle(color: Theme.of(context).colorScheme.primary),
             ),
             trailing: DropdownButton<ThemeMode>(
               value: ref.watch(themeModeProvider),
@@ -63,9 +61,7 @@ class SettingsPopup extends ConsumerWidget {
           ListTile(
             title: Text(
               AppLocalizations.of(context).themeColor,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-              ),
+              style: TextStyle(color: Theme.of(context).colorScheme.primary),
             ),
             trailing: DropdownButton<Color>(
               value: availableThemeColors.firstWhere(
@@ -107,15 +103,13 @@ class SettingsPopup extends ConsumerWidget {
           ),
           CompactSwitch(
             label: AppLocalizations.of(context).autoReconnect,
-            value: serialState.targetConfig.autoReconnect,
-            onChanged: serialManager.setAutoReconnect,
+            value: coreState.autoReconnect,
+            onChanged: controllerNotifier.setAutoReconnect,
           ),
           ListTile(
             title: Text(
               AppLocalizations.of(context).logBufferSize,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-              ),
+              style: TextStyle(color: Theme.of(context).colorScheme.primary),
             ),
             trailing: SizedBox(
               width: 120,
@@ -123,9 +117,7 @@ class SettingsPopup extends ConsumerWidget {
                 controller: controller,
                 keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
-                decoration: const InputDecoration(
-                  suffixText: 'MB',
-                ),
+                decoration: const InputDecoration(suffixText: 'MB'),
                 validator: (value) {
                   final size = int.tryParse(value ?? '');
                   if (size == null || size < 16 || size > 512) {
@@ -135,7 +127,7 @@ class SettingsPopup extends ConsumerWidget {
                 },
                 onSaved: (value) {
                   final size = int.parse(value!);
-                  ref.read(uiSettingsProvider.notifier).setLogBufferSize(size);
+                  controllerNotifier.setLogCapacity(size);
                 },
                 onFieldSubmitted: (value) {
                   if (formKey.currentState?.validate() == true) {
@@ -151,9 +143,7 @@ class SettingsPopup extends ConsumerWidget {
             ListTile(
               title: Text(
                 AppLocalizations.of(context).exportPath,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+                style: TextStyle(color: Theme.of(context).colorScheme.primary),
               ),
               subtitle: Padding(
                 padding: const EdgeInsets.only(top: 8.0),
@@ -162,7 +152,7 @@ class SettingsPopup extends ConsumerWidget {
                     Expanded(
                       child: InkWell(
                         onTap: () async {
-                          final path = await FilePicker.getDirectoryPath();
+                          final path = await getDirectoryPath();
                           if (path != null) {
                             ref
                                 .read(uiSettingsProvider.notifier)
@@ -171,8 +161,9 @@ class SettingsPopup extends ConsumerWidget {
                         },
                         child: InputDecorator(
                           decoration: InputDecoration(
-                            hintText:
-                                AppLocalizations.of(context).exportPathHint,
+                            hintText: AppLocalizations.of(
+                              context,
+                            ).exportPathHint,
                             isDense: true,
                           ),
                           child: Text(
@@ -188,7 +179,7 @@ class SettingsPopup extends ConsumerWidget {
                       icon: const Icon(Icons.folder),
                       tooltip: AppLocalizations.of(context).exportPath,
                       onPressed: () async {
-                        final path = await FilePicker.getDirectoryPath();
+                        final path = await getDirectoryPath();
                         if (path != null) {
                           ref
                               .read(uiSettingsProvider.notifier)

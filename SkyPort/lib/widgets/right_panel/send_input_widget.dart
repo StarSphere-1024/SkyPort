@@ -1,17 +1,10 @@
-import 'dart:async';
-import 'dart:convert';
-
-import 'package:flutter/material.dart' hide ConnectionState;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../../models/connection_status.dart';
-import '../../models/ui_settings.dart';
-import '../../providers/common_providers.dart';
-import '../../providers/serial/serial_port_manager.dart';
-import '../../providers/serial/ui_settings_provider.dart';
-import '../../utils/constants.dart';
+import '../../models/ui_state.dart';
+import '../../providers/ui_controller.dart';
 
 class SendInputWidget extends ConsumerStatefulWidget {
   const SendInputWidget({super.key});
@@ -27,140 +20,67 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
   bool _canSend = false;
   bool _previousHexMode = false;
 
-  static const String _historyKey = 'send_input_history';
-  List<String> _history = [];
   int _historyIndex = -1;
   String _tempInput = '';
-
-  Timer? _autoSendTimer;
-  UiSettings? _previousSettings;
 
   @override
   void initState() {
     super.initState();
     _focusNode = FocusNode(onKeyEvent: _handleKeyEvent);
-    _loadHistory();
+    _sendController.text = ref.read(autoSendDraftProvider);
+    _previousHexMode = ref.read(uiControllerProvider).hexSend;
+    _updateCanSend(_sendController.text);
   }
 
   @override
   void dispose() {
-    _autoSendTimer?.cancel();
     _sendController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
-  Future<void> _loadHistory() async {
-    final prefs = ref.read(sharedPreferencesProvider);
-    final history = prefs.getStringList(_historyKey);
-    if (mounted) {
-      setState(() {
-        _history = history ?? [];
-      });
+  void _setDraft(String value) {
+    ref.read(autoSendDraftProvider.notifier).setDraft(value);
+    final core = ref.read(uiControllerProvider);
+    if (core.autoSendEnabled && value != core.autoSendInput) {
+      ref.read(uiControllerProvider.notifier).setAutoSendInput(value);
     }
   }
 
-  Future<void> _saveHistory() async {
-    final prefs = ref.read(sharedPreferencesProvider);
-    await prefs.setStringList(_historyKey, _history);
-  }
-
-  void _addToHistory(String text) {
-    if (text.isEmpty) return;
-    setState(() {
-      _history.remove(text);
-      _history.add(text);
-      if (_history.length > SkyPortConstants.maxHistorySize) {
-        _history.removeAt(0);
-      }
-      _historyIndex = -1;
-      _tempInput = '';
+  void _setDraftAfterFrame(String value) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _setDraft(value);
     });
-    _saveHistory();
-  }
-
-  void _handleAutoSendSettingsChange(UiSettings? previous, UiSettings next) {
-    final wasEnabled = previous?.autoSendEnabled ?? false;
-    final isEnabled = next.autoSendEnabled;
-
-    if (wasEnabled != isEnabled) {
-      if (isEnabled) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            _startAutoSend();
-          }
-        });
-      } else {
-        _stopAutoSend();
-      }
-    } else if (isEnabled &&
-        previous?.autoSendIntervalMs != next.autoSendIntervalMs) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _startAutoSend();
-        }
-      });
-    }
-  }
-
-  void _startAutoSend() {
-    _autoSendTimer?.cancel();
-    final interval = ref.read(uiSettingsProvider).autoSendIntervalMs;
-    _autoSendTimer = Timer.periodic(
-      Duration(milliseconds: interval),
-      (_) => _autoSend(),
-    );
-  }
-
-  void _stopAutoSend() {
-    _autoSendTimer?.cancel();
-    _autoSendTimer = null;
-  }
-
-  void _autoSend() {
-    final connectionState =
-        ref.read(serialPortManagerProvider).connection.state;
-    if (connectionState == ConnectionState.connected && _canSend) {
-      final text = _sendController.text;
-      if (_formKey.currentState?.validate() ?? false) {
-        ref.read(serialPortManagerProvider.notifier).send(text);
-        _addToHistory(text);
-      }
-    }
   }
 
   void _navigateHistory(bool up) {
-    if (_history.isEmpty) return;
-
+    final history = ref.read(uiControllerProvider).sendHistory;
+    if (history.isEmpty) return;
     setState(() {
       if (up) {
         if (_historyIndex == -1) {
           _tempInput = _sendController.text;
-          _historyIndex = _history.length - 1;
+          _historyIndex = history.length - 1;
         } else if (_historyIndex > 0) {
           _historyIndex--;
         }
       } else if (_historyIndex != -1) {
-        if (_historyIndex < _history.length - 1) {
-          _historyIndex++;
-        } else {
-          _historyIndex = -1;
-        }
+        _historyIndex = _historyIndex < history.length - 1
+            ? _historyIndex + 1
+            : -1;
       }
-
-      final newText =
-          _historyIndex == -1 ? _tempInput : _history[_historyIndex];
+      final newText = _historyIndex == -1 ? _tempInput : history[_historyIndex];
       _sendController.text = newText;
       _sendController.selection = TextSelection.fromPosition(
         TextPosition(offset: newText.length),
       );
       _updateCanSend(newText);
+      _setDraft(newText);
     });
   }
 
   void _updateCanSend(String value) {
-    final uiSettings = ref.read(uiSettingsProvider);
-    if (!uiSettings.hexSend) {
+    if (!ref.read(uiControllerProvider).hexSend) {
       _canSend = value.isNotEmpty;
       return;
     }
@@ -172,14 +92,14 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
 
     final sanitized = _sanitizeHex(value);
     if (sanitized.isEmpty) {
-      _canSend = true;
+      _canSend = false;
     } else {
       _canSend = _isValidHex(sanitized);
     }
   }
 
   static final RegExp hexRegex = RegExp(r'^[0-9a-fA-F]+$');
-  static final RegExp whitespaceRegex = RegExp(r'\s+');
+  static final RegExp whitespaceRegex = RegExp(r'[ \t\n\r\f]+');
 
   String _sanitizeHex(String value) => value.replaceAll(whitespaceRegex, '');
 
@@ -231,10 +151,14 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
       onChanged: (value) {
         setState(() {
           _updateCanSend(value);
-          if (_historyIndex != -1 && value != _history[_historyIndex]) {
+          final history = ref.read(uiControllerProvider).sendHistory;
+          if (_historyIndex != -1 &&
+              (_historyIndex >= history.length ||
+                  value != history[_historyIndex])) {
             _historyIndex = -1;
           }
         });
+        _setDraft(value);
       },
       validator: (value) {
         if (hexSend) {
@@ -253,16 +177,19 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
     );
   }
 
-  Widget _buildSendButton(ConnectionState connectionState, bool canSend) {
+  Widget _buildSendButton(UiConnection connectionState, bool canSend) {
     return FilledButton.icon(
       icon: const Icon(Icons.send),
       label: Text(AppLocalizations.of(context).send),
-      onPressed: connectionState == ConnectionState.connected && canSend
+      onPressed: connectionState == UiConnection.connected && canSend
           ? () {
               if (_formKey.currentState!.validate()) {
                 final text = _sendController.text;
-                ref.read(serialPortManagerProvider.notifier).send(text);
-                _addToHistory(text);
+                ref.read(uiControllerProvider.notifier).send(text);
+                setState(() {
+                  _historyIndex = -1;
+                  _tempInput = '';
+                });
               }
             }
           : null,
@@ -274,24 +201,19 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final connectionState =
-        ref.watch(serialPortManagerProvider.select((s) => s.connection.state));
-    final uiSettings = ref.watch(uiSettingsProvider);
-    final hexSend = uiSettings.hexSend;
-
+    final state = ref.watch(uiControllerProvider);
+    final connectionState = state.connection;
+    final hexSend = state.hexSend;
     if (_previousHexMode != hexSend) {
-      _handleHexSendToggle(
-        previousIsHex: _previousHexMode,
-        currentIsHex: hexSend,
+      _sendController.text = state.autoSendInput;
+      _sendController.selection = TextSelection.collapsed(
+        offset: _sendController.text.length,
       );
+      _updateCanSend(_sendController.text);
+      _setDraftAfterFrame(_sendController.text);
       _previousHexMode = hexSend;
     }
-
-    _handleAutoSendSettingsChange(_previousSettings, uiSettings);
-    _previousSettings = uiSettings;
-
     final colorScheme = Theme.of(context).colorScheme;
-
     return Card.filled(
       color: colorScheme.surfaceContainerLow,
       child: Padding(
@@ -311,67 +233,5 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
         ),
       ),
     );
-  }
-
-  void _handleHexSendToggle({
-    required bool previousIsHex,
-    required bool currentIsHex,
-  }) {
-    final text = _sendController.text;
-    if (text.isEmpty) {
-      return;
-    }
-
-    if (!previousIsHex && currentIsHex) {
-      final bytes = utf8.encode(text);
-      final hex = bytes
-          .map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase())
-          .join(' ');
-      _sendController.text = hex;
-      _sendController.selection = TextSelection.fromPosition(
-        TextPosition(offset: _sendController.text.length),
-      );
-      _canSend = hex.isNotEmpty;
-      return;
-    }
-
-    if (previousIsHex && !currentIsHex) {
-      final hexText = text.trim();
-      if (hexText.isEmpty) {
-        _sendController.clear();
-        _canSend = false;
-        return;
-      }
-
-      try {
-        final bytes = _parseHexToBytes(hexText);
-        final decoded = utf8.decode(bytes, allowMalformed: false);
-        _sendController.text = decoded;
-        _sendController.selection = TextSelection.fromPosition(
-          TextPosition(offset: decoded.length),
-        );
-        _canSend = decoded.isNotEmpty;
-      } catch (_) {
-        // Keep original content when conversion fails.
-      }
-    }
-  }
-
-  Uint8List _parseHexToBytes(String hex) {
-    final bytes = <int>[];
-    final parts = hex.trim().split(whitespaceRegex).where((s) => s.isNotEmpty);
-
-    for (var part in parts) {
-      if (part.length % 2 != 0) {
-        part = '0$part';
-      }
-
-      for (int i = 0; i < part.length; i += 2) {
-        final hexPair = part.substring(i, i + 2);
-        bytes.add(int.parse(hexPair, radix: 16));
-      }
-    }
-
-    return Uint8List.fromList(bytes);
   }
 }

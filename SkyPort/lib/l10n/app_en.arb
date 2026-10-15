@@ -63,14 +63,6 @@
   "logBufferSize": "Log Buffer Size",
   "logBufferSizeError": "16-512",
   "enableAnsi": "Enable ANSI",
-  "errConfigNotSet": "Serial configuration not set.",
-  "errPortOpenTimeout": "Connection timed out: {message}",
-  "errPortOpenFailed": "Failed to open port: {message}",
-  "errPortDisconnected": "Port disconnected: {message}",
-  "errWriteFailed": "Write failed: {message}",
-  "errInvalidHexFormat": "Invalid HEX format",
-  "errCleanupError": "Error during cleanup: {message}",
-  "errUnknown": "Unknown error: {message}",
   "autoSend": "Auto Send",
   "autoSendInterval": "Interval",
   "autoSendIntervalError": "0.01-60",
@@ -79,8 +71,43 @@
   "exportLogs": "Export Logs",
   "exportPath": "Export path",
   "exportPathHint": "Default folder for exported logs",
-  "export": "Export",
-  "noLogsToExport": "No logs to export",
   "logsExportedTo": "Logs exported to: ",
-  "exportFailed": "Export failed: "
+  "exportFailed": "Export failed: ",
+  "writeFailure": "Write failed after {bytes} bytes: {message}",
+  "@writeFailure": {
+    "placeholders": {
+      "bytes": {"type": "int"},
+      "message": {"type": "String"}
+    }
+  },
+  "autoSendPaused": "Auto-send paused: {message}",
+  "@autoSendPaused": {
+    "placeholders": {
+      "message": {"type": "String"}
+    }
+  },
+  "importFile": "Import File",
+  "applyingConfiguration": "Applying configuration...",
+  "logDataGap": "Some log events were missed; the view has been resynchronized.",
+  "logTrimmed": "Older records trimmed: {records} records / {bytes} bytes",
+  "@logTrimmed": {
+    "placeholders": {
+      "records": {"type": "int"},
+      "bytes": {"type": "int"}
+    }
+  },
+  "startupFailed": "SkyPort could not start",
+  "errorInvalidArgument": "Invalid argument",
+  "errorPortNotFound": "Port not found",
+  "errorOpenFailed": "Port open failed",
+  "errorPermissionDenied": "Permission denied",
+  "errorUnsupportedConfiguration": "Unsupported configuration",
+  "errorReadFailed": "Serial read failed",
+  "errorDisconnected": "Serial connection lost",
+  "errorTimeout": "Operation timed out",
+  "errorClosed": "Application core is closed",
+  "errorQueueOverflow": "Queue capacity exceeded",
+  "errorTaskFailed": "Background task failed",
+  "errorInternal": "Internal error",
+  "logIncomplete": "The retained log contains a serial data or session gap."
 }

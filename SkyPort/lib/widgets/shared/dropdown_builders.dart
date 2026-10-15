@@ -6,10 +6,10 @@ class DropdownBuilders {
     String Function(T) labelBuilder,
   ) {
     return values
-        .map((value) => DropdownMenuEntry<T>(
-              value: value,
-              label: labelBuilder(value),
-            ))
+        .map(
+          (value) =>
+              DropdownMenuEntry<T>(value: value, label: labelBuilder(value)),
+        )
         .toList();
   }
 

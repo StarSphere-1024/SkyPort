@@ -33,6 +33,7 @@ architecture: amd64
 # A list of other packages that this package depends on.
 depends:
   - libgtk-3-0
+  - libudev1
 
 # The package version. If this line is commented out, the version will be automatically read from pubspec.yaml.
 # version: 1.0.0

@@ -102,14 +102,14 @@ The current supported desktop targets are Windows and Linux. The macOS project f
 - Unit tests belong under `test/unit/`; widget tests under `test/widget/`; shared helpers under `test/helpers/`; integration tests under `integration_test/`.
 - Integration tests may require a suitable Flutter device and platform setup.
 - Test behavior and edge cases, not default strings or incidental formatting.
-- Use mocks for serial I/O in unit and widget tests; do not require physical hardware for deterministic tests.
+- Mock the UI state/intent boundary in unit and widget tests, not native sessions. Rust serial integration checks use Linux pseudo-terminals; do not require physical hardware for deterministic tests.
 
 ## Key Configuration
 
 - Dart SDK: `>=3.10.0 <4.0.0`
 - State management: Riverpod (`flutter_riverpod`)
-- Serial I/O: `flutter_libserialport`
-- Dependency versions: `SkyPort/pubspec.yaml`
+- Serial I/O: independent `skyport_core` (`serialport`) with a separate `flutter_rust_bridge` adapter
+- Dependency versions: `SkyPort/pubspec.yaml` and the Cargo workspace manifests/lockfile
 - Localization source: `SkyPort/lib/l10n/*.arb`
 - Generated localization output: `SkyPort/lib/l10n/app_localizations*.dart`
 - Testing: `flutter_test`, `mocktail`, `integration_test`, `fake_async`
@@ -117,6 +117,7 @@ The current supported desktop targets are Windows and Linux. The macOS project f
 ## Development Constraints
 
 - Keep serial-port behavior deterministic: do not add hidden retries or silently mutate transport data. User-configured or explicitly visible automatic reconnection is allowed and must remain observable and testable.
-- Preserve existing provider/service boundaries by default. Widgets render state and delegate serial I/O, persistence, and shared business state to providers/services.
+- Widgets render neutral UI state and send user intents through the UI controller. Rust owns serial lifecycle, validation, persistence, logs, statistics, and scheduling; Dart providers only project core state or hold frontend-only settings.
 - When adding user-visible strings, update the relevant `.arb` source files and regenerate localization output; do not edit generated localization Dart files by hand.
 - Keep tests focused on behavior, edge cases, state transitions, and transport errors.
+- From the repository root, run `cargo test --locked -p skyport_core` without Flutter. For real Linux UI/bridge verification use `python3 scripts/pty_ui_smoke.py`; for final bundles/packages use `python3 scripts/package_smoke.py <artifact>` with a suitable desktop display.

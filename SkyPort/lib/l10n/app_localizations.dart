@@ -63,7 +63,7 @@ import 'app_localizations_zh.dart';
 /// property.
 abstract class AppLocalizations {
   AppLocalizations(String locale)
-      : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -86,16 +86,16 @@ abstract class AppLocalizations {
   /// of delegates is preferred or required.
   static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
       <LocalizationsDelegate<dynamic>>[
-    delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-  ];
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
-    Locale('zh')
+    Locale('zh'),
   ];
 
   /// No description provided for @appTitle.
@@ -398,54 +398,6 @@ abstract class AppLocalizations {
   /// **'Enable ANSI'**
   String get enableAnsi;
 
-  /// No description provided for @errConfigNotSet.
-  ///
-  /// In en, this message translates to:
-  /// **'Serial configuration not set.'**
-  String get errConfigNotSet;
-
-  /// No description provided for @errPortOpenTimeout.
-  ///
-  /// In en, this message translates to:
-  /// **'Connection timed out: {message}'**
-  String errPortOpenTimeout(Object message);
-
-  /// No description provided for @errPortOpenFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to open port: {message}'**
-  String errPortOpenFailed(Object message);
-
-  /// No description provided for @errPortDisconnected.
-  ///
-  /// In en, this message translates to:
-  /// **'Port disconnected: {message}'**
-  String errPortDisconnected(Object message);
-
-  /// No description provided for @errWriteFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Write failed: {message}'**
-  String errWriteFailed(Object message);
-
-  /// No description provided for @errInvalidHexFormat.
-  ///
-  /// In en, this message translates to:
-  /// **'Invalid HEX format'**
-  String get errInvalidHexFormat;
-
-  /// No description provided for @errCleanupError.
-  ///
-  /// In en, this message translates to:
-  /// **'Error during cleanup: {message}'**
-  String errCleanupError(Object message);
-
-  /// No description provided for @errUnknown.
-  ///
-  /// In en, this message translates to:
-  /// **'Unknown error: {message}'**
-  String errUnknown(Object message);
-
   /// No description provided for @autoSend.
   ///
   /// In en, this message translates to:
@@ -494,18 +446,6 @@ abstract class AppLocalizations {
   /// **'Default folder for exported logs'**
   String get exportPathHint;
 
-  /// No description provided for @export.
-  ///
-  /// In en, this message translates to:
-  /// **'Export'**
-  String get export;
-
-  /// No description provided for @noLogsToExport.
-  ///
-  /// In en, this message translates to:
-  /// **'No logs to export'**
-  String get noLogsToExport;
-
   /// No description provided for @logsExportedTo.
   ///
   /// In en, this message translates to:
@@ -517,6 +457,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Export failed: '**
   String get exportFailed;
+
+  /// No description provided for @writeFailure.
+  ///
+  /// In en, this message translates to:
+  /// **'Write failed after {bytes} bytes: {message}'**
+  String writeFailure(int bytes, String message);
+
+  /// No description provided for @autoSendPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-send paused: {message}'**
+  String autoSendPaused(String message);
+
+  /// No description provided for @importFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Import File'**
+  String get importFile;
+
+  /// No description provided for @applyingConfiguration.
+  ///
+  /// In en, this message translates to:
+  /// **'Applying configuration...'**
+  String get applyingConfiguration;
+
+  /// No description provided for @logDataGap.
+  ///
+  /// In en, this message translates to:
+  /// **'Some log events were missed; the view has been resynchronized.'**
+  String get logDataGap;
+
+  /// No description provided for @logTrimmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Older records trimmed: {records} records / {bytes} bytes'**
+  String logTrimmed(int records, int bytes);
+
+  /// No description provided for @startupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'SkyPort could not start'**
+  String get startupFailed;
+
+  /// No description provided for @errorInvalidArgument.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid argument'**
+  String get errorInvalidArgument;
+
+  /// No description provided for @errorPortNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Port not found'**
+  String get errorPortNotFound;
+
+  /// No description provided for @errorOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Port open failed'**
+  String get errorOpenFailed;
+
+  /// No description provided for @errorPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission denied'**
+  String get errorPermissionDenied;
+
+  /// No description provided for @errorUnsupportedConfiguration.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsupported configuration'**
+  String get errorUnsupportedConfiguration;
+
+  /// No description provided for @errorReadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Serial read failed'**
+  String get errorReadFailed;
+
+  /// No description provided for @errorDisconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Serial connection lost'**
+  String get errorDisconnected;
+
+  /// No description provided for @errorTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation timed out'**
+  String get errorTimeout;
+
+  /// No description provided for @errorClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'Application core is closed'**
+  String get errorClosed;
+
+  /// No description provided for @errorQueueOverflow.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue capacity exceeded'**
+  String get errorQueueOverflow;
+
+  /// No description provided for @errorTaskFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Background task failed'**
+  String get errorTaskFailed;
+
+  /// No description provided for @errorInternal.
+  ///
+  /// In en, this message translates to:
+  /// **'Internal error'**
+  String get errorInternal;
+
+  /// No description provided for @logIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'The retained log contains a serial data or session gap.'**
+  String get logIncomplete;
 }
 
 class _AppLocalizationsDelegate
@@ -546,8 +606,9 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-      'an issue with the localizations generation tool. Please file an issue '
-      'on GitHub with a reproducible sample app and the gen-l10n configuration '
-      'that was used.');
+    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+    'an issue with the localizations generation tool. Please file an issue '
+    'on GitHub with a reproducible sample app and the gen-l10n configuration '
+    'that was used.',
+  );
 }

@@ -18,25 +18,18 @@ class AppInputDecorations {
       labelText: label,
       isDense: true,
       suffixText: suffixText,
-      suffixStyle: suffixStyle ??
-          TextStyle(
-            color: colorScheme.onSurface.withValues(alpha: 0.6),
-          ),
+      suffixStyle:
+          suffixStyle ??
+          TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.6)),
       filled: filled,
       fillColor: fillColor ?? colorScheme.surface,
       border: OutlineInputBorder(
         borderRadius: borderRadius ?? BorderRadius.circular(4),
-        borderSide: BorderSide(
-          color: colorScheme.outline,
-          width: borderWidth,
-        ),
+        borderSide: BorderSide(color: colorScheme.outline, width: borderWidth),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: borderRadius ?? BorderRadius.circular(4),
-        borderSide: BorderSide(
-          color: colorScheme.outline,
-          width: borderWidth,
-        ),
+        borderSide: BorderSide(color: colorScheme.outline, width: borderWidth),
       ),
       disabledBorder: OutlineInputBorder(
         borderRadius: borderRadius ?? BorderRadius.circular(4),
@@ -47,13 +40,12 @@ class AppInputDecorations {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: borderRadius ?? BorderRadius.circular(4),
-        borderSide: BorderSide(
-          color: colorScheme.primary,
-          width: 2,
-        ),
+        borderSide: BorderSide(color: colorScheme.primary, width: 2),
       ),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 12.0, vertical: 14.0),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 12.0,
+        vertical: 14.0,
+      ),
       errorText: errorText,
     );
   }
