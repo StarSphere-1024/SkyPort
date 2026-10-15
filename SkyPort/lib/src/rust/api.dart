@@ -26,8 +26,8 @@ Future<SnapshotReply> snapshot({required CoreHandle handle}) =>
 Future<SubscribeReply> subscribe({required CoreHandle handle}) =>
     RustLib.instance.api.crateApiSubscribe(handle: handle);
 
-Future<EventReply> nextEvent({required SubscriptionHandle subscription}) =>
-    RustLib.instance.api.crateApiNextEvent(subscription: subscription);
+Future<EventsReply> nextEvents({required SubscriptionHandle subscription}) =>
+    RustLib.instance.api.crateApiNextEvents(subscription: subscription);
 
 Future<void> cancelSubscription({required SubscriptionHandle subscription}) =>
     RustLib.instance.api.crateApiCancelSubscription(subscription: subscription);
@@ -525,24 +525,6 @@ class Event {
           error == other.error;
 }
 
-class EventReply {
-  final Event? event;
-  final CoreError? error;
-
-  const EventReply({this.event, this.error});
-
-  @override
-  int get hashCode => event.hashCode ^ error.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is EventReply &&
-          runtimeType == other.runtimeType &&
-          event == other.event &&
-          error == other.error;
-}
-
 enum EventType {
   stateChanged,
   portsChanged,
@@ -556,6 +538,24 @@ enum EventType {
   taskFailed,
   commandCompleted,
   commandFailed,
+}
+
+class EventsReply {
+  final List<Event> events;
+  final CoreError? error;
+
+  const EventsReply({required this.events, this.error});
+
+  @override
+  int get hashCode => events.hashCode ^ error.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EventsReply &&
+          runtimeType == other.runtimeType &&
+          events == other.events &&
+          error == other.error;
 }
 
 class ExportOptions {

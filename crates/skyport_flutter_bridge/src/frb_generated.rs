@@ -40,7 +40,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1805394534;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1795546135;
 
 // Section: executor
 
@@ -545,7 +545,7 @@ fn wire__crate__api__list_ports_impl(
         },
     )
 }
-fn wire__crate__api__next_event_impl(
+fn wire__crate__api__next_events_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -553,7 +553,7 @@ fn wire__crate__api__next_event_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "next_event",
+            debug_name: "next_events",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -592,7 +592,7 @@ fn wire__crate__api__next_event_impl(
                         }
                     }
                     let api_subscription_guard = api_subscription_guard.unwrap();
-                    let output_ok = Ok::<_, ()>(crate::api::next_event(&*api_subscription_guard))?;
+                    let output_ok = Ok::<_, ()>(crate::api::next_events(&*api_subscription_guard))?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
@@ -1402,18 +1402,6 @@ impl SseDecode for crate::api::Event {
     }
 }
 
-impl SseDecode for crate::api::EventReply {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_event = <Option<crate::api::Event>>::sse_decode(deserializer);
-        let mut var_error = <Option<crate::api::CoreError>>::sse_decode(deserializer);
-        return crate::api::EventReply {
-            event: var_event,
-            error: var_error,
-        };
-    }
-}
-
 impl SseDecode for crate::api::EventType {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1432,6 +1420,18 @@ impl SseDecode for crate::api::EventType {
             10 => crate::api::EventType::CommandCompleted,
             11 => crate::api::EventType::CommandFailed,
             _ => unreachable!("Invalid variant for EventType: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::EventsReply {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_events = <Vec<crate::api::Event>>::sse_decode(deserializer);
+        let mut var_error = <Option<crate::api::CoreError>>::sse_decode(deserializer);
+        return crate::api::EventsReply {
+            events: var_events,
+            error: var_error,
         };
     }
 }
@@ -1519,6 +1519,18 @@ impl SseDecode for Vec<String> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<String>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::Event> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::Event>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -1713,17 +1725,6 @@ impl SseDecode for Option<crate::api::CoreError> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<crate::api::CoreError>::sse_decode(deserializer));
-        } else {
-            return None;
-        }
-    }
-}
-
-impl SseDecode for Option<crate::api::Event> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        if (<bool>::sse_decode(deserializer)) {
-            return Some(<crate::api::Event>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -1958,7 +1959,7 @@ fn pde_ffi_dispatcher_primary_impl(
         8 => wire__crate__api__export_log_impl(port, ptr, rust_vec_len, data_len),
         9 => wire__crate__api__import_file_impl(port, ptr, rust_vec_len, data_len),
         10 => wire__crate__api__list_ports_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__next_event_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__next_events_impl(port, ptr, rust_vec_len, data_len),
         12 => wire__crate__api__send_hex_impl(port, ptr, rust_vec_len, data_len),
         13 => wire__crate__api__send_input_impl(port, ptr, rust_vec_len, data_len),
         14 => wire__crate__api__send_text_impl(port, ptr, rust_vec_len, data_len),
@@ -2274,22 +2275,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::Event> for crate::api::Event 
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::EventReply {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.event.into_into_dart().into_dart(),
-            self.error.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::EventReply {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::EventReply> for crate::api::EventReply {
-    fn into_into_dart(self) -> crate::api::EventReply {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::EventType {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -2312,6 +2297,22 @@ impl flutter_rust_bridge::IntoDart for crate::api::EventType {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::EventType {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::EventType> for crate::api::EventType {
     fn into_into_dart(self) -> crate::api::EventType {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::EventsReply {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.events.into_into_dart().into_dart(),
+            self.error.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::EventsReply {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::EventsReply> for crate::api::EventsReply {
+    fn into_into_dart(self) -> crate::api::EventsReply {
         self
     }
 }
@@ -2758,14 +2759,6 @@ impl SseEncode for crate::api::Event {
     }
 }
 
-impl SseEncode for crate::api::EventReply {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <Option<crate::api::Event>>::sse_encode(self.event, serializer);
-        <Option<crate::api::CoreError>>::sse_encode(self.error, serializer);
-    }
-}
-
 impl SseEncode for crate::api::EventType {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -2789,6 +2782,14 @@ impl SseEncode for crate::api::EventType {
             },
             serializer,
         );
+    }
+}
+
+impl SseEncode for crate::api::EventsReply {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<crate::api::Event>>::sse_encode(self.events, serializer);
+        <Option<crate::api::CoreError>>::sse_encode(self.error, serializer);
     }
 }
 
@@ -2851,6 +2852,16 @@ impl SseEncode for Vec<String> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <String>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::Event> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::Event>::sse_encode(item, serializer);
         }
     }
 }
@@ -3014,16 +3025,6 @@ impl SseEncode for Option<crate::api::CoreError> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::CoreError>::sse_encode(value, serializer);
-        }
-    }
-}
-
-impl SseEncode for Option<crate::api::Event> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.is_some(), serializer);
-        if let Some(value) = self {
-            <crate::api::Event>::sse_encode(value, serializer);
         }
     }
 }

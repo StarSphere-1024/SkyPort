@@ -12,19 +12,16 @@ class LogIndexMapper {
   final List<LogChunk> chunks;
   final bool showSent;
   final List<int> _chunkStartIndices;
-  final int totalCount;
+  late final int totalCount;
 
   LogIndexMapper(this.chunks, {required this.showSent})
-    : _chunkStartIndices = [],
-      totalCount = chunks.fold(
-        0,
-        (sum, c) => sum + (showSent ? c.entries.length : c.rxEntries.length),
-      ) {
+    : _chunkStartIndices = [] {
     int current = 0;
     for (var c in chunks) {
       _chunkStartIndices.add(current);
       current += showSent ? c.entries.length : c.rxEntries.length;
     }
+    totalCount = current;
   }
 
   LogEntry operator [](int index) {
@@ -35,6 +32,16 @@ class LogIndexMapper {
     } else {
       return chunks[chunkIndex].rxEntries[offset];
     }
+  }
+
+  int? indexForId(int id) {
+    final index = LogChunk.insertionIndex(chunks, id);
+    if (index == chunks.length ||
+        chunks[index].id != id ||
+        (!showSent && chunks[index].rxEntries.isEmpty)) {
+      return null;
+    }
+    return _chunkStartIndices[index];
   }
 
   int _binarySearchChunk(int targetIndex) {
@@ -75,18 +82,18 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
   bool _stickToBottom = true;
   bool _programmaticScroll = false;
   bool _hasActiveSelection = false;
+  bool _scrollScheduled = false;
+  LogIndexMapper? _mapper;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(() {
       if (!_scrollController.hasClients) return;
-      final maxScroll = _scrollController.position.maxScrollExtent;
       final currentScroll = _scrollController.position.pixels;
 
       // Use a more lenient threshold to determine if at bottom, to avoid floating point precision issues
-      final isBottom =
-          currentScroll >= (maxScroll - SkyPortConstants.scrollBottomThreshold);
+      final isBottom = currentScroll <= SkyPortConstants.scrollBottomThreshold;
 
       if (_isAtBottom != isBottom) {
         // Only setState when the state actually changes
@@ -116,45 +123,16 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
       if (mounted) setState(() {});
     }
 
-    if (!_stickToBottom) return;
-
-    // If in stick mode, must perform scroll
+    if (!_stickToBottom || _scrollScheduled) return;
+    _scrollScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) return;
-
-      final maxScroll = _scrollController.position.maxScrollExtent;
-      // Removed the early return check (pixels >= maxScroll - 5) as it was causing
-      // issues with detecting new content arrival in some layout scenarios.
-
+      _scrollScheduled = false;
+      if (!mounted || !_stickToBottom || !_scrollController.hasClients) return;
       _programmaticScroll = true;
-
-      void onScrollComplete() {
+      try {
+        _scrollController.jumpTo(_scrollController.position.minScrollExtent);
+      } finally {
         _programmaticScroll = false;
-      }
-
-      // If it's a forced operation, or the distance to the bottom is very far (possibly due to accumulated data), use jump for performance and immediacy
-      // Otherwise, use animation for smoothness
-      final distance = (maxScroll - _scrollController.position.pixels).abs();
-
-      if (force || distance > SkyPortConstants.forceScrollDistance) {
-        _scrollController.jumpTo(maxScroll);
-        onScrollComplete();
-      } else {
-        _scrollController
-            .animateTo(
-              maxScroll,
-              duration: Duration(
-                milliseconds: SkyPortConstants.scrollAnimationDurationMs,
-              ),
-              curve: Curves.easeOut,
-            )
-            .then((_) {
-              onScrollComplete();
-            })
-            .catchError((_) {
-              // Animation might be interrupted
-              onScrollComplete();
-            });
       }
     });
   }
@@ -165,9 +143,11 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
     final colorScheme = theme.colorScheme;
     final settings = ref.watch(uiSettingsProvider);
 
-    ref.listen(uiControllerProvider, (previous, next) {
-      final prevBytes = previous?.logs.totalBytes ?? 0;
-      if (next.logs.totalBytes > prevBytes && !_hasActiveSelection) {
+    ref.listen(uiControllerProvider.select((state) => state.logs), (
+      previous,
+      next,
+    ) {
+      if (next.chunks.isNotEmpty && !_hasActiveSelection) {
         _scrollToBottom();
       }
     });
@@ -183,12 +163,19 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                 children: [
                   Consumer(
                     builder: (context, ref, child) {
-                      final uiState = ref.watch(uiControllerProvider);
-                      final logState = uiState.logs;
-                      final mapper = LogIndexMapper(
-                        logState.chunks,
-                        showSent: settings.showSent,
+                      final logState = ref.watch(
+                        uiControllerProvider.select((state) => state.logs),
                       );
+                      final cached = _mapper;
+                      final mapper =
+                          cached != null &&
+                              identical(cached.chunks, logState.chunks) &&
+                              cached.showSent == settings.showSent
+                          ? cached
+                          : (_mapper = LogIndexMapper(
+                              logState.chunks,
+                              showSent: settings.showSent,
+                            ));
                       final int listLength = mapper.totalCount;
 
                       final monoStyle = theme.textTheme.bodyMedium!.copyWith(
@@ -218,9 +205,9 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                             // 桌面端鼠标滚轮通常会触发 UserScroll/ScrollUpdate，但没有 dragDetails。
                             // 退出粘滞的核心语义：用户向上滚动（离开底部）就取消 stick。
                             if (notification is UserScrollNotification) {
-                              // ScrollDirection.forward 表示 scroll position 在减小（向上滚）。
+                              // Reversed list: increasing offset moves toward older rows.
                               if (notification.direction ==
-                                  ScrollDirection.forward) {
+                                  ScrollDirection.reverse) {
                                 if (_stickToBottom) {
                                   setState(() {
                                     _stickToBottom = false;
@@ -232,7 +219,7 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                             // 兜底：部分平台只给 ScrollUpdateNotification（滚轮/触控板）。
                             if (notification is ScrollUpdateNotification) {
                               final delta = notification.scrollDelta;
-                              if (delta != null && delta < 0) {
+                              if (delta != null && delta > 0) {
                                 if (_stickToBottom) {
                                   setState(() {
                                     _stickToBottom = false;
@@ -252,12 +239,22 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                             },
                             child: ListView.builder(
                               controller: _scrollController,
+                              // Keep the live tail at offset zero, including after format changes.
+                              reverse: true,
                               padding: const EdgeInsets.symmetric(
                                 vertical: 8.0,
                               ),
                               itemCount: listLength,
+                              findChildIndexCallback: (key) {
+                                final index = mapper.indexForId(
+                                  (key as ValueKey<int>).value,
+                                );
+                                return index == null
+                                    ? null
+                                    : listLength - index - 1;
+                              },
                               itemBuilder: (context, index) {
-                                final entry = mapper[index];
+                                final entry = mapper[listLength - index - 1];
                                 final spans = entry.getSpans(
                                   hexDisplay: settings.hexDisplay,
                                   showTimestamp: settings.showTimestamp,
@@ -272,6 +269,7 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                                 );
 
                                 return SizedBox(
+                                  key: ValueKey(entry.id),
                                   width: constraints.maxWidth,
                                   child: Text.rich(
                                     TextSpan(style: monoStyle, children: spans),
@@ -293,7 +291,16 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                     right: 8,
                     child: Consumer(
                       builder: (context, ref, _) {
-                        final state = ref.watch(uiControllerProvider);
+                        final state = ref.watch(
+                          uiControllerProvider.select(
+                            (state) => (
+                              dataGap: state.dataGap,
+                              logIncomplete: state.logIncomplete,
+                              trimmedRecords: state.trimmedRecords,
+                              trimmedBytes: state.trimmedBytes,
+                            ),
+                          ),
+                        );
                         if (!state.dataGap &&
                             !state.logIncomplete &&
                             state.trimmedRecords == 0) {

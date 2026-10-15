@@ -431,7 +431,7 @@ fn run_worker(
             continue;
         }
         if let Some(open) = port.as_mut() {
-            let timeout = auto_wait(&shared, next_auto, Duration::from_millis(30))
+            let timeout = auto_wait(&shared, next_auto, serial::READ_POLL_TIMEOUT)
                 .max(Duration::from_millis(1));
             if let Err(error) = serial::set_read_timeout(open.as_mut(), timeout) {
                 port = None;

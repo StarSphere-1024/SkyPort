@@ -174,7 +174,9 @@ class LogEntry {
     Color onSurfaceColor,
   ) {
     final isSent = type == LogEntryType.sent;
-    final formattedTimestamp = DateFormat('HH:mm:ss.SSS').format(timestamp);
+    final formattedTimestamp = showTimestamp
+        ? DateFormat('HH:mm:ss.SSS').format(timestamp)
+        : '';
     final displayText = getDisplayTextPreview(hexDisplay);
     final dataText = displayText.text;
 
@@ -372,6 +374,23 @@ class LogChunk {
       .toList();
 
   LogChunk({required this.entries, required this.totalBytes, required this.id});
+
+  // Core IDs increase by completion; the reserved pending ID is always last.
+  static int insertionIndex(List<LogChunk> chunks, int id) {
+    var low = 0;
+    var high = chunks.length;
+    if (high > 0 && chunks.last.id == 0xFFFFFFFFFFFFFFFF) high--;
+    if (id == 0xFFFFFFFFFFFFFFFF) return high;
+    while (low < high) {
+      final mid = (low + high) >> 1;
+      if (chunks[mid].id < id) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    return low;
+  }
 }
 
 class LogState {

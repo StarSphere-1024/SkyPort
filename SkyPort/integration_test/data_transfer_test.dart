@@ -151,6 +151,20 @@ void main() {
         () => container!.read(uiControllerProvider).txBytes == 15,
       );
 
+      // Drain bursts without losing command outcomes or inventing sequence gaps.
+      await tester.runAsync(() async {
+        final controller = container!.read(uiControllerProvider.notifier);
+        await Future.wait([
+          for (var index = 0; index < 48; index++)
+            controller.setAutoSendInput('batch $index'),
+        ]);
+        await controller.setAutoSendInput('AB');
+      });
+      state = container.read(uiControllerProvider);
+      expect(state.autoSendInput, 'AB');
+      expect(state.error, isNull);
+      expect(state.dataGap, isFalse);
+
       // Saturate an actual bounded subscription while no UI consumes it.
       await tester.pumpWidget(const SizedBox.shrink());
       container.dispose();

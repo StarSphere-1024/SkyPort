@@ -64,7 +64,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1805394534;
+  int get rustContentHash => 1795546135;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -110,7 +110,7 @@ abstract class RustLibApi extends BaseApi {
 
   Future<DispatchReply> crateApiListPorts({required CoreHandle handle});
 
-  Future<EventReply> crateApiNextEvent({
+  Future<EventsReply> crateApiNextEvents({
     required SubscriptionHandle subscription,
   });
 
@@ -516,7 +516,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_ports", argNames: ["handle"]);
 
   @override
-  Future<EventReply> crateApiNextEvent({
+  Future<EventsReply> crateApiNextEvents({
     required SubscriptionHandle subscription,
   }) {
     return handler.executeNormal(
@@ -535,18 +535,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_event_reply,
+          decodeSuccessData: sse_decode_events_reply,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiNextEventConstMeta,
+        constMeta: kCrateApiNextEventsConstMeta,
         argValues: [subscription],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiNextEventConstMeta =>
-      const TaskConstMeta(debugName: "next_event", argNames: ["subscription"]);
+  TaskConstMeta get kCrateApiNextEventsConstMeta =>
+      const TaskConstMeta(debugName: "next_events", argNames: ["subscription"]);
 
   @override
   Future<DispatchReply> crateApiSendHex({
@@ -1094,12 +1094,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  Event dco_decode_box_autoadd_event(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_event(raw);
-  }
-
-  @protected
   ExportOptions dco_decode_box_autoadd_export_options(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_export_options(raw);
@@ -1259,21 +1253,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  EventReply dco_decode_event_reply(dynamic raw) {
+  EventType dco_decode_event_type(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return EventType.values[raw as int];
+  }
+
+  @protected
+  EventsReply dco_decode_events_reply(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
     if (arr.length != 2)
       throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return EventReply(
-      event: dco_decode_opt_box_autoadd_event(arr[0]),
+    return EventsReply(
+      events: dco_decode_list_event(arr[0]),
       error: dco_decode_opt_box_autoadd_core_error(arr[1]),
     );
-  }
-
-  @protected
-  EventType dco_decode_event_type(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return EventType.values[raw as int];
   }
 
   @protected
@@ -1335,6 +1329,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<String> dco_decode_list_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_String).toList();
+  }
+
+  @protected
+  List<Event> dco_decode_list_event(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_event).toList();
   }
 
   @protected
@@ -1468,12 +1468,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   CoreError? dco_decode_opt_box_autoadd_core_error(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_core_error(raw);
-  }
-
-  @protected
-  Event? dco_decode_opt_box_autoadd_event(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw == null ? null : dco_decode_box_autoadd_event(raw);
   }
 
   @protected
@@ -1872,12 +1866,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  Event sse_decode_box_autoadd_event(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_event(deserializer));
-  }
-
-  @protected
   ExportOptions sse_decode_box_autoadd_export_options(
     SseDeserializer deserializer,
   ) {
@@ -2056,18 +2044,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  EventReply sse_decode_event_reply(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_event = sse_decode_opt_box_autoadd_event(deserializer);
-    var var_error = sse_decode_opt_box_autoadd_core_error(deserializer);
-    return EventReply(event: var_event, error: var_error);
-  }
-
-  @protected
   EventType sse_decode_event_type(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return EventType.values[inner];
+  }
+
+  @protected
+  EventsReply sse_decode_events_reply(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_events = sse_decode_list_event(deserializer);
+    var var_error = sse_decode_opt_box_autoadd_core_error(deserializer);
+    return EventsReply(events: var_events, error: var_error);
   }
 
   @protected
@@ -2154,6 +2142,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <String>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_String(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<Event> sse_decode_list_event(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <Event>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_event(deserializer));
     }
     return ans_;
   }
@@ -2347,17 +2347,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_core_error(deserializer));
-    } else {
-      return null;
-    }
-  }
-
-  @protected
-  Event? sse_decode_opt_box_autoadd_event(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    if (sse_decode_bool(deserializer)) {
-      return (sse_decode_box_autoadd_event(deserializer));
     } else {
       return null;
     }
@@ -2787,12 +2776,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_box_autoadd_event(Event self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_event(self, serializer);
-  }
-
-  @protected
   void sse_encode_box_autoadd_export_options(
     ExportOptions self,
     SseSerializer serializer,
@@ -2942,16 +2925,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_event_reply(EventReply self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_opt_box_autoadd_event(self.event, serializer);
-    sse_encode_opt_box_autoadd_core_error(self.error, serializer);
-  }
-
-  @protected
   void sse_encode_event_type(EventType self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_events_reply(EventsReply self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_event(self.events, serializer);
+    sse_encode_opt_box_autoadd_core_error(self.error, serializer);
   }
 
   @protected
@@ -3011,6 +2994,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_String(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_event(List<Event> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_event(item, serializer);
     }
   }
 
@@ -3190,16 +3182,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_core_error(self, serializer);
-    }
-  }
-
-  @protected
-  void sse_encode_opt_box_autoadd_event(Event? self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    sse_encode_bool(self != null, serializer);
-    if (self != null) {
-      sse_encode_box_autoadd_event(self, serializer);
     }
   }
 

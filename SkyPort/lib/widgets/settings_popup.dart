@@ -21,7 +21,9 @@ class SettingsPopup extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final coreState = ref.watch(uiControllerProvider);
+    final autoReconnect = ref.watch(
+      uiControllerProvider.select((state) => state.autoReconnect),
+    );
     final controllerNotifier = ref.read(uiControllerProvider.notifier);
     final uiSettings = ref.watch(uiSettingsProvider);
 
@@ -103,7 +105,7 @@ class SettingsPopup extends ConsumerWidget {
           ),
           CompactSwitch(
             label: AppLocalizations.of(context).autoReconnect,
-            value: coreState.autoReconnect,
+            value: autoReconnect,
             onChanged: controllerNotifier.setAutoReconnect,
           ),
           ListTile(

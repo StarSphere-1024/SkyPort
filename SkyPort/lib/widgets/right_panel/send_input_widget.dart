@@ -201,11 +201,15 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(uiControllerProvider);
+    final state = ref.watch(
+      uiControllerProvider.select(
+        (state) => (connection: state.connection, hexSend: state.hexSend),
+      ),
+    );
     final connectionState = state.connection;
     final hexSend = state.hexSend;
     if (_previousHexMode != hexSend) {
-      _sendController.text = state.autoSendInput;
+      _sendController.text = ref.read(uiControllerProvider).autoSendInput;
       _sendController.selection = TextSelection.collapsed(
         offset: _sendController.text.length,
       );

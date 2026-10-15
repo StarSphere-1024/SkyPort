@@ -50,7 +50,6 @@ UiState emptyState() => UiState(
   trimmedBytes: 0,
   trimmedRecords: 0,
   logIncomplete: false,
-  chunkIndices: const {},
 );
 
 rust.LogRecord row(
@@ -81,6 +80,131 @@ rust.LogDelta delta(
 );
 
 void main() {
+  test('event batches do not resurrect trimmed or cleared pending rows', () {
+    const pending = 0xFFFFFFFFFFFFFFFF;
+    final state = emptyState().withEvents([
+      rust.Event(
+        sequence: 1,
+        kind: rust.EventType.dataReceived,
+        rxBytes: 2,
+        lastRxBytes: 2,
+        log: delta([
+          row(1, [1]),
+          row(pending, [2], pending: true),
+        ], bytes: 2),
+      ),
+      rust.Event(
+        sequence: 2,
+        kind: rust.EventType.dataSent,
+        txBytes: 1,
+        log: delta([
+          row(2, [3], sent: true),
+        ], bytes: 3),
+      ),
+      rust.Event(
+        sequence: 3,
+        kind: rust.EventType.dataReceived,
+        rxBytes: 4,
+        lastRxBytes: 2,
+        log: delta(
+          [
+            row(3, [2, 4]),
+            row(pending, [5], pending: true),
+          ],
+          removed: [pending],
+          earliest: 2,
+          bytes: 4,
+        ),
+      ),
+      rust.Event(
+        sequence: 4,
+        kind: rust.EventType.logChanged,
+        log: delta([], removed: [2, 3, pending], earliest: 4, bytes: 0),
+      ),
+      rust.Event(
+        sequence: 5,
+        kind: rust.EventType.dataReceived,
+        rxBytes: 7,
+        lastRxBytes: 3,
+        log: delta(
+          [
+            row(4, [0, 255]),
+            row(pending, [254], pending: true),
+          ],
+          earliest: 4,
+          bytes: 3,
+        ),
+      ),
+    ]);
+    expect(state.logs.chunks.map((chunk) => chunk.id), [4, pending]);
+    expect(state.logs.chunks.expand((chunk) => chunk.entries.single.data), [
+      0,
+      255,
+      254,
+    ]);
+    expect(state.sequence, 5);
+    expect(state.rxBytes, 7);
+    expect(state.txBytes, 1);
+    expect(state.lastRxBytes, 3);
+    expect(state.logs.totalBytes, 3);
+  });
+  test('batched appends preserve pending and trimmed row update indices', () {
+    const pending = 0xFFFFFFFFFFFFFFFF;
+    final initial = emptyState().withLogDelta(
+      delta([
+        row(pending, [255], pending: true),
+      ], bytes: 1),
+    );
+    final appended = initial.withLogDelta(
+      delta([
+        for (var id = 1; id <= 100; id++) row(id, [id]),
+      ], bytes: 101),
+    );
+    final updated = appended.withLogDelta(
+      delta([
+        row(50, [0, 128]),
+        row(pending, [254], pending: true),
+      ], bytes: 102),
+    );
+    final trimmed = updated.withLogDelta(
+      delta(
+        [
+          row(101, [101], sent: true),
+          row(102, [102]),
+        ],
+        removed: [1, 2],
+        earliest: 3,
+        bytes: 102,
+      ),
+    );
+    final finalState = trimmed.withLogDelta(
+      delta(
+        [
+          row(99, [0]),
+          row(pending, [253, 252], pending: true),
+        ],
+        earliest: 3,
+        bytes: 103,
+      ),
+    );
+    expect(finalState.logs.chunks.map((chunk) => chunk.id), [
+      for (var id = 3; id <= 102; id++) id,
+      pending,
+    ]);
+    expect(
+      finalState.logs.chunks.expand((chunk) => chunk.entries.single.data),
+      [
+        for (var id = 3; id <= 102; id++)
+          if (id == 50) ...[0, 128] else if (id == 99) 0 else id,
+        253,
+        252,
+      ],
+    );
+    expect(finalState.logs.chunks[98].entries.single.type, LogEntryType.sent);
+    expect(initial.logs.chunks.single.entries.single.data, [255]);
+    expect(appended.logs.chunks[49].entries.single.data, [50]);
+    expect(updated.logs.chunks.last.entries.single.data, [254]);
+  });
   test(
     'partial-write failures and port scans cannot erase received data or double-count TX',
     () {

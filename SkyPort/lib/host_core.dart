@@ -113,9 +113,7 @@ String _bridgePath() {
       ? '$directory$separator$filename'
       : '$directory${separator}lib$separator$filename';
   if (File(bundled).existsSync()) return bundled;
-  throw FileSystemException(
-    'Bundled Rust bridge library not found: $bundled',
-  );
+  throw FileSystemException('Bundled Rust bridge library not found: $bundled');
 }
 
 rust.LegacyConfig _legacyConfig(SharedPreferences prefs) => rust.LegacyConfig(
@@ -179,18 +177,22 @@ Future<void> runKernelSmoke(List<String> args) async {
     final deadline = DateTime.now().add(const Duration(seconds: 10));
     var completed = false;
     while (DateTime.now().isBefore(deadline)) {
-      final reply = await rust.nextEvent(subscription: events);
+      final reply = await rust.nextEvents(subscription: events);
       if (reply.error != null) {
         throw StateError('event poll failed: ${reply.error!.message}');
       }
-      final event = reply.event;
-      if (event?.requestId == request.requestId) {
-        if (event!.kind == rust.EventType.commandFailed) {
-          throw StateError('port enumeration failed: ${event.error?.message}');
+      for (final event in reply.events) {
+        if (event.requestId == request.requestId) {
+          if (event.kind == rust.EventType.commandFailed) {
+            throw StateError(
+              'port enumeration failed: ${event.error?.message}',
+            );
+          }
+          completed = event.kind == rust.EventType.commandCompleted;
+          if (completed) break;
         }
-        completed = event.kind == rust.EventType.commandCompleted;
-        if (completed) break;
       }
+      if (completed) break;
     }
     if (!completed) {
       throw StateError('enumeration command completion not observed');
