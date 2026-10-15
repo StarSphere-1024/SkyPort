@@ -1,247 +1,246 @@
-import 'package:flutter/material.dart' hide ConnectionState;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skyport/l10n/app_localizations.dart';
-import 'package:skyport/models/connection_status.dart';
-import 'package:skyport/models/serial_config.dart';
-import 'package:skyport/models/serial_port_state.dart';
-import 'package:skyport/models/ui_settings.dart';
-import 'package:skyport/providers/common_providers.dart';
-import 'package:skyport/providers/serial/serial_port_manager.dart';
-import 'package:skyport/providers/serial/ui_settings_provider.dart';
+import 'package:skyport/models/log_model.dart';
+import 'package:skyport/models/ui_state.dart';
+import 'package:skyport/providers/ui_controller.dart';
 import 'package:skyport/widgets/right_panel/send_input_widget.dart';
 
-import '../../helpers/mock_classes.dart';
-
-Future<void> pumpFrame(WidgetTester tester) async {
-  await tester.pump();
-  await tester.pump(const Duration(milliseconds: 50));
-}
-
-class TestSerialPortManager extends SerialPortManager {
-  final sentData = <String>[];
+class FakeUiController extends UiController {
+  FakeUiController(this.initialState);
+  final UiState initialState;
+  final sent = <String>[];
 
   @override
-  SerialPortState build() {
-    return SerialPortState(
-      targetConfig: SerialConfig(portName: 'COM1'),
-      connection: const ConnectionStatus(),
-      availablePorts: const ['COM1'],
-    );
-  }
-
-  void setConnectionState(ConnectionState connectionState) {
-    state = state.copyWith(
-      connection: state.connection.copyWith(state: connectionState),
-    );
-  }
+  UiState build() => initialState;
 
   @override
-  Future<void> send(String data) async {
-    sentData.add(data);
-    state = state.copyWith(
-      connection: state.connection.copyWith(
-        txBytes: state.connection.txBytes + data.length,
-      ),
-    );
-  }
+  Future<void> send(String value) async => sent.add(value);
+
+  @override
+  Future<void> setAutoSendInput(String input) async {}
+
+  void simulateDisconnect() =>
+      state = sendState(connection: UiConnection.disconnected);
+  void updateMode(bool hex, String input) => state = sendState(
+    connection: UiConnection.connected,
+    hex: hex,
+    input: input,
+  );
 }
+
+UiState sendState({
+  required UiConnection connection,
+  bool hex = false,
+  List<String> history = const [],
+  String input = '',
+}) => UiState(
+  sequence: 0,
+  connection: connection,
+  portName: '',
+  baudRate: 9600,
+  dataBits: 8,
+  parity: UiParity.none,
+  stopBits: 1,
+  autoReconnect: true,
+  hexSend: hex,
+  newline: UiNewline.none,
+  autoSendEnabled: false,
+  autoSendIntervalMs: 1000,
+  logCapacityBytes: 128 * 1024 * 1024,
+  sendHistory: history,
+  autoSendInput: input,
+  ports: const [],
+  rxBytes: 0,
+  txBytes: 0,
+  lastRxBytes: 0,
+  error: null,
+  logs: const LogState(),
+  trimmedBytes: 0,
+  trimmedRecords: 0,
+  logIncomplete: false,
+  chunkIndices: const {},
+);
+
+Widget app(FakeUiController controller) => ProviderScope(
+  overrides: [uiControllerProvider.overrideWith(() => controller)],
+  child: const MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: Scaffold(body: SendInputWidget()),
+  ),
+);
 
 void main() {
-  setUpAll(registerFallbackValues);
+  testWidgets(
+    'history navigation restores the unsent draft and respects multiline cursor boundaries',
+    (tester) async {
+      await tester.pumpWidget(
+        app(
+          FakeUiController(
+            sendState(
+              connection: UiConnection.connected,
+              history: ['one', 'two'],
+            ),
+          ),
+        ),
+      );
+      final input = find.byType(TextFormField);
+      await tester.enterText(input, 'draft');
+      await tester.pump();
+      Future<void> key(LogicalKeyboardKey key) async {
+        await tester.sendKeyEvent(key);
+        await tester.pump();
+      }
 
-  Widget createSendInputTestWidget({
-    required FakeSharedPreferences prefs,
-    required ProviderContainer container,
-    UiSettings? settings,
-  }) {
-    if (settings != null) {
-      prefs
-        ..setBool('ui_hex_send', settings.hexSend)
-        ..setBool('ui_auto_send_enabled', settings.autoSendEnabled)
-        ..setInt('ui_auto_send_interval_ms', settings.autoSendIntervalMs);
-    }
+      String text() => tester.widget<TextFormField>(input).controller!.text;
+      await key(LogicalKeyboardKey.arrowUp);
+      expect(text(), 'two');
+      await key(LogicalKeyboardKey.arrowUp);
+      expect(text(), 'one');
+      await key(LogicalKeyboardKey.arrowUp);
+      expect(text(), 'one');
+      await key(LogicalKeyboardKey.arrowDown);
+      expect(text(), 'two');
+      await key(LogicalKeyboardKey.arrowDown);
+      expect(text(), 'draft');
+      await tester.enterText(input, 'first\nsecond');
+      tester.widget<TextFormField>(input).controller!.selection =
+          const TextSelection.collapsed(offset: 12);
+      await tester.pump();
+      expect(text(), 'first\nsecond');
+      await key(LogicalKeyboardKey.arrowUp);
+      expect(text(), 'first\nsecond');
+      tester.widget<TextFormField>(input).controller!.selection =
+          const TextSelection.collapsed(offset: 0);
+      await key(LogicalKeyboardKey.arrowDown);
+      expect(text(), 'first\nsecond');
+      await tester.enterText(input, 'edited');
+      await key(LogicalKeyboardKey.arrowUp);
+      await tester.enterText(input, 'replacement');
+      await key(LogicalKeyboardKey.arrowUp);
+      expect(text(), 'two');
+      await key(LogicalKeyboardKey.arrowDown);
+      expect(text(), 'replacement');
+    },
+  );
 
-    return UncontrolledProviderScope(
-      container: container,
-      child: MaterialApp(
-        theme: ThemeData(),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        locale: const Locale('en', 'US'),
-        home: const Scaffold(body: SendInputWidget()),
+  testWidgets(
+    'draft mode conversion is UTF-8 exact and never pads invalid Hex or replaces binary bytes',
+    (tester) async {
+      await tester.pumpWidget(
+        app(FakeUiController(sendState(connection: UiConnection.connected))),
+      );
+      var container = ProviderScope.containerOf(
+        tester.element(find.byType(SendInputWidget)),
+      );
+      var draft = container.read(autoSendDraftProvider.notifier);
+      draft.setDraft('中\u0000');
+      expect(draft.forMode(true), 'E4 B8 AD 00');
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(
+        app(
+          FakeUiController(
+            sendState(connection: UiConnection.connected, hex: true),
+          ),
+        ),
+      );
+      container = ProviderScope.containerOf(
+        tester.element(find.byType(SendInputWidget)),
+      );
+      draft = container.read(autoSendDraftProvider.notifier);
+      draft.setDraft('E4 B8 AD 00');
+      expect(draft.forMode(false), '中\u0000');
+      for (final input in ['A', '41\u00A042', 'FF FE']) {
+        draft.setDraft(input);
+        expect(draft.forMode(false), input);
+      }
+    },
+  );
+  testWidgets(
+    'committed mode changes replace the visible codec atomically without losing the draft',
+    (tester) async {
+      final controller = FakeUiController(
+        sendState(connection: UiConnection.connected),
+      );
+      await tester.pumpWidget(app(controller));
+      final input = find.byType(TextFormField);
+      await tester.enterText(input, '中');
+      await tester.pump();
+      controller.updateMode(true, 'E4 B8 AD');
+      await tester.pump();
+      expect(tester.widget<TextFormField>(input).controller!.text, 'E4 B8 AD');
+      controller.updateMode(false, '中');
+      await tester.pump();
+      expect(tester.widget<TextFormField>(input).controller!.text, '中');
+      await tester.tap(find.byType(FilledButton));
+      await tester.pump();
+      expect(tester.widget<TextFormField>(input).controller!.text, '中');
+    },
+  );
+  testWidgets('validates hex input at the UI intent boundary', (tester) async {
+    await tester.pumpWidget(
+      app(
+        FakeUiController(
+          sendState(connection: UiConnection.connected, hex: true),
+        ),
       ),
     );
-  }
+    await tester.enterText(find.byType(TextFormField), 'ABC');
+    await tester.pumpAndSettle();
 
-  group('SendInputWidget', () {
-    late FakeSharedPreferences prefs;
-    late ProviderContainer container;
-    late TestSerialPortManager serialManager;
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNull,
+    );
+    await tester.enterText(find.byType(TextFormField), ' \t\n');
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNull,
+    );
+    await tester.enterText(find.byType(TextFormField), '0G');
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNull,
+    );
+    await tester.enterText(find.byType(TextFormField), 'AB CD');
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNotNull,
+    );
+  });
 
-    setUp(() {
-      prefs = FakeSharedPreferences()..setString('serial_port_name', 'COM1');
-      serialManager = TestSerialPortManager();
-      container = ProviderContainer(
-        overrides: [
-          sharedPreferencesProvider.overrideWithValue(prefs),
-          serialPortManagerProvider.overrideWith(() => serialManager),
-        ],
-      );
-    });
-
-    tearDown(() {
-      container.dispose();
-    });
-
-    testWidgets('renders text field', (tester) async {
-      await tester.pumpWidget(
-        createSendInputTestWidget(
-          prefs: prefs,
-          container: container,
-        ),
-      );
-      await pumpFrame(tester);
-
-      expect(find.byType(SendInputWidget), findsOneWidget);
-      expect(find.byType(TextFormField), findsOneWidget);
-    });
-
-    testWidgets('hex validation errors appear', (tester) async {
-      await tester.pumpWidget(
-        createSendInputTestWidget(
-          prefs: prefs,
-          container: container,
-          settings: const UiSettings(hexSend: true),
-        ),
-      );
-      await pumpFrame(tester);
-
-      await tester.enterText(find.byType(TextFormField), 'ABC');
-      await pumpFrame(tester);
-
-      expect(find.text('Hex string must have an even length.'), findsOneWidget);
-    });
-
-    testWidgets('history navigation works', (tester) async {
-      prefs.setStringList('send_input_history', ['One', 'Two']);
-
-      await tester.pumpWidget(
-        createSendInputTestWidget(
-          prefs: prefs,
-          container: container,
-        ),
-      );
-      await pumpFrame(tester);
-
-      await tester.tap(find.byType(TextFormField));
-      await pumpFrame(tester);
-      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
-      await pumpFrame(tester);
-
-      final field = tester.widget<TextFormField>(find.byType(TextFormField));
-      expect(field.controller?.text, 'Two');
-    });
-
-    testWidgets('send button writes data and stores history', (tester) async {
-      await tester.pumpWidget(
-        createSendInputTestWidget(
-          prefs: prefs,
-          container: container,
-        ),
-      );
-      await pumpFrame(tester);
-
-      serialManager.setConnectionState(ConnectionState.connected);
-      await pumpFrame(tester);
-
-      await tester.enterText(find.byType(TextFormField), 'Hello');
-      await pumpFrame(tester);
-      await tester.tap(find.byType(FilledButton));
-      await pumpFrame(tester);
-
-      final state = container.read(serialPortManagerProvider);
-      expect(state.connection.txBytes, 5);
-      expect(serialManager.sentData, ['Hello']);
-      expect(prefs.getStringList('send_input_history'), ['Hello']);
-    });
-
-    testWidgets('text is converted to hex when hex send is enabled',
-        (tester) async {
-      await tester.pumpWidget(
-        createSendInputTestWidget(
-          prefs: prefs,
-          container: container,
-        ),
-      );
-      await pumpFrame(tester);
-
-      await tester.enterText(find.byType(TextFormField), 'Hi');
-      await pumpFrame(tester);
-
-      container.read(uiSettingsProvider.notifier).setHexSend(true);
-      await pumpFrame(tester);
-
-      final field = tester.widget<TextFormField>(find.byType(TextFormField));
-      expect(field.controller?.text, '48 69');
-    });
-
-    testWidgets('valid hex is converted to text when hex send is disabled',
-        (tester) async {
-      await tester.pumpWidget(
-        createSendInputTestWidget(
-          prefs: prefs,
-          container: container,
-          settings: const UiSettings(hexSend: true),
-        ),
-      );
-      await pumpFrame(tester);
-
-      await tester.enterText(find.byType(TextFormField), '48 69');
-      await pumpFrame(tester);
-
-      container.read(uiSettingsProvider.notifier).setHexSend(false);
-      await pumpFrame(tester);
-
-      final field = tester.widget<TextFormField>(find.byType(TextFormField));
-      expect(field.controller?.text, 'Hi');
-    });
-
-    testWidgets('history navigation restores temporary input', (tester) async {
-      prefs.setStringList('send_input_history', ['One', 'Two']);
-
-      await tester.pumpWidget(
-        createSendInputTestWidget(
-          prefs: prefs,
-          container: container,
-        ),
-      );
-      await pumpFrame(tester);
-
-      await tester.enterText(find.byType(TextFormField), 'Draft');
-      await tester.tap(find.byType(TextFormField));
-      await pumpFrame(tester);
-
-      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
-      await pumpFrame(tester);
-      var field = tester.widget<TextFormField>(find.byType(TextFormField));
-      expect(field.controller?.text, 'Two');
-
-      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
-      await pumpFrame(tester);
-      field = tester.widget<TextFormField>(find.byType(TextFormField));
-      expect(field.controller?.text, 'One');
-
-      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-      await pumpFrame(tester);
-      field = tester.widget<TextFormField>(find.byType(TextFormField));
-      expect(field.controller?.text, 'Two');
-
-      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-      await pumpFrame(tester);
-      field = tester.widget<TextFormField>(find.byType(TextFormField));
-      expect(field.controller?.text, 'Draft');
-    });
+  testWidgets('disconnect disables a nonempty draft without discarding it', (
+    tester,
+  ) async {
+    final controller = FakeUiController(
+      sendState(connection: UiConnection.connected),
+    );
+    await tester.pumpWidget(app(controller));
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNull,
+    );
+    await tester.enterText(find.byType(TextFormField), 'hello');
+    await tester.pump();
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNotNull,
+    );
+    controller.simulateDisconnect();
+    await tester.pump();
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNull,
+    );
+    expect(
+      tester.widget<TextFormField>(find.byType(TextFormField)).controller!.text,
+      'hello',
+    );
   });
 }

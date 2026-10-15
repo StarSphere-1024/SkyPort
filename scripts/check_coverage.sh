@@ -27,14 +27,14 @@ done
 # Check if coverage file exists
 if [ ! -f "$COVERAGE_FILE" ]; then
   echo "❌ Coverage file not found: $COVERAGE_FILE"
-  echo "Run 'flutter test --coverage' first"
+  echo "Run 'tool/test_quiet.sh --coverage' first"
   exit 1
 fi
 
 # Parse lcov.info and calculate coverage. Keep this aligned with CI by
-# excluding generated localization files.
+# excluding generated localization and Rust bridge bindings.
 TOTALS=$(awk '
-  /^SF:lib[\/\\]l10n[\/\\]app_localizations(_.*)?\.dart$/ { skip=1; next }
+  /^SF:lib[\/\\](l10n[\/\\]app_localizations(_.*)?\.dart|src[\/\\]rust[\/\\].*\.dart)$/ { skip=1; next }
   /^SF:/ { skip=0 }
   !skip && /^LF:/ { split($0, a, ":"); lf += a[2] }
   !skip && /^LH:/ { split($0, a, ":"); lh += a[2] }

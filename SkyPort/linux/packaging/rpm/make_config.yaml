@@ -21,5 +21,6 @@ url: https://github.com/StarSphere-1024/SkyPort
 # Fedora/RHEL package dependency names.
 requires:
   - gtk3
+  - systemd-libs
 
 # build_arch is inferred by fastforge/flutter_app_packager from the runner.

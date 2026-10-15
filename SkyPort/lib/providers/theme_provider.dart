@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'serial_provider.dart';
+import 'common_providers.dart';
 
 class ThemeModeNotifier extends Notifier<ThemeMode> {
   static const String _themeKey = 'theme_mode';
@@ -49,8 +49,9 @@ class ThemeModeNotifier extends Notifier<ThemeMode> {
   }
 }
 
-final themeModeProvider =
-    NotifierProvider<ThemeModeNotifier, ThemeMode>(ThemeModeNotifier.new);
+final themeModeProvider = NotifierProvider<ThemeModeNotifier, ThemeMode>(
+  ThemeModeNotifier.new,
+);
 
 class ThemeColorNotifier extends Notifier<Color> {
   static const String _themeColorKey = 'theme_color';
@@ -79,5 +80,6 @@ class ThemeColorNotifier extends Notifier<Color> {
   }
 }
 
-final themeColorProvider =
-    NotifierProvider<ThemeColorNotifier, Color>(ThemeColorNotifier.new);
+final themeColorProvider = NotifierProvider<ThemeColorNotifier, Color>(
+  ThemeColorNotifier.new,
+);

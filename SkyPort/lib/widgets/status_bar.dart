@@ -1,16 +1,16 @@
-import 'package:flutter/material.dart' hide ConnectionState;
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/serial/serial_port_manager.dart';
+import '../providers/ui_controller.dart';
 import '../l10n/app_localizations.dart';
-import '../models/connection_status.dart';
+import '../models/ui_state.dart';
 
 class StatusBar extends ConsumerWidget {
   const StatusBar({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(serialPortManagerProvider);
+    final state = ref.watch(uiControllerProvider);
     final connection = state.connection;
     final colorScheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context);
@@ -19,49 +19,45 @@ class StatusBar extends ConsumerWidget {
     Color statusColor;
 
     // 根据连接状态显示不同信息
-    switch (connection.state) {
-      case ConnectionState.connected:
-        // 显示实际连接使用的配置
-        statusText = l10n.connectedStatus(
-            connection.appliedConfig?.portName ?? '-',
-            connection.appliedConfig?.baudRate ?? 0);
+    switch (connection) {
+      case UiConnection.connected:
+        statusText = l10n.connectedStatus(state.portName, state.baudRate);
         statusColor = Colors.green;
         break;
-      case ConnectionState.connecting:
+      case UiConnection.connecting:
         statusText = l10n.connecting;
         statusColor = colorScheme.tertiary;
         break;
-      case ConnectionState.reconfiguring:
-        // 新增：显示配置变更中
-        statusText = '应用配置中...';
+      case UiConnection.reconfiguring:
+        statusText = l10n.applyingConfiguration;
         statusColor = Colors.blue;
         break;
-      case ConnectionState.reconnecting:
+      case UiConnection.reconnecting:
         statusText = l10n.reconnecting;
         statusColor = colorScheme.tertiary;
         break;
-      case ConnectionState.disconnecting:
+      case UiConnection.disconnecting:
+      case UiConnection.closing:
         statusText = l10n.disconnecting;
         statusColor = colorScheme.tertiary;
         break;
-      case ConnectionState.disconnected:
+      case UiConnection.disconnected:
+      case UiConnection.closed:
         statusText = l10n.disconnected;
         statusColor = Colors.grey;
         break;
     }
 
     final statsText = l10n.trafficStats(
-      connection.rxBytes,
-      connection.txBytes,
-      connection.lastRxBytes,
+      state.rxBytes,
+      state.txBytes,
+      state.lastRxBytes,
     );
 
     return Container(
       height: 32,
       decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(color: colorScheme.outlineVariant),
-        ),
+        border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
         color: colorScheme.surface,
       ),
       child: Padding(
@@ -71,7 +67,7 @@ class StatusBar extends ConsumerWidget {
             Row(
               children: [
                 // 状态指示器（调和中显示脉动效果）
-                if (state.isReconciling)
+                if (connection == UiConnection.reconfiguring)
                   SizedBox(
                     width: 10,
                     height: 10,
@@ -85,10 +81,9 @@ class StatusBar extends ConsumerWidget {
                 const SizedBox(width: 6),
                 Text(
                   statusText,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(fontSize: 12),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontSize: 12),
                 ),
               ],
             ),
@@ -97,10 +92,9 @@ class StatusBar extends ConsumerWidget {
               message: l10n.trafficStatsTooltip,
               child: SelectableText(
                 statsText,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(fontSize: 12),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(fontSize: 12),
               ),
             ),
           ],

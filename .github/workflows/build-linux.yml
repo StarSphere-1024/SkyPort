@@ -70,6 +70,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> SkyPort/build/linux/${{ matrix.arch }}/release/rust"
+
       - name: Setup Flutter (Manual for ARM64)
         if: matrix.arch == 'arm64'
         run: |
@@ -97,7 +105,7 @@ jobs:
       - name: System dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev patchelf
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libudev-dev liblzma-dev libstdc++-12-dev patchelf xvfb cpio
 
       - name: Install RPM build tools
         if: matrix.package_type == 'rpm'
@@ -184,6 +192,9 @@ jobs:
           TARGET="dist/standard/SkyPort-v${APP_VERSION}-linux-${ARCH_NAME}.AppImage"
           cp "$APPIMAGE_FILE" "$TARGET"
           echo "Copied $APPIMAGE_FILE -> $TARGET"
+
+      - name: Exercise unpacked package and Rust bridge
+        run: xvfb-run -a python3 scripts/package_smoke.py SkyPort/dist/standard/SkyPort-v${APP_VERSION}-linux-${ARCH_NAME}.${{ matrix.package_type == 'appimage' && 'AppImage' || matrix.package_type }}
 
       - name: Upload deb artifact
         if: matrix.package_type == 'deb'

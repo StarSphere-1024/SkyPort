@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/app_localizations.dart';
-import '../../providers/serial/serial_port_manager.dart';
+import '../../models/ui_state.dart';
+import '../../providers/ui_controller.dart';
 import '../shared/dropdown_builders.dart';
 
 class SerialParamsWidget extends ConsumerWidget {
@@ -9,8 +10,8 @@ class SerialParamsWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(serialPortManagerProvider);
-    final isReconfiguring = state.isReconciling;
+    final state = ref.watch(uiControllerProvider);
+    final isReconfiguring = state.connection == UiConnection.reconfiguring;
 
     return _buildSerialParamsGrid(context, ref, isReconfiguring);
   }
@@ -20,9 +21,8 @@ class SerialParamsWidget extends ConsumerWidget {
     WidgetRef ref,
     bool isReconfiguring,
   ) {
-    final state = ref.watch(serialPortManagerProvider);
-    final manager = ref.read(serialPortManagerProvider.notifier);
-    final targetConfig = state.targetConfig;
+    final state = ref.watch(uiControllerProvider);
+    final controller = ref.read(uiControllerProvider.notifier);
 
     return Column(
       children: [
@@ -33,28 +33,24 @@ class SerialParamsWidget extends ConsumerWidget {
                 alignment: Alignment.centerRight,
                 children: [
                   DropdownBuilders.buildNumericDropdown<int>(
-                    initialSelection: targetConfig.baudRate,
-                    entries: DropdownBuilders.createEntries(
-                      [
-                        1200,
-                        2400,
-                        4800,
-                        9600,
-                        19200,
-                        38400,
-                        57600,
-                        115200,
-                        230400,
-                        460800,
-                        921600
-                      ],
-                      (e) => e.toString(),
-                    ),
+                    initialSelection: state.baudRate,
+                    entries: DropdownBuilders.createEntries([
+                      1200,
+                      2400,
+                      4800,
+                      9600,
+                      19200,
+                      38400,
+                      57600,
+                      115200,
+                      230400,
+                      460800,
+                      921600,
+                    ], (e) => e.toString()),
                     label: AppLocalizations.of(context).baudRate,
                     // 修改立即生效，不需要禁用
-                    onSelected: (v) => v != null
-                        ? manager.setBaudRate(v)
-                        : null,
+                    onSelected: (v) =>
+                        v != null ? controller.setBaudRate(v) : null,
                   ),
                   // 调和时显示小加载圈
                   if (isReconfiguring)
@@ -77,15 +73,15 @@ class SerialParamsWidget extends ConsumerWidget {
             const SizedBox(width: 12),
             Expanded(
               child: DropdownBuilders.buildNumericDropdown<int>(
-                initialSelection: targetConfig.dataBits,
-                entries: DropdownBuilders.createEntries(
-                  [8, 7, 6, 5],
-                  (e) => e.toString(),
-                ),
+                initialSelection: state.dataBits,
+                entries: DropdownBuilders.createEntries([
+                  8,
+                  7,
+                  6,
+                  5,
+                ], (e) => e.toString()),
                 label: AppLocalizations.of(context).dataBits,
-                onSelected: (v) => v != null
-                    ? manager.setDataBits(v)
-                    : null,
+                onSelected: (v) => v != null ? controller.setDataBits(v) : null,
               ),
             ),
           ],
@@ -94,35 +90,39 @@ class SerialParamsWidget extends ConsumerWidget {
         Row(
           children: [
             Expanded(
-              child: DropdownMenu<int>(
+              child: DropdownMenu<UiParity>(
                 expandedInsets: EdgeInsets.zero,
-                initialSelection: targetConfig.parity,
+                initialSelection: state.parity,
                 dropdownMenuEntries: [
-                  DropdownMenuEntry<int>(
-                      value: 0, label: AppLocalizations.of(context).parityNone),
-                  DropdownMenuEntry<int>(
-                      value: 1, label: AppLocalizations.of(context).parityOdd),
-                  DropdownMenuEntry<int>(
-                      value: 2, label: AppLocalizations.of(context).parityEven),
+                  DropdownMenuEntry<UiParity>(
+                    value: UiParity.none,
+                    label: AppLocalizations.of(context).parityNone,
+                  ),
+                  DropdownMenuEntry<UiParity>(
+                    value: UiParity.odd,
+                    label: AppLocalizations.of(context).parityOdd,
+                  ),
+                  DropdownMenuEntry<UiParity>(
+                    value: UiParity.even,
+                    label: AppLocalizations.of(context).parityEven,
+                  ),
                 ],
-                onSelected: (v) => v != null
-                    ? manager.setParity(v)
-                    : null,
+                onSelected: (value) {
+                  if (value != null) controller.setParity(value);
+                },
                 label: Text(AppLocalizations.of(context).parity),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: DropdownBuilders.buildNumericDropdown<int>(
-                initialSelection: targetConfig.stopBits,
-                entries: DropdownBuilders.createEntries(
-                  [1, 2],
-                  (e) => e.toString(),
-                ),
+                initialSelection: state.stopBits,
+                entries: DropdownBuilders.createEntries([
+                  1,
+                  2,
+                ], (e) => e.toString()),
                 label: AppLocalizations.of(context).stopBits,
-                onSelected: (v) => v != null
-                    ? manager.setStopBits(v)
-                    : null,
+                onSelected: (v) => v != null ? controller.setStopBits(v) : null,
               ),
             ),
           ],

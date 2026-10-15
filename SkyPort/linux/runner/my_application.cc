@@ -17,6 +17,35 @@ static void first_frame_cb(MyApplication* self, FlView *view)
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
 }
 
+static void close_response_cb(GObject* object, GAsyncResult* result,
+                              gpointer user_data) {
+  GtkWidget* window = GTK_WIDGET(user_data);
+  g_autoptr(GError) error = nullptr;
+  g_autoptr(FlMethodResponse) response = fl_method_channel_invoke_method_finish(
+      FL_METHOD_CHANNEL(object), result, &error);
+  FlValue* value = response == nullptr
+      ? nullptr : fl_method_response_get_result(response, &error);
+  g_object_set_data(G_OBJECT(window), "close-pending", nullptr);
+  if (value != nullptr && fl_value_get_type(value) == FL_VALUE_TYPE_BOOL &&
+      fl_value_get_bool(value)) {
+    gtk_widget_destroy(window);
+  } else {
+    g_warning("Core shutdown not completed; keeping window open: %s",
+              error == nullptr ? "host refused close" : error->message);
+  }
+  g_object_unref(window);
+}
+
+static gboolean close_requested_cb(GtkWidget* window, GdkEvent* event,
+                                   gpointer user_data) {
+  if (g_object_get_data(G_OBJECT(window), "close-pending") == nullptr) {
+    g_object_set_data(G_OBJECT(window), "close-pending", GINT_TO_POINTER(1));
+    fl_method_channel_invoke_method(FL_METHOD_CHANNEL(user_data),
+        "requestClose", nullptr, nullptr, close_response_cb, g_object_ref(window));
+  }
+  return TRUE;
+}
+
 // Implements GApplication::activate.
 static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
@@ -56,6 +85,15 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
+
+  g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
+  FlMethodChannel* host_channel = fl_method_channel_new(
+      fl_engine_get_binary_messenger(fl_view_get_engine(view)),
+      "skyport/host", FL_METHOD_CODEC(codec));
+  g_object_set_data_full(G_OBJECT(window), "host-channel", host_channel,
+                        g_object_unref);
+  g_signal_connect(window, "delete-event", G_CALLBACK(close_requested_cb),
+                   host_channel);
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }

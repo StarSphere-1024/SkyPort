@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/app_localizations.dart';
-import '../providers/serial/data_log_provider.dart';
-import '../providers/serial/serial_port_manager.dart';
+import '../providers/ui_controller.dart';
 import 'left_panel/port_selection_widget.dart';
 import 'left_panel/receive_settings_widget.dart';
 import 'left_panel/send_settings_widget.dart';
@@ -70,9 +69,9 @@ class LeftPanel extends ConsumerWidget {
     return Text(
       title,
       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.primary,
-          ),
+        fontWeight: FontWeight.bold,
+        color: Theme.of(context).colorScheme.primary,
+      ),
     );
   }
 
@@ -83,8 +82,7 @@ class LeftPanel extends ConsumerWidget {
         width: double.infinity,
         child: OutlinedButton.icon(
           onPressed: () {
-            ref.read(dataLogProvider.notifier).clear();
-            ref.read(serialPortManagerProvider.notifier).resetStats();
+            ref.read(uiControllerProvider.notifier).clearLog();
           },
           icon: const Icon(Icons.delete_outline, size: 24),
           label: Text(AppLocalizations.of(context).clearReceiveArea),

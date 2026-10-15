@@ -164,42 +164,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enableAnsi => 'Enable ANSI';
 
   @override
-  String get errConfigNotSet => 'Serial configuration not set.';
-
-  @override
-  String errPortOpenTimeout(Object message) {
-    return 'Connection timed out: $message';
-  }
-
-  @override
-  String errPortOpenFailed(Object message) {
-    return 'Failed to open port: $message';
-  }
-
-  @override
-  String errPortDisconnected(Object message) {
-    return 'Port disconnected: $message';
-  }
-
-  @override
-  String errWriteFailed(Object message) {
-    return 'Write failed: $message';
-  }
-
-  @override
-  String get errInvalidHexFormat => 'Invalid HEX format';
-
-  @override
-  String errCleanupError(Object message) {
-    return 'Error during cleanup: $message';
-  }
-
-  @override
-  String errUnknown(Object message) {
-    return 'Unknown error: $message';
-  }
-
-  @override
   String get autoSend => 'Auto Send';
 
   @override
@@ -224,14 +188,76 @@ class AppLocalizationsEn extends AppLocalizations {
   String get exportPathHint => 'Default folder for exported logs';
 
   @override
-  String get export => 'Export';
-
-  @override
-  String get noLogsToExport => 'No logs to export';
-
-  @override
   String get logsExportedTo => 'Logs exported to: ';
 
   @override
   String get exportFailed => 'Export failed: ';
+
+  @override
+  String writeFailure(int bytes, String message) {
+    return 'Write failed after $bytes bytes: $message';
+  }
+
+  @override
+  String autoSendPaused(String message) {
+    return 'Auto-send paused: $message';
+  }
+
+  @override
+  String get importFile => 'Import File';
+
+  @override
+  String get applyingConfiguration => 'Applying configuration...';
+
+  @override
+  String get logDataGap =>
+      'Some log events were missed; the view has been resynchronized.';
+
+  @override
+  String logTrimmed(int records, int bytes) {
+    return 'Older records trimmed: $records records / $bytes bytes';
+  }
+
+  @override
+  String get startupFailed => 'SkyPort could not start';
+
+  @override
+  String get errorInvalidArgument => 'Invalid argument';
+
+  @override
+  String get errorPortNotFound => 'Port not found';
+
+  @override
+  String get errorOpenFailed => 'Port open failed';
+
+  @override
+  String get errorPermissionDenied => 'Permission denied';
+
+  @override
+  String get errorUnsupportedConfiguration => 'Unsupported configuration';
+
+  @override
+  String get errorReadFailed => 'Serial read failed';
+
+  @override
+  String get errorDisconnected => 'Serial connection lost';
+
+  @override
+  String get errorTimeout => 'Operation timed out';
+
+  @override
+  String get errorClosed => 'Application core is closed';
+
+  @override
+  String get errorQueueOverflow => 'Queue capacity exceeded';
+
+  @override
+  String get errorTaskFailed => 'Background task failed';
+
+  @override
+  String get errorInternal => 'Internal error';
+
+  @override
+  String get logIncomplete =>
+      'The retained log contains a serial data or session gap.';
 }

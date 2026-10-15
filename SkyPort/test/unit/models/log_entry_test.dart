@@ -6,34 +6,6 @@ import 'package:skyport/models/log_model.dart';
 
 void main() {
   group('LogEntry', () {
-    group('Construction', () {
-      test('creates with required parameters', () {
-        final data = Uint8List.fromList([0x48, 0x65, 0x6C, 0x6C, 0x6F]);
-        final timestamp = DateTime.now();
-        final entry = LogEntry(data, LogEntryType.received, timestamp);
-
-        expect(entry.data, data);
-        expect(entry.type, LogEntryType.received);
-        expect(entry.timestamp, timestamp);
-      });
-
-      test('creates sent type entry', () {
-        final data = Uint8List.fromList([0x54, 0x65, 0x73, 0x74]);
-        final timestamp = DateTime.now();
-        final entry = LogEntry(data, LogEntryType.sent, timestamp);
-
-        expect(entry.type, LogEntryType.sent);
-      });
-
-      test('creates received type entry', () {
-        final data = Uint8List.fromList([0x54, 0x65, 0x73, 0x74]);
-        final timestamp = DateTime.now();
-        final entry = LogEntry(data, LogEntryType.received, timestamp);
-
-        expect(entry.type, LogEntryType.received);
-      });
-    });
-
     group('getDisplayText', () {
       test('returns UTF-8 decoded text when hexDisplay=false', () {
         final data = Uint8List.fromList('Hello'.codeUnits);
@@ -150,10 +122,7 @@ void main() {
 
         expect(spans.isNotEmpty, true);
         // First span should be timestamp
-        expect(
-          (spans.first as TextSpan).text?.contains('12:30:45'),
-          true,
-        );
+        expect((spans.first as TextSpan).text?.contains('12:30:45'), true);
       });
 
       test('does not include timestamp when showTimestamp=false', () {

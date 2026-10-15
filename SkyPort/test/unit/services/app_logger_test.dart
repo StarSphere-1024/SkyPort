@@ -43,7 +43,9 @@ void main() {
     expect(contents, contains('stackTrace=test stack trace'));
     expect(contents, contains('level=WARNING'));
     expect(contents, contains('name=skyport.serial message=port unavailable'));
-    expect(contents.indexOf('message=write failed'),
-        lessThan(contents.indexOf('message=port unavailable')));
+    expect(
+      contents.indexOf('message=write failed'),
+      lessThan(contents.indexOf('message=port unavailable')),
+    );
   });
 }

@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+"""Run the real Flutter/bridge UI regression against a Linux pseudo-terminal."""
+import os
+from pathlib import Path
+import pty
+import select
+import signal
+import subprocess
+import tempfile
+import time
+
+
+def main() -> None:
+    root = Path(__file__).resolve().parent.parent
+    master, slave = pty.openpty()
+    env = os.environ.copy()
+    env["SKYPORT_PTY"] = os.ttyname(slave)
+    expected = b"PTY\r\n\x00\xff\xa5\x0aABAB\r\n"
+    received = bytearray()
+    replied = False
+    try:
+        with tempfile.TemporaryFile(mode="w+t") as output:
+            process = subprocess.Popen(
+                [str(root / "tool/test_quiet.sh"), "integration_test/data_transfer_test.dart", "-d", "linux"],
+                cwd=root, env=env, stdout=output, stderr=subprocess.STDOUT, start_new_session=True,
+            )
+            deadline = time.monotonic() + 600
+            try:
+                while process.poll() is None:
+                    if time.monotonic() >= deadline:
+                        raise TimeoutError("Flutter PTY UI smoke exceeded 600 seconds")
+                    if select.select([master], [], [], 0.1)[0]:
+                        received.extend(os.read(master, 4096))
+                        if not expected.startswith(received):
+                            raise AssertionError(f"Transport bytes changed: {received.hex()}")
+                        if not replied and len(received) >= 5:
+                            os.write(master, b"\x00\xff\xfe\r\n")
+                            replied = True
+                while select.select([master], [], [], 0)[0]:
+                    received.extend(os.read(master, 4096))
+                if process.returncode != 0:
+                    raise RuntimeError(f"Flutter UI smoke exited {process.returncode}; observed TX={received.hex()}, RX injected={replied}")
+                if bytes(received) != expected:
+                    raise AssertionError(f"Missing transport data: expected {expected.hex()}, got {received.hex()}")
+            finally:
+                if process.poll() is None:
+                    os.killpg(process.pid, signal.SIGTERM)
+                    try:
+                        process.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(process.pid, signal.SIGKILL)
+                        process.wait()
+                output.seek(0)
+                print(output.read(), end="")
+        print(f"FLUTTER_PTY_UI_SMOKE_OK: exact text/Hex TX={received.hex()}, binary RX=00fffe0d0a, dispose/resubscribe, bounded overflow recovery, clear+stats+gap reset")
+    finally:
+        os.close(master)
+        os.close(slave)
+
+
+if __name__ == "__main__":
+    main()

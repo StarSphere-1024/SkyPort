@@ -14,18 +14,18 @@ $CoverageFile = Join-Path $ProjectRoot "SkyPort\coverage\lcov.info"
 # Check if coverage file exists
 if (!(Test-Path $CoverageFile)) {
     Write-Host "❌ Coverage file not found: $CoverageFile" -ForegroundColor Red
-    Write-Host "Run 'flutter test --coverage' first" -ForegroundColor Yellow
+    Write-Host "Run 'tool/test_quiet.sh --coverage' first" -ForegroundColor Yellow
     exit 1
 }
 
 # Parse lcov.info and calculate coverage. Keep this aligned with CI by
-# excluding generated localization files.
+# excluding generated localization and Rust bridge bindings.
 $TotalLF = 0
 $TotalLH = 0
 $SkipFile = $false
 
 Get-Content $CoverageFile | ForEach-Object {
-    if ($_ -match "^SF:lib[\/\\]l10n[\/\\]app_localizations(_.*)?\.dart$") {
+    if ($_ -match "^SF:lib[\/\\](l10n[\/\\]app_localizations(_.*)?\.dart|src[\/\\]rust[\/\\].*\.dart)$") {
         $SkipFile = $true
     }
     elseif ($_ -match "^SF:") {

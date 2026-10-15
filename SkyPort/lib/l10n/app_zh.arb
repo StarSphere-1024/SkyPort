@@ -63,14 +63,6 @@
   "logBufferSize": "日志缓冲区大小",
   "logBufferSizeError": "16-512之间的整数",
   "enableAnsi": "启用 ANSI",
-  "errConfigNotSet": "未设置串口配置",
-  "errPortOpenTimeout": "连接超时: {message}",
-  "errPortOpenFailed": "打开串口失败: {message}",
-  "errPortDisconnected": "串口已断开: {message}",
-  "errWriteFailed": "写入失败: {message}",
-  "errInvalidHexFormat": "无效的 HEX 格式",
-  "errCleanupError": "清理资源时出错: {message}",
-  "errUnknown": "未知错误: {message}",
   "autoSend": "自动发送",
   "autoSendInterval": "间隔",
   "autoSendIntervalError": "0.01-60",
@@ -79,8 +71,43 @@
   "exportLogs": "导出日志",
   "exportPath": "导出路径",
   "exportPathHint": "日志导出的默认文件夹",
-  "export": "导出",
-  "noLogsToExport": "没有可导出的日志",
   "logsExportedTo": "日志已导出到：",
-  "exportFailed": "导出失败："
+  "exportFailed": "导出失败：",
+  "writeFailure": "写入失败，已发送 {bytes} 字节：{message}",
+  "@writeFailure": {
+    "placeholders": {
+      "bytes": {"type": "int"},
+      "message": {"type": "String"}
+    }
+  },
+  "importFile": "导入文件",
+  "applyingConfiguration": "正在应用配置...",
+  "logDataGap": "部分日志事件丢失；视图已重新同步。",
+  "logTrimmed": "已清除较早记录：{records} 条记录 / {bytes} 字节",
+  "@logTrimmed": {
+    "placeholders": {
+      "records": {"type": "int"},
+      "bytes": {"type": "int"}
+    }
+  },
+  "autoSendPaused": "自动发送已暂停：{message}",
+  "@autoSendPaused": {
+    "placeholders": {
+      "message": {"type": "String"}
+    }
+  },
+  "startupFailed": "SkyPort 无法启动",
+  "errorInvalidArgument": "参数无效",
+  "errorPortNotFound": "未找到串口",
+  "errorOpenFailed": "串口打开失败",
+  "errorPermissionDenied": "权限不足",
+  "errorUnsupportedConfiguration": "不支持此配置",
+  "errorReadFailed": "串口读取失败",
+  "errorDisconnected": "串口连接丢失",
+  "errorTimeout": "操作超时",
+  "errorClosed": "应用核心已关闭",
+  "errorQueueOverflow": "队列容量已满",
+  "errorTaskFailed": "后台任务失败",
+  "errorInternal": "内部错误",
+  "logIncomplete": "当前保留的日志存在串口数据或会话缺口。"
 }

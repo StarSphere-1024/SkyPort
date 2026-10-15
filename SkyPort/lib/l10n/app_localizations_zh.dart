@@ -163,42 +163,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get enableAnsi => '启用 ANSI';
 
   @override
-  String get errConfigNotSet => '未设置串口配置';
-
-  @override
-  String errPortOpenTimeout(Object message) {
-    return '连接超时: $message';
-  }
-
-  @override
-  String errPortOpenFailed(Object message) {
-    return '打开串口失败: $message';
-  }
-
-  @override
-  String errPortDisconnected(Object message) {
-    return '串口已断开: $message';
-  }
-
-  @override
-  String errWriteFailed(Object message) {
-    return '写入失败: $message';
-  }
-
-  @override
-  String get errInvalidHexFormat => '无效的 HEX 格式';
-
-  @override
-  String errCleanupError(Object message) {
-    return '清理资源时出错: $message';
-  }
-
-  @override
-  String errUnknown(Object message) {
-    return '未知错误: $message';
-  }
-
-  @override
   String get autoSend => '自动发送';
 
   @override
@@ -223,14 +187,74 @@ class AppLocalizationsZh extends AppLocalizations {
   String get exportPathHint => '日志导出的默认文件夹';
 
   @override
-  String get export => '导出';
-
-  @override
-  String get noLogsToExport => '没有可导出的日志';
-
-  @override
   String get logsExportedTo => '日志已导出到：';
 
   @override
   String get exportFailed => '导出失败：';
+
+  @override
+  String writeFailure(int bytes, String message) {
+    return '写入失败，已发送 $bytes 字节：$message';
+  }
+
+  @override
+  String autoSendPaused(String message) {
+    return '自动发送已暂停：$message';
+  }
+
+  @override
+  String get importFile => '导入文件';
+
+  @override
+  String get applyingConfiguration => '正在应用配置...';
+
+  @override
+  String get logDataGap => '部分日志事件丢失；视图已重新同步。';
+
+  @override
+  String logTrimmed(int records, int bytes) {
+    return '已清除较早记录：$records 条记录 / $bytes 字节';
+  }
+
+  @override
+  String get startupFailed => 'SkyPort 无法启动';
+
+  @override
+  String get errorInvalidArgument => '参数无效';
+
+  @override
+  String get errorPortNotFound => '未找到串口';
+
+  @override
+  String get errorOpenFailed => '串口打开失败';
+
+  @override
+  String get errorPermissionDenied => '权限不足';
+
+  @override
+  String get errorUnsupportedConfiguration => '不支持此配置';
+
+  @override
+  String get errorReadFailed => '串口读取失败';
+
+  @override
+  String get errorDisconnected => '串口连接丢失';
+
+  @override
+  String get errorTimeout => '操作超时';
+
+  @override
+  String get errorClosed => '应用核心已关闭';
+
+  @override
+  String get errorQueueOverflow => '队列容量已满';
+
+  @override
+  String get errorTaskFailed => '后台任务失败';
+
+  @override
+  String get errorInternal => '内部错误';
+
+  @override
+  String get logIncomplete => '当前保留的日志存在串口数据或会话缺口。';
 }

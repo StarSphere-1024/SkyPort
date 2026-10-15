@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../../providers/serial/ui_settings_provider.dart';
+import '../../providers/ui_settings_provider.dart';
 import '../shared/compact_switch.dart';
 
 class ReceiveSettingsWidget extends ConsumerWidget {
