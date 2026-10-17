@@ -3,7 +3,9 @@
 [![Build Status](https://github.com/StarSphere-1024/SkyPort/actions/workflows/release.yml/badge.svg)](https://github.com/StarSphere-1024/SkyPort/actions/workflows/release.yml)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-一款使用 Flutter 构建的跨平台串口调试助手，专注桌面平台的高性能串口收发与调试体验，支持 ANSI 转义序列渲染和灵活的数据处理模式。
+一款基于 Rust + Flutter 的跨平台串口调试助手，专注桌面平台的高性能串口收发与调试体验，支持 ANSI 转义序列渲染和灵活的数据处理模式。
+
+**v2.0.0 已重构为 Rust + Flutter 全新实现**：Rust 核心负责串口生命周期、数据收发、配置持久化、日志、统计与调度；Flutter 负责桌面界面和交互，通过 `flutter_rust_bridge` 与 Rust 核心通信。
 
 ## 📸 界面预览
 
@@ -41,6 +43,8 @@
     *   当前支持 Windows 和 Linux 桌面平台；macOS 项目文件存在，但暂不视为已支持平台。
 
 ## 📥 下载安装
+
+当前源码版本为 **v2.0.0**，应用版本由 `app/pubspec.yaml` 统一管理。
 
 你可以从 [GitHub Releases](https://github.com/StarSphere-1024/SkyPort/releases) 页面下载最新版本的安装包。
 
