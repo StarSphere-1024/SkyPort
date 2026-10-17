@@ -159,14 +159,14 @@ class _HomePageState extends ConsumerState<HomePage>
   late TextEditingController _bufferController;
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   late final AnimationController _panelAnimation;
-  bool _panelOpen = false;
+  late bool _panelOpen;
   bool _settingsSelected = false;
 
   @override
   void initState() {
     super.initState();
     _panelOpen =
-        ref.read(sharedPreferencesProvider).getBool(_panelOpenKey) ?? false;
+        ref.read(sharedPreferencesProvider).getBool(_panelOpenKey) ?? true;
     _panelAnimation = AnimationController(
       vsync: this,
       value: _panelOpen ? 1 : 0,
