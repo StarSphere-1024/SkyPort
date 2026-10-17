@@ -37,6 +37,7 @@ class PortSelectionWidget extends ConsumerWidget {
     final disconnect =
         isConnected || connectionState == UiConnection.reconnecting;
     final l10n = AppLocalizations.of(context);
+    final colors = Theme.of(context).colorScheme;
     return Row(
       children: [
         Expanded(
@@ -53,6 +54,10 @@ class PortSelectionWidget extends ConsumerWidget {
         ),
         const SizedBox(width: 8),
         FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: isConnected ? colors.error : colors.primary,
+            foregroundColor: isConnected ? colors.onError : colors.onPrimary,
+          ),
           onPressed: isBusy || (!disconnect && selectedPort == null)
               ? null
               : () =>
