@@ -15,7 +15,8 @@ permissions:
   contents: read
 
 env:
-  FLUTTER_CHANNEL: stable
+  FLUTTER_VERSION: 3.47.7
+  RUST_VERSION: 1.98.0
 
 jobs:
   windows:
@@ -43,6 +44,8 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
 
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
@@ -53,7 +56,7 @@ jobs:
         if: matrix.arch == 'x64'
         uses: subosito/flutter-action@v2
         with:
-          channel: ${{ env.FLUTTER_CHANNEL }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
           architecture: x64
 
@@ -61,7 +64,7 @@ jobs:
         if: matrix.arch == 'arm64'
         run: |
           # Windows ARM64: Use git clone to bypass flutter-action architecture detection issues
-          git clone https://github.com/flutter/flutter.git -b stable $env:HOME\flutter --depth 1
+          git clone https://github.com/flutter/flutter.git -b $env:FLUTTER_VERSION $env:HOME\flutter --depth 1
           # Add Flutter to PATH for subsequent steps
           Add-Content -Path $env:GITHUB_PATH -Value "$env:HOME\flutter\bin"
           Add-Content -Path $env:GITHUB_PATH -Value "$env:HOME\flutter\bin\cache\dart-sdk\bin"
@@ -97,7 +100,7 @@ jobs:
       - name: Install Inno Setup
         shell: pwsh
         run: |
-          choco install innosetup -y
+          choco upgrade innosetup --version=6.3.3 --allow-downgrade -y
 
       - name: Build Windows setup installer (Inno Setup)
         working-directory: app
