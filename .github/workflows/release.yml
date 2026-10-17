@@ -3,19 +3,66 @@ name: Publish Release
 on:
   push:
     tags:
-      - "v*.*.*"
+      - 'v*.*.*'
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      tag_name:
+        required: true
+        type: string
+      create_tag:
+        type: boolean
+        default: false
 
 concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: true
+  group: release-${{ inputs.tag_name || github.ref_name }}
+  cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
+  validate:
+    name: Validate Release Target
+    runs-on: ubuntu-latest
+    outputs:
+      tag_name: ${{ steps.target.outputs.tag_name }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Validate immutable version and commit
+        id: target
+        env:
+          TAG_NAME: ${{ inputs.tag_name || github.ref_name }}
+          CREATE_TAG: ${{ inputs.create_tag || false }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$CREATE_TAG" = true ]; then
+            if [[ "$REF_TYPE" != branch || ( "$REF_NAME" != master && "$REF_NAME" != main ) ]]; then
+              echo "New release tags must originate from master or main" >&2
+              exit 1
+            fi
+          elif [ "$REF_TYPE" != tag ] || [ "$REF_NAME" != "$TAG_NAME" ]; then
+            echo "Publish Release must run on the selected version tag, not a branch" >&2
+            exit 1
+          fi
+          python3 .github/scripts/release_version.py --tag "$TAG_NAME"
+          if git show-ref --verify --quiet "refs/tags/$TAG_NAME"; then
+            test "$(git rev-parse "$TAG_NAME^{commit}")" = "$(git rev-parse HEAD)" || {
+              echo "$TAG_NAME points to a different commit" >&2
+              exit 1
+            }
+          elif [ "$CREATE_TAG" != true ]; then
+            echo "Release tag does not exist: $TAG_NAME" >&2
+            exit 1
+          fi
+          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
+
   test:
     name: Release Gate Tests
+    needs: validate
     uses: ./.github/workflows/test.yml
 
   build:
@@ -25,8 +72,13 @@ jobs:
       retention-days: 30
 
   release:
-    needs: build
+    name: Publish Verified Artifacts
+    needs: [validate, build]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG_NAME: ${{ needs.validate.outputs.tag_name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -37,24 +89,38 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           path: artifacts
-          pattern: '*'
+          pattern: 'SkyPort-v*'
           merge-multiple: true
 
-      - name: List artifacts
-        run: ls -R artifacts
+      - name: Create tag only after successful package checks
+        env:
+          CREATE_TAG: ${{ inputs.create_tag || false }}
+        run: |
+          git fetch origin --tags
+          if git show-ref --verify --quiet "refs/tags/$TAG_NAME"; then
+            test "$(git rev-parse "$TAG_NAME^{commit}")" = "$(git rev-parse HEAD)"
+          elif [ "$CREATE_TAG" = true ]; then
+            git config user.name 'github-actions[bot]'
+            git config user.email 'github-actions[bot]@users.noreply.github.com'
+            git tag -a "$TAG_NAME" -m "Release $TAG_NAME" HEAD
+            git push origin "refs/tags/$TAG_NAME"
+          else
+            echo "Release tag disappeared: $TAG_NAME" >&2
+            exit 1
+          fi
 
       - name: Generate release notes
         env:
-          TAG_NAME: ${{ github.ref_name }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node .github/scripts/generate-release-notes.mjs "$TAG_NAME" release_notes.md artifacts
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ github.ref_name }}
-          name: SkyPort ${{ github.ref_name }}
+          tag_name: ${{ env.TAG_NAME }}
+          name: SkyPort ${{ env.TAG_NAME }}
           body_path: release_notes.md
           files: artifacts/**/*
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,49 @@
+name: skyport
+description: "A serial port debugging assistant."
+publish_to: "none"
+version: 2.0.0+0
+
+environment:
+  sdk: ">=3.10.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_rust_bridge: ^2.13.0
+  flutter_riverpod: ^3.0.3
+  intl: ^0.20.2
+  flutter_localizations:
+    sdk: flutter
+  shared_preferences: ^2.5.3
+  path_provider: ^2.1.5
+  ansi_escape_codes: ^4.0.1
+  file_selector: ^1.0.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  fastforge: ^0.6.0
+  flutter_launcher_icons: ^0.14.1
+
+  # Testing dependencies
+  mocktail: ^1.0.0
+  integration_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  generate: true
+
+flutter_launcher_icons:
+  android: false
+  ios: false
+  image_path: "assets/icon.png"
+  windows:
+    generate: true
+    image_path: "assets/icon.png"
+    icon_size: 256
+  macos:
+    generate: true
+    image_path: "assets/icon.png"
+    icon_size: 512

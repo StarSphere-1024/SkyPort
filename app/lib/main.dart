@@ -1,0 +1,374 @@
+import 'dart:ui';
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skyport/src/rust/api.dart' as rust;
+import 'host_core.dart';
+import 'providers/common_providers.dart';
+import 'providers/ui_controller.dart';
+import 'providers/theme_provider.dart';
+import 'theme.dart';
+import 'widgets/application_settings.dart';
+import 'widgets/connection_rail.dart';
+import 'widgets/left_panel.dart';
+import 'widgets/right_panel.dart';
+import 'widgets/status_bar.dart';
+import 'services/app_logger.dart';
+import 'l10n/app_localizations.dart';
+import 'utils/error_messages.dart';
+import 'widgets/shared/error_notice.dart';
+
+Future<void> main(List<String> args) async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    AppLogger.instance.error(
+      'Unhandled Flutter framework error',
+      error: details.exception,
+      stackTrace: details.stack ?? StackTrace.current,
+    );
+  };
+  PlatformDispatcher.instance.onError = (error, stackTrace) {
+    AppLogger.instance.error(
+      'Unhandled async error',
+      error: error,
+      stackTrace: stackTrace,
+    );
+    return false;
+  };
+
+  if (args.contains('--kernel-smoke')) {
+    try {
+      await runKernelSmoke(args);
+      exit(0);
+    } catch (error, stackTrace) {
+      stderr.writeln('$error\n$stackTrace');
+      exit(1);
+    }
+  }
+
+  SharedPreferences? prefs;
+  CoreBootstrap? bootstrap;
+  Object? startupFailure;
+  try {
+    await AppLogger.instance.initialize();
+    try {
+      prefs = await SharedPreferences.getInstance();
+    } catch (error) {
+      throw HostStartupException(HostFailure.preferencesUnavailable, error);
+    }
+    bootstrap = await createCoreFromHost(prefs);
+  } catch (error, stackTrace) {
+    startupFailure = error;
+    AppLogger.instance.error(
+      'Core startup failed',
+      error: error,
+      stackTrace: stackTrace,
+    );
+  }
+  await installHostCloseHandler(bootstrap);
+  final container = ProviderContainer(
+    overrides: [
+      if (prefs != null) sharedPreferencesProvider.overrideWithValue(prefs),
+      if (bootstrap != null) coreBootstrapProvider.overrideWithValue(bootstrap),
+    ],
+  );
+  runApp(
+    UncontrolledProviderScope(
+      container: container,
+      child: SerialDebuggerApp(startupFailure: startupFailure),
+    ),
+  );
+}
+
+class SerialDebuggerApp extends ConsumerWidget {
+  const SerialDebuggerApp({super.key, this.startupFailure});
+  final Object? startupFailure;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (startupFailure != null) {
+      return MaterialApp(
+        onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: StartupFailurePage(details: startupFailure!),
+      );
+    }
+    final themeMode = ref.watch(themeModeProvider);
+    final themeColor = ref.watch(themeColorProvider);
+    return MaterialApp(
+      onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
+      theme: getLightTheme(themeColor),
+      darkTheme: getDarkTheme(themeColor),
+      themeMode: themeMode,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: const HomePage(),
+    );
+  }
+}
+
+class StartupFailurePage extends StatelessWidget {
+  const StartupFailurePage({required this.details, super.key});
+  final Object details;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                l10n.startupFailed,
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 12),
+              SelectableText(localizedError(l10n, details)),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => showErrorDetails(context, details),
+                child: Text(l10n.diagnosticDetails),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class HomePage extends ConsumerStatefulWidget {
+  const HomePage({super.key});
+
+  @override
+  ConsumerState<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends ConsumerState<HomePage>
+    with SingleTickerProviderStateMixin {
+  static const _panelOpenKey = 'ui_configuration_panel_open';
+  late TextEditingController _bufferController;
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  late final AnimationController _panelAnimation;
+  bool _panelOpen = false;
+  bool _settingsSelected = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _panelOpen =
+        ref.read(sharedPreferencesProvider).getBool(_panelOpenKey) ?? false;
+    _panelAnimation = AnimationController(
+      vsync: this,
+      value: _panelOpen ? 1 : 0,
+    );
+    final megabytes =
+        ref.read(uiControllerProvider).logCapacityBytes ~/ (1024 * 1024);
+    _bufferController = TextEditingController(text: '$megabytes');
+  }
+
+  @override
+  void dispose() {
+    _bufferController.dispose();
+    _panelAnimation.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<rust.CoreError?>(
+      uiControllerProvider.select((value) => value.error),
+      (previous, next) {
+        if (next != null && previous != next) {
+          showErrorNotice(context, next);
+        }
+      },
+    );
+    ref.listen<int>(
+      uiControllerProvider.select((value) => value.logCapacityBytes),
+      (previous, next) {
+        final megabytes = next ~/ (1024 * 1024);
+        if (_bufferController.text != '$megabytes') {
+          _bufferController.text = '$megabytes';
+        }
+      },
+    );
+
+    final l10n = AppLocalizations.of(context);
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): () =>
+            _setPanelOpen(false),
+      },
+      child: Focus(
+        autofocus: true,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 800;
+            return Scaffold(
+              appBar: AppBar(title: Text(l10n.appTitle)),
+              body: SafeArea(
+                child: Row(
+                  children: [
+                    ConnectionRail(
+                      panelOpen: _panelOpen,
+                      settingsSelected: _settingsSelected,
+                      onTogglePanel: () => _setPanelOpen(!_panelOpen),
+                      onSerial: () => _openPage(false),
+                      onSettings: () => _openPage(true),
+                    ),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final panelWidth = constraints.maxWidth
+                                    .clamp(0, 310)
+                                    .toDouble();
+                                return AnimatedBuilder(
+                                  animation: _panelAnimation,
+                                  child: _configurationPanel(context),
+                                  builder: (context, panel) {
+                                    final visibleWidth =
+                                        panelWidth * _panelAnimation.value;
+                                    return Stack(
+                                      clipBehavior: Clip.hardEdge,
+                                      children: [
+                                        Positioned.fill(
+                                          child: Padding(
+                                            padding: EdgeInsetsDirectional.only(
+                                              start: compact ? 0 : visibleWidth,
+                                            ),
+                                            child: ExcludeFocus(
+                                              excluding: compact && _panelOpen,
+                                              child: IgnorePointer(
+                                                ignoring: compact && _panelOpen,
+                                                child: const RightPanel(),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        if (compact && _panelOpen)
+                                          const Positioned.fill(
+                                            child: ModalBarrier(
+                                              dismissible: false,
+                                              color: Colors.black38,
+                                            ),
+                                          ),
+                                        PositionedDirectional(
+                                          start: visibleWidth - panelWidth,
+                                          top: 0,
+                                          bottom: 0,
+                                          width: panelWidth,
+                                          child: ExcludeFocus(
+                                            excluding: !_panelOpen,
+                                            child: ExcludeSemantics(
+                                              excluding: !_panelOpen,
+                                              child: IgnorePointer(
+                                                ignoring: !_panelOpen,
+                                                child: panel,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              bottomNavigationBar: const StatusBar(),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  void _setPanelOpen(bool open) {
+    if (_panelOpen == open) return;
+    setState(() => _panelOpen = open);
+    ref.read(sharedPreferencesProvider).setBool(_panelOpenKey, open);
+    _panelAnimation.animateTo(
+      open ? 1 : 0,
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 240),
+      curve: Curves.easeInOutCubic,
+    );
+  }
+
+  void _openPage(bool settings) {
+    if (_panelOpen && _settingsSelected == settings) return;
+    setState(() => _settingsSelected = settings);
+    _setPanelOpen(true);
+  }
+
+  Widget _configurationPanel(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    const fieldBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.all(Radius.circular(12)),
+    );
+    return Theme(
+      data: theme.copyWith(
+        inputDecorationTheme: theme.inputDecorationTheme.copyWith(
+          border: fieldBorder,
+        ),
+        dropdownMenuTheme: theme.dropdownMenuTheme.copyWith(
+          inputDecorationTheme: const InputDecorationThemeData(
+            border: fieldBorder,
+          ),
+          menuStyle: const MenuStyle(
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+              ),
+            ),
+          ),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Material(
+          color: colors.surfaceContainerLow,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: colors.outlineVariant),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: IndexedStack(
+            index: _settingsSelected ? 1 : 0,
+            children: [
+              const LeftPanel(),
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: ApplicationSettings(
+                  controller: _bufferController,
+                  formKey: _formKey,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -1,0 +1,15 @@
+[package]
+name = "skyport_flutter_bridge"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+flutter_rust_bridge = "=2.13.0"
+skyport_core = { path = "../skyport_core" }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(frb_expand)"] }

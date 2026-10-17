@@ -11,9 +11,29 @@ permissions:
   contents: read
 
 env:
-  FLUTTER_CHANNEL: stable
+  FLUTTER_VERSION: 3.47.7
+  RUST_VERSION: 1.98.0
 
 jobs:
+  core:
+    name: Rust core without Flutter
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04-arm, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Install serial enumeration dependency
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev pkg-config
+      - name: Test independent core
+        run: cargo test --locked -p skyport_core
+
   test:
     name: Unit & Widget Tests
     runs-on: ubuntu-latest
@@ -24,36 +44,49 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Validate release version rules
+        run: python3 .github/scripts/test_release_version.py
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Install desktop and serial dependencies
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev libgtk-3-dev ninja-build clang cmake pkg-config xvfb
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: ${{ env.FLUTTER_CHANNEL }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
       - name: Download dependencies
-        working-directory: SkyPort
+        working-directory: app
         run: flutter pub get
       - name: Analyze
-        working-directory: SkyPort
+        working-directory: app
         run: flutter analyze
 
 
       - name: Run tests
-        working-directory: SkyPort
-        run: flutter test --coverage
+        working-directory: .
+        run: tool/test_quiet.sh --coverage
+
+      - name: Exercise real bridge and UI over a pseudo-terminal
+        run: xvfb-run -a python3 scripts/pty_ui_smoke.py
 
       - name: Exclude generated files from coverage
-        working-directory: SkyPort
+        working-directory: app
         run: |
           awk '
-            /^SF:lib[\/\\]l10n[\/\\]app_localizations(_.*)?\.dart$/ { skip=1; next }
+            /^SF:lib[\/\\](l10n[\/\\]app_localizations(_.*)?\.dart|src[\/\\]rust[\/\\].*\.dart)$/ { skip=1; next }
             /^SF:/ { skip=0 }
             !skip { print }
           ' coverage/lcov.info > coverage/lcov.filtered.info
           mv coverage/lcov.filtered.info coverage/lcov.info
 
       - name: Check coverage threshold
-        working-directory: SkyPort
+        working-directory: app
         run: |
           TOTAL_LF=$(grep "^LF:" coverage/lcov.info | awk -F: '{sum+=$2} END {print sum}')
           TOTAL_LH=$(grep "^LH:" coverage/lcov.info | awk -F: '{sum+=$2} END {print sum}')
