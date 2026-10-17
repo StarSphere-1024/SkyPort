@@ -92,10 +92,11 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
     super.initState();
     _scrollController.addListener(() {
       if (!_scrollController.hasClients) return;
-      final currentScroll = _scrollController.position.pixels;
 
       // Use a more lenient threshold to determine if at bottom, to avoid floating point precision issues
-      final isBottom = currentScroll <= SkyPortConstants.scrollBottomThreshold;
+      final isBottom =
+          _scrollController.position.extentAfter <=
+          SkyPortConstants.scrollBottomThreshold;
 
       if (_isAtBottom != isBottom) {
         // Only setState when the state actually changes
@@ -132,7 +133,7 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
       if (!mounted || !_stickToBottom || !_scrollController.hasClients) return;
       _programmaticScroll = true;
       try {
-        _scrollController.jumpTo(_scrollController.position.minScrollExtent);
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
       } finally {
         _programmaticScroll = false;
       }
@@ -237,9 +238,9 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                             // 桌面端鼠标滚轮通常会触发 UserScroll/ScrollUpdate，但没有 dragDetails。
                             // 退出粘滞的核心语义：用户向上滚动（离开底部）就取消 stick。
                             if (notification is UserScrollNotification) {
-                              // Reversed list: increasing offset moves toward older rows.
+                              // Decreasing offset moves toward older rows.
                               if (notification.direction ==
-                                  ScrollDirection.reverse) {
+                                  ScrollDirection.forward) {
                                 if (_stickToBottom) {
                                   setState(() {
                                     _stickToBottom = false;
@@ -251,7 +252,7 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                             // 兜底：部分平台只给 ScrollUpdateNotification（滚轮/触控板）。
                             if (notification is ScrollUpdateNotification) {
                               final delta = notification.scrollDelta;
-                              if (delta != null && delta > 0) {
+                              if (delta != null && delta < 0) {
                                 if (_stickToBottom) {
                                   setState(() {
                                     _stickToBottom = false;
@@ -271,22 +272,17 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                             },
                             child: ListView.builder(
                               controller: _scrollController,
-                              // Keep the live tail at offset zero, including after format changes.
-                              reverse: true,
                               padding: const EdgeInsets.symmetric(
                                 vertical: 8.0,
                               ),
                               itemCount: listLength,
                               findChildIndexCallback: (key) {
-                                final index = mapper.indexForId(
+                                return mapper.indexForId(
                                   (key as ValueKey<int>).value,
                                 );
-                                return index == null
-                                    ? null
-                                    : listLength - index - 1;
                               },
                               itemBuilder: (context, index) {
-                                final entry = mapper[listLength - index - 1];
+                                final entry = mapper[index];
                                 final spans = entry.getSpans(
                                   hexDisplay: settings.hexDisplay,
                                   showTimestamp: settings.showTimestamp,
