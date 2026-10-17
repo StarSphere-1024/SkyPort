@@ -12,13 +12,23 @@ pub(crate) const READ_POLL_TIMEOUT: Duration = Duration::from_millis(5);
 
 pub(crate) fn ports() -> Result<Vec<String>, CoreError> {
     serialport::available_ports()
-        .map(|ports| ports.into_iter().map(|p| p.port_name).collect())
+        .map(|ports| {
+            ports
+                .into_iter()
+                .map(|p| p.port_name)
+                .filter(|name| is_listed_port(name))
+                .collect()
+        })
         .map_err(|e| {
             CoreError::new(
                 ErrorKind::TaskFailed,
                 format!("enumerate serial ports: {e}"),
             )
         })
+}
+
+fn is_listed_port(name: &str) -> bool {
+    !cfg!(target_os = "linux") || name.starts_with("/dev/ttyUSB") || name.starts_with("/dev/ttyACM")
 }
 
 pub(crate) fn open(config: &SerialConfig) -> Result<Box<dyn serialport::SerialPort>, CoreError> {
@@ -350,5 +360,30 @@ pub(crate) fn write_all_accounted(
     match result {
         Err(error) => Err(error),
         Ok(()) => restore,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn port_listing_is_usb_only_on_linux() {
+        for (name, linux_visible) in [
+            ("/dev/ttyUSB0", true),
+            ("/dev/ttyUSB12", true),
+            ("/dev/ttyACM0", true),
+            ("/dev/ttyACM12", true),
+            ("/dev/ttyS0", false),
+            ("/dev/ttyAMA0", false),
+            ("/dev/rfcomm0", false),
+            ("/dev/pts/1", false),
+            ("COM3", false),
+            ("/dev/cu.usbserial-1", false),
+        ] {
+            assert_eq!(
+                super::is_listed_port(name),
+                !cfg!(target_os = "linux") || linux_visible,
+                "{name}"
+            );
+        }
     }
 }
