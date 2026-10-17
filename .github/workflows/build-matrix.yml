@@ -19,9 +19,6 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  FLUTTER_CHANNEL: stable
-
 jobs:
   prepare:
     name: Prepare / Extract Version
@@ -34,38 +31,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Override pubspec version from tag (if tag build)
-        if: github.ref_type == 'tag'
-        shell: bash
-        working-directory: app
-        run: |
-          TAG_NAME="${GITHUB_REF_NAME}"
-          VERSION="${TAG_NAME#v}"
-
-          # 使用 GitHub 运行编号作为 build number（在当前 workflow 内单调递增）
-          BUILD_NUMBER="${GITHUB_RUN_NUMBER}"
-
-          echo "Using version from tag: $VERSION (+$BUILD_NUMBER)"
-
-          # 覆盖 pubspec.yaml 中的 version 行
-          sed -i "s/^version:.*/version: ${VERSION}+${BUILD_NUMBER}/" pubspec.yaml
-
-          echo "Updated pubspec.yaml:"
-          grep '^version:' pubspec.yaml
-
-      - name: Extract version
+      - name: Validate committed version
         id: version
-        shell: bash
-        working-directory: app
+        env:
+          TAG_NAME: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
         run: |
-          APP_VERSION=$(sed -n 's/^[[:space:]]*version:[[:space:]]*\([^+]*\).*/\1/p' pubspec.yaml | head -n 1 | tr -d '\r')
-          if [ -z "$APP_VERSION" ]; then
-            echo "app_version=unknown" >> "$GITHUB_OUTPUT"
-            echo "Detected version: unknown"
-          else
-            echo "app_version=$APP_VERSION" >> "$GITHUB_OUTPUT"
-            echo "Detected version: $APP_VERSION"
-          fi
+          APP_VERSION=$(python3 .github/scripts/release_version.py --tag "$TAG_NAME")
+          echo "app_version=$APP_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Building committed version: $APP_VERSION"
 
   build-linux:
     name: Build Linux

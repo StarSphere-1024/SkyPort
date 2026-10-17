@@ -96,8 +96,6 @@ python3 scripts/package_smoke.py <bundle或发行包> # 验证打包后的真实
 
 有显示环境时可直接运行 smoke；无显示的 Linux CI 使用 `xvfb-run -a`。支持检查目录、deb、rpm、AppImage 和 Windows portable zip。Windows 安装程序须先安装到隔离目录，再检查该目录；物理串口和不同架构仍需各自验收。
 
-CI 的 Rust 核心测试覆盖 Linux x64、Linux ARM64 和 Windows；Linux PTY 测试的 C 字符缓冲区使用 `libc::c_char`，避免不同架构的字符符号类型差异。Flutter 检查先运行 `flutter analyze`，通过后才执行测试、PTY UI smoke 和覆盖率门禁。
-
 修改 bridge API 后，从仓库根目录安装生成器，再进入 `app/` 生成绑定：
 
 ```bash

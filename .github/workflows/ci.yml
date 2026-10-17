@@ -21,6 +21,64 @@ permissions:
   contents: read
 
 jobs:
+  windows-build-changes:
+    name: Detect Windows build changes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      required: ${{ steps.diff.outputs.required }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check changed paths
+        id: diff
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if git diff --quiet "$BASE_SHA...$HEAD_SHA" -- app crates Cargo.toml Cargo.lock scripts/rust.cmake .github/workflows ':(exclude,glob)**/*.md' ':(exclude,glob)**/docs/**'; then
+            echo "required=false" >> "$GITHUB_OUTPUT"
+          else
+            STATUS=$?
+            if [ "$STATUS" -ne 1 ]; then
+              echo "Cannot determine PR changes (git diff exited $STATUS)" >&2
+              exit "$STATUS"
+            fi
+            echo "required=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  windows-build:
+    name: Build Windows release
+    if: github.event_name == 'pull_request' && needs.windows-build-changes.outputs.required == 'true'
+    needs: windows-build-changes
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.0
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.7
+          channel: stable
+          cache: true
+
+      - name: Download dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Build release
+        working-directory: app
+        run: flutter build windows --release
+
   test:
     name: Run Tests
     uses: ./.github/workflows/test.yml

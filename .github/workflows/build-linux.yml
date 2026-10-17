@@ -15,7 +15,8 @@ permissions:
   contents: read
 
 env:
-  FLUTTER_CHANNEL: stable
+  FLUTTER_VERSION: 3.47.7
+  RUST_VERSION: 1.98.0
 
 jobs:
   linux:
@@ -72,6 +73,8 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
 
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
@@ -81,7 +84,7 @@ jobs:
       - name: Setup Flutter (Manual for ARM64)
         if: matrix.arch == 'arm64'
         run: |
-          git clone https://github.com/flutter/flutter.git -b stable $HOME/flutter --depth 1
+          git clone https://github.com/flutter/flutter.git -b ${{ env.FLUTTER_VERSION }} $HOME/flutter --depth 1
           echo "$HOME/flutter/bin" >> $GITHUB_PATH
           echo "$HOME/flutter/bin/cache/dart-sdk/bin" >> $GITHUB_PATH
           echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
@@ -98,7 +101,7 @@ jobs:
         if: matrix.arch != 'arm64'
         uses: subosito/flutter-action@v2
         with:
-          channel: ${{ env.FLUTTER_CHANNEL }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
           architecture: x64
 
@@ -115,19 +118,22 @@ jobs:
         if: matrix.package_type == 'appimage'
         run: |
           sudo apt-get install -y libfuse2 || echo "libfuse2 already present"
-          # 根据架构选择下载链接
           if [ "${{ matrix.arch }}" = "arm64" ]; then
-            URL="https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-aarch64.AppImage"
+            URL="https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-aarch64.AppImage"
+            SHA256="f0837e7448a0c1e4e650a93bb3e85802546e60654ef287576f46c71c126a9158"
           else
-            URL="https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+            URL="https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage"
+            SHA256="ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0"
           fi
-          curl -L -o appimagetool.AppImage "$URL"
+          curl --fail --location -o appimagetool.AppImage "$URL"
+          echo "$SHA256  appimagetool.AppImage" | sha256sum --check -
           chmod +x appimagetool.AppImage
           sudo mv appimagetool.AppImage /usr/local/bin/appimagetool
           appimagetool --version || echo "appimagetool installed"
 
-      - name: Activate fastforge
-        run: dart pub global activate fastforge
+      - name: Download locked Dart/Flutter deps
+        working-directory: app
+        run: flutter pub get --enforce-lockfile
 
       - name: Verify AppImage patch script
         if: matrix.package_type == 'appimage'
@@ -137,15 +143,19 @@ jobs:
         if: matrix.package_type == 'appimage'
         run: python3 .github/scripts/patch_fastforge_appimage.py
 
-      - name: Download Dart/Flutter deps
-        working-directory: app
-        run: flutter pub get
+      - name: Patch fastforge RPM staging paths
+        if: matrix.package_type == 'rpm'
+        run: python3 .github/scripts/patch_fastforge_rpm.py
+
+      - name: Check RPM install paths across build directories
+        if: matrix.package_type == 'rpm'
+        run: python3 .github/scripts/test_patch_fastforge_rpm.py
 
       - name: Build (${{ matrix.ff_job }})
         working-directory: app
         env:
           ARCH: ${{ matrix.appimage_arch }}
-        run: fastforge release --name release --jobs ${{ matrix.ff_job }}
+        run: dart run fastforge:main release --name release --jobs ${{ matrix.ff_job }}
 
       - name: List dist
         working-directory: app
