@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-const _defaultFlutterPath = '/home/star/env/flutter/bin/flutter';
+const _defaultFlutterPath = 'flutter';
 const _maxBufferedPrintsPerTest = 20;
 const _maxBufferedRawLines = 120;
 
@@ -158,8 +158,9 @@ class _QuietTestReporter {
                 : _fallbackNameFromStackTrace(stackTrace),
             error: error is String ? error : event.toString(),
             stackTrace: stackTrace is String ? stackTrace : null,
-            prints:
-                id is int ? List.of(_printsByTestId[id] ?? const []) : const [],
+            prints: id is int
+                ? List.of(_printsByTestId[id] ?? const [])
+                : const [],
           ),
         );
       case 'testDone':

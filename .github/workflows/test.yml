@@ -53,10 +53,10 @@ jobs:
           cache: true
 
       - name: Download dependencies
-        working-directory: SkyPort
+        working-directory: app
         run: flutter pub get
       - name: Analyze
-        working-directory: SkyPort
+        working-directory: app
         run: flutter analyze
 
 
@@ -68,7 +68,7 @@ jobs:
         run: xvfb-run -a python3 scripts/pty_ui_smoke.py
 
       - name: Exclude generated files from coverage
-        working-directory: SkyPort
+        working-directory: app
         run: |
           awk '
             /^SF:lib[\/\\](l10n[\/\\]app_localizations(_.*)?\.dart|src[\/\\]rust[\/\\].*\.dart)$/ { skip=1; next }
@@ -78,7 +78,7 @@ jobs:
           mv coverage/lcov.filtered.info coverage/lcov.info
 
       - name: Check coverage threshold
-        working-directory: SkyPort
+        working-directory: app
         run: |
           TOTAL_LF=$(grep "^LF:" coverage/lcov.info | awk -F: '{sum+=$2} END {print sum}')
           TOTAL_LH=$(grep "^LH:" coverage/lcov.info | awk -F: '{sum+=$2} END {print sum}')

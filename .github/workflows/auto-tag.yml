@@ -4,7 +4,7 @@ on:
   push:
     branches: [master, main]
     paths:
-      - 'SkyPort/pubspec.yaml'
+      - 'app/pubspec.yaml'
   workflow_dispatch:
 
 permissions:
@@ -31,10 +31,15 @@ jobs:
       - name: Detect version change
         id: version_check
         run: |
-          CURRENT_VERSION=$(sed -n 's/^[[:space:]]*version:[[:space:]]*\([^+]*\).*/\1/p' SkyPort/pubspec.yaml | head -n 1 | tr -d '\r')
+          CURRENT_VERSION=$(sed -n 's/^[[:space:]]*version:[[:space:]]*\([^+]*\).*/\1/p' app/pubspec.yaml | head -n 1 | tr -d '\r')
           echo "Current version: $CURRENT_VERSION"
 
-          PREV_VERSION=$(git show HEAD~1:SkyPort/pubspec.yaml 2>/dev/null | sed -n 's/^[[:space:]]*version:[[:space:]]*\([^+]*\).*/\1/p' | head -n 1 | tr -d '\r' || echo "")
+          if git cat-file -e HEAD~1:app/pubspec.yaml 2>/dev/null; then
+            PREV_MANIFEST=$(git show HEAD~1:app/pubspec.yaml)
+          else
+            PREV_MANIFEST=$(git show HEAD~1:SkyPort/pubspec.yaml 2>/dev/null || true)
+          fi
+          PREV_VERSION=$(printf '%s\n' "$PREV_MANIFEST" | sed -n 's/^[[:space:]]*version:[[:space:]]*\([^+]*\).*/\1/p' | head -n 1 | tr -d '\r')
           echo "Previous version: $PREV_VERSION"
 
           TAG_NAME="v${CURRENT_VERSION}"
