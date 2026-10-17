@@ -8,7 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skyport/src/rust/api.dart' as rust;
 import 'host_core.dart';
 import 'providers/common_providers.dart';
-import 'providers/ui_settings_provider.dart';
 import 'providers/ui_controller.dart';
 import 'providers/theme_provider.dart';
 import 'theme.dart';

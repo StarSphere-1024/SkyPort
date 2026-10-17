@@ -33,7 +33,7 @@ impl Pty {
                 ),
                 0
             );
-            let mut name = [0i8; 256];
+            let mut name = [0 as libc::c_char; 256];
             assert_eq!(libc::ttyname_r(slave, name.as_mut_ptr(), name.len()), 0);
             let path = CStr::from_ptr(name.as_ptr()).to_string_lossy().into_owned();
             libc::close(slave);
