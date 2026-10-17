@@ -112,7 +112,7 @@ The current supported desktop targets are Windows and Linux. The macOS project f
 - Dependency versions: `app/pubspec.yaml` and the Cargo workspace manifests/lockfile
 - Localization source: `app/lib/l10n/*.arb`
 - Generated localization output: `app/lib/l10n/app_localizations*.dart`
-- Testing: `flutter_test`, `mocktail`, `integration_test`, `fake_async`
+- Testing: `flutter_test`, `mocktail`, `integration_test`
 
 ## Development Constraints
 
