@@ -92,10 +92,8 @@ void main() {
     final l10n = AppLocalizations.of(tester.element(find.byType(HomePage)));
     final expand = find.byTooltip(l10n.expandConfiguration);
     final collapse = find.byTooltip(l10n.collapseConfiguration);
-    expect(expand, findsOneWidget);
+    expect(collapse, findsOneWidget);
 
-    await tester.tap(expand);
-    await tester.pumpAndSettle();
     await mount();
     expect(collapse, findsOneWidget);
     expect(find.byType(LeftPanel).hitTestable(), findsOneWidget);
@@ -172,11 +170,11 @@ void main() {
       await tester.tap(power);
       await tester.pumpAndSettle();
       expect(controller.connection, UiConnection.disconnected);
-      expect(find.byTooltip(l10n.expandConfiguration), findsOneWidget);
+      expect(find.byTooltip(l10n.collapseConfiguration), findsOneWidget);
       await tester.tap(power);
       await tester.pumpAndSettle();
       expect(controller.connection, UiConnection.connected);
-      expect(find.byTooltip(l10n.expandConfiguration), findsOneWidget);
+      expect(find.byTooltip(l10n.collapseConfiguration), findsOneWidget);
       await tester.tap(settingsPage);
       await tester.pumpAndSettle();
       final buffer = find.descendant(
