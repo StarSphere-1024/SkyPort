@@ -466,7 +466,7 @@ void main() {
           LogEntry(Uint8List.fromList([4]), LogEntryType.sent, now),
         ];
 
-        final chunk = LogChunk(entries: entries, totalBytes: 10, id: 1);
+        final chunk = LogChunk(entries: entries, id: 1);
         final rxEntries = chunk.rxEntries;
 
         expect(rxEntries.length, 2);
@@ -479,7 +479,7 @@ void main() {
           LogEntry(Uint8List.fromList([1]), LogEntryType.received, now),
         ];
 
-        final chunk = LogChunk(entries: entries, totalBytes: 1, id: 1);
+        final chunk = LogChunk(entries: entries, id: 1);
 
         // First access
         final rx1 = chunk.rxEntries;
@@ -490,7 +490,7 @@ void main() {
       });
 
       test('empty chunk has empty rxEntries', () {
-        final chunk = LogChunk(entries: [], totalBytes: 0, id: 1);
+        final chunk = LogChunk(entries: [], id: 1);
         expect(chunk.rxEntries.length, 0);
       });
     });

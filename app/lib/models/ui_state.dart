@@ -315,11 +315,7 @@ class UiState {
       DateTime.fromMillisecondsSinceEpoch(record.timestampMs),
       id: record.id,
     );
-    return LogChunk(
-      entries: [entry],
-      totalBytes: entry.data.length,
-      id: record.id,
-    );
+    return LogChunk(entries: [entry], id: record.id);
   }
 
   static bool _sameRecord(LogEntry entry, rust.LogRecord record) {
