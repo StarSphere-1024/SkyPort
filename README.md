@@ -96,6 +96,8 @@ python3 scripts/package_smoke.py <bundle或发行包> # 验证打包后的真实
 
 有显示环境时可直接运行 smoke；无显示的 Linux CI 使用 `xvfb-run -a`。支持检查目录、deb、rpm、AppImage 和 Windows portable zip。Windows 安装程序须先安装到隔离目录，再检查该目录；物理串口和不同架构仍需各自验收。
 
+RPM 包的 smoke 检查需要 `bsdtar`（Debian/Ubuntu：`sudo apt-get install libarchive-tools`）。
+
 修改 bridge API 后，从仓库根目录安装生成器，再进入 `app/` 生成绑定：
 
 ```bash
