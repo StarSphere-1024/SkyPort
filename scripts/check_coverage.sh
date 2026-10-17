@@ -8,7 +8,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 THRESHOLD=70
-COVERAGE_FILE="SkyPort/coverage/lcov.info"
+COVERAGE_FILE="app/coverage/lcov.info"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do

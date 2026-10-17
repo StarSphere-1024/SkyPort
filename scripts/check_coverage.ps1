@@ -9,7 +9,7 @@ $ErrorActionPreference = "Stop"
 
 $ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path $ScriptPath -Parent
-$CoverageFile = Join-Path $ProjectRoot "SkyPort\coverage\lcov.info"
+$CoverageFile = Join-Path $ProjectRoot "app\coverage\lcov.info"
 
 # Check if coverage file exists
 if (!(Test-Path $CoverageFile)) {

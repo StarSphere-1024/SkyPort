@@ -31,35 +31,20 @@ UI widgets
 ```
 
 关键位置：
+- 以下文件名属于目录迁移前的历史行为基线，`SkyPort/` 是旧应用目录，不代表当前仓库路径：
+  - `SkyPort/lib/services/serial_port_service.dart`：历史 serial service；接口、定时轮询和 native port 生命周期如上所述。
+  - `SkyPort/lib/providers/serial/serial_port_manager.dart`：历史 manager；负责连接状态、配置调和、端口扫描、自动重连和收发统计，并用生命周期队列及 token/generation 忽略过期操作与事件。
+  - `SkyPort/lib/models/serial_config.dart`：历史 serial config；直接使用 `flutter_libserialport` 常量，UI 支持范围如上所述。
+  - `SkyPort/lib/providers/serial/data_log_provider.dart`：历史数据日志 provider；按字节流收取，换行只影响日志记录边界。
+  - `SkyPort/test/helpers/mock_classes.dart`：历史测试替身；通过 service/session 接口隔离 FFI。
 
-- `SkyPort/lib/services/serial_port_service.dart`
-  - `SerialPortServiceInterface` 是现有替换点；
-  - `SerialPortSessionInterface` 暴露 `stream`、同步 `write`、异步 `dispose`；
-  - 生产实现使用 `Timer.periodic` 每 50 ms 查询 `bytesAvailable`，再读取数据；
-  - `open` 设置波特率、数据位、校验位、停止位，并关闭软硬件流控；
-  - `close` 会关闭并释放 native port。
-- `SkyPort/lib/providers/serial/serial_port_manager.dart`
-  - 维护连接状态、配置调和、端口扫描、自动重连和收发统计；
-  - 用 `_lifecycleTail` 串行化生命周期操作；
-  - 用 `_operationToken` 丢弃过期的异步打开结果；
-  - 用 `_sessionGeneration` 忽略旧 session 的迟到事件。
-- `SkyPort/lib/models/serial_config.dart`
-  - 当前直接 import `flutter_libserialport`，默认校验位来自该包的整数常量；
-  - UI 实际只提供 `none/odd/even`、5/6/7/8 数据位、1/2 停止位和固定波特率选项。
-- `SkyPort/lib/providers/serial/data_log_provider.dart`
-  - 接收数据按字节流处理，换行只影响日志记录边界；
-  - 不存在“Rust 侧消息包”这一层，后端必须保留任意 chunk 都可能到达的语义。
-- `SkyPort/test/helpers/mock_classes.dart`
-  - 现有测试已经通过纯 Dart `SerialPortServiceInterface` / `SerialPortSessionInterface` 替身隔离 FFI；
-  - 这使得 manager 和大部分 widget 测试无需跟随 native 实现重写。
+### 2.2 迁移前的平台与构建事实
 
-### 2.2 当前平台和构建事实
-
-- `README.md` 声明正式支持 Windows 和 Linux；macOS 工程存在但不属于当前正式支持范围。
-- `pubspec.yaml` 直接依赖 `flutter_libserialport: ^0.6.0`。
-- Flutter 生成的 Linux、Windows、macOS 插件注册文件仍然注册 `flutter_libserialport`。
-- Linux CI 同时构建 x64 和 arm64；Windows/macOS 也有独立工作流。
-- 当前 CI 没有 Rust toolchain、Cargo 缓存或 Rust native library 打包步骤。
+- 迁移前的 README 声明正式支持 Windows 和 Linux；macOS 工程存在但不属于当时的正式支持范围。
+- 迁移前 `pubspec.yaml` 直接依赖 `flutter_libserialport: ^0.6.0`。
+- 当时 Flutter 生成的 Linux、Windows、macOS 插件注册文件仍然注册 `flutter_libserialport`。
+- 当时 Linux CI 构建 x64 和 arm64；Windows/macOS 也有独立工作流。
+- 当时 CI 没有 Rust toolchain、Cargo 缓存或 Rust native library 打包步骤。
 
 ### 2.3 当前 UI/内核解耦度评估
 
@@ -588,7 +573,7 @@ Linux 优先使用 pseudo-terminal 验证端到端打开、配置、收发、拔
 ```bash
 cargo test --locked -p skyport_core
 cargo install flutter_rust_bridge_codegen --version 2.13.0 --locked
-(cd SkyPort && flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml)
+(cd app && flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml)
 tool/test_quiet.sh
 python3 scripts/pty_ui_smoke.py                 # Linux，需要可用显示
 python3 scripts/package_smoke.py <bundle或发行包> # 真实加载已打包 bridge

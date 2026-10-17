@@ -17,7 +17,7 @@ Use paths relative to the repository root; do not assume a particular user's hom
 ├── scripts/
 │   ├── check_coverage.sh
 │   └── check_coverage.ps1
-└── SkyPort/
+└── app/
     ├── lib/
     ├── test/
     ├── integration_test/
@@ -30,8 +30,8 @@ Use paths relative to the repository root; do not assume a particular user's hom
 ```
 
 - Run repository helper scripts from the repository root.
-- Run Flutter, Dart, and package commands from `SkyPort/`, unless a command below says otherwise.
-- `SkyPort/pubspec.yaml` is the source of truth for SDK and dependency requirements.
+- Run Flutter, Dart, and package commands from `app/`, unless a command below says otherwise.
+- `app/pubspec.yaml` is the source of truth for SDK and dependency requirements.
 
 ## Environment Setup
 
@@ -42,7 +42,7 @@ export FLUTTER_ROOT=/path/to/flutter
 export PATH="$FLUTTER_ROOT/bin:$PATH"
 ```
 
-`tool/test_quiet.sh` also accepts `DART_BIN=/path/to/dart`.
+`tool/test_quiet.sh` accepts `FLUTTER_BIN=/path/to/flutter` and `DART_BIN=/path/to/dart` overrides; otherwise it uses the binaries on `PATH`.
 
 ## Common Commands
 
@@ -62,7 +62,7 @@ tool/test_quiet.sh --coverage
 scripts/check_coverage.sh
 ```
 
-From `SkyPort/`:
+From `app/`:
 
 ```bash
 # Development
@@ -109,9 +109,9 @@ The current supported desktop targets are Windows and Linux. The macOS project f
 - Dart SDK: `>=3.10.0 <4.0.0`
 - State management: Riverpod (`flutter_riverpod`)
 - Serial I/O: independent `skyport_core` (`serialport`) with a separate `flutter_rust_bridge` adapter
-- Dependency versions: `SkyPort/pubspec.yaml` and the Cargo workspace manifests/lockfile
-- Localization source: `SkyPort/lib/l10n/*.arb`
-- Generated localization output: `SkyPort/lib/l10n/app_localizations*.dart`
+- Dependency versions: `app/pubspec.yaml` and the Cargo workspace manifests/lockfile
+- Localization source: `app/lib/l10n/*.arb`
+- Generated localization output: `app/lib/l10n/app_localizations*.dart`
 - Testing: `flutter_test`, `mocktail`, `integration_test`, `fake_async`
 
 ## Development Constraints
