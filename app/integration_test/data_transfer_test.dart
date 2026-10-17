@@ -7,14 +7,17 @@ import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skyport/host_core.dart';
 import 'package:skyport/main.dart';
+import 'package:skyport/l10n/app_localizations.dart';
 import 'package:skyport/models/log_model.dart';
 import 'package:skyport/models/ui_state.dart';
 import 'package:skyport/providers/common_providers.dart';
 import 'package:skyport/providers/ui_controller.dart';
 import 'package:skyport/src/rust/api.dart' as rust;
+import 'package:skyport/widgets/connection_rail.dart';
 import 'package:skyport/widgets/right_panel/send_input_widget.dart';
 import 'package:skyport/widgets/left_panel/send_settings_widget.dart';
-import 'package:skyport/widgets/left_panel/port_selection_widget.dart';
+import 'package:skyport/widgets/left_panel/serial_params_widget.dart';
+import 'package:skyport/widgets/status_bar.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -35,8 +38,9 @@ void main() {
     final bootstrap = await tester.runAsync(
       () => createCoreFromHost(prefs, dataDirectory: directory.path),
     );
-    final handle = bootstrap!.handle;
+    var handle = bootstrap!.handle;
     ProviderContainer? container;
+    addTearDown(tester.binding.platformDispatcher.clearLocalesTestValue);
     try {
       container = ProviderContainer(
         overrides: [
@@ -50,12 +54,12 @@ void main() {
           child: const SerialDebuggerApp(),
         ),
       );
-      await tester.tap(
-        find.descendant(
-          of: find.byType(PortSelectionWidget),
-          matching: find.byType(FilledButton),
-        ),
+      final l10n = AppLocalizations.of(tester.element(find.byType(HomePage)));
+      final power = find.descendant(
+        of: find.byType(StatusBar),
+        matching: find.byType(IconButton),
       );
+      await tester.tap(power);
       await _until(
         tester,
         () =>
@@ -123,6 +127,45 @@ void main() {
       state = container.read(uiControllerProvider);
       expect(state.rxBytes, 5);
       expect(state.sendHistory.last, '00 ff A5 0a');
+      await tester.tap(
+        find.descendant(
+          of: find.byType(ConnectionRail),
+          matching: find.text(l10n.serialPageLabel),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Exercise every driver mode through the real UI and bridge.
+      final flowMenu = find.descendant(
+        of: find.byType(SerialParamsWidget),
+        matching: find.byType(DropdownMenu<UiFlowControl>),
+      );
+      for (final (uiMode, coreMode) in [
+        (UiFlowControl.hardware, rust.FlowControl.hardware),
+        (UiFlowControl.software, rust.FlowControl.software),
+        (UiFlowControl.none, rust.FlowControl.none),
+      ]) {
+        await tester.ensureVisible(flowMenu);
+        await tester.tap(flowMenu);
+        await tester.pumpAndSettle();
+        final label = switch (uiMode) {
+          UiFlowControl.none => l10n.flowControlNone,
+          UiFlowControl.hardware => l10n.flowControlHardware,
+          UiFlowControl.software => l10n.flowControlSoftware,
+        };
+        await tester.tap(find.text(label).last);
+        await _until(
+          tester,
+          () =>
+              container!.read(uiControllerProvider).flowControl == uiMode &&
+              container.read(uiControllerProvider).connection ==
+                  UiConnection.connected,
+        );
+        final applied = await tester.runAsync(
+          () => rust.snapshot(handle: handle),
+        );
+        expect(applied!.snapshot!.config.serial.flowControl, coreMode);
+      }
 
       final hexSwitch = find
           .descendant(
@@ -130,6 +173,7 @@ void main() {
             matching: find.byType(Switch),
           )
           .first;
+      await tester.ensureVisible(hexSwitch);
       await tester.tap(hexSwitch);
       await _until(tester, () => container!.read(uiControllerProvider).hexSend);
       await tester.enterText(input, '41 42');
@@ -139,6 +183,7 @@ void main() {
         tester,
         () => container!.read(uiControllerProvider).txBytes == 11,
       );
+      await tester.ensureVisible(hexSwitch);
       await tester.tap(hexSwitch);
       await _until(
         tester,
@@ -218,7 +263,7 @@ void main() {
       });
       expect(container.read(uiControllerProvider).txBytes, 15);
       expect(container.read(uiControllerProvider).rxBytes, 5);
-      await tester.tap(find.byIcon(Icons.delete_outline));
+      await tester.tap(find.byTooltip(l10n.clearReceiveArea));
       await _until(
         tester,
         () =>
@@ -229,6 +274,137 @@ void main() {
       expect(state.rxBytes, 0);
       expect(state.logs.chunks, isEmpty);
       expect(state.dataGap, isFalse);
+
+      // Persist every selection through a real core shutdown/recreation, then
+      // render and connect from the restored configuration in both locales.
+      tester.view.physicalSize = const Size(574, 1387);
+      addTearDown(tester.view.resetPhysicalSize);
+      for (final language in ['en', 'zh']) {
+        tester.binding.platformDispatcher.localesTestValue = [Locale(language)];
+        await tester.pumpAndSettle();
+        final localizedStrings = AppLocalizations.of(
+          tester.element(find.byType(HomePage)),
+        );
+        expect(
+          tester
+              .widget<EditableText>(
+                find.descendant(
+                  of: find.byType(DropdownMenu<UiFlowControl>),
+                  matching: find.byType(EditableText),
+                ),
+              )
+              .controller
+              .text,
+          localizedStrings.flowControlNone,
+        );
+        expect(
+          tester
+              .widget<EditableText>(
+                find.descendant(
+                  of: find.byType(DropdownMenu<UiParity>),
+                  matching: find.byType(EditableText),
+                ),
+              )
+              .controller
+              .text,
+          localizedStrings.parityNone,
+        );
+        for (final (uiMode, coreMode) in [
+          (UiFlowControl.hardware, rust.FlowControl.hardware),
+          (UiFlowControl.software, rust.FlowControl.software),
+          (UiFlowControl.none, rust.FlowControl.none),
+        ]) {
+          if (find.byType(SerialParamsWidget).evaluate().isEmpty) {
+            final strings = AppLocalizations.of(
+              tester.element(find.byType(HomePage)),
+            );
+            await tester.tap(
+              find.descendant(
+                of: find.byType(ConnectionRail),
+                matching: find.text(strings.serialPageLabel),
+              ),
+            );
+            await tester.pumpAndSettle();
+          }
+          final strings = AppLocalizations.of(
+            tester.element(find.byType(HomePage)),
+          );
+          expect(strings.localeName, language);
+          final restoredMenu = find.byType(DropdownMenu<UiFlowControl>);
+          await tester.ensureVisible(restoredMenu);
+          await tester.tap(restoredMenu);
+          await tester.pumpAndSettle();
+          final selection = switch (uiMode) {
+            UiFlowControl.none => strings.flowControlNone,
+            UiFlowControl.hardware => strings.flowControlHardware,
+            UiFlowControl.software => strings.flowControlSoftware,
+          };
+          await tester.tap(find.text(selection).last);
+          await _until(
+            tester,
+            () => container!.read(uiControllerProvider).flowControl == uiMode,
+          );
+          expect(container!.read(uiControllerProvider).error, isNull);
+          await tester.pumpWidget(const SizedBox.shrink());
+          container.dispose();
+          container = null;
+          expect(
+            (await tester.runAsync(
+              () => rust.closeCore(handle: handle),
+            ))!.error,
+            isNull,
+          );
+          final reopened = (await tester.runAsync(
+            () => rust.createCore(dataDirectory: directory.path),
+          ))!;
+          expect(reopened.error, isNull);
+          handle = reopened.handle!;
+          final subscription = (await tester.runAsync(
+            () => rust.subscribe(handle: handle),
+          ))!;
+          expect(subscription.error, isNull);
+          expect(subscription.snapshot!.config.serial.flowControl, coreMode);
+          container = ProviderContainer(
+            overrides: [
+              sharedPreferencesProvider.overrideWithValue(prefs),
+              coreBootstrapProvider.overrideWithValue(
+                CoreBootstrap(
+                  handle,
+                  subscription.snapshot!,
+                  subscription.subscription!,
+                ),
+              ),
+            ],
+          );
+          await tester.pumpWidget(
+            UncontrolledProviderScope(
+              container: container,
+              child: const SerialDebuggerApp(),
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(container.read(uiControllerProvider).flowControl, uiMode);
+          expect(
+            tester
+                .widget<DropdownMenu<UiFlowControl>>(restoredMenu)
+                .initialSelection,
+            uiMode,
+          );
+          await tester.runAsync(
+            () => container!.read(uiControllerProvider.notifier).connect(),
+          );
+          await _until(
+            tester,
+            () =>
+                container!.read(uiControllerProvider).connection ==
+                UiConnection.connected,
+          );
+          final restored = (await tester.runAsync(
+            () => rust.snapshot(handle: handle),
+          ))!;
+          expect(restored.snapshot!.appliedConfig!.flowControl, coreMode);
+        }
+      }
     } finally {
       await tester.pumpWidget(const SizedBox.shrink());
       container?.dispose();

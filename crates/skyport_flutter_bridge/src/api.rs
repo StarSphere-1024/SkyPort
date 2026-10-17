@@ -18,6 +18,12 @@ pub enum Newline {
     Cr,
     CrLf,
 }
+#[derive(Clone, Copy, Debug)]
+pub enum FlowControl {
+    None,
+    Hardware,
+    Software,
+}
 #[derive(Clone, Debug)]
 pub struct SerialConfig {
     pub port_name: String,
@@ -26,6 +32,7 @@ pub struct SerialConfig {
     pub parity: Parity,
     pub stop_bits: u8,
     pub auto_reconnect: bool,
+    pub flow_control: FlowControl,
 }
 #[derive(Clone, Debug)]
 pub struct SendSettings {
@@ -86,6 +93,7 @@ pub struct ConfigPatch {
     pub parity: Option<Parity>,
     pub stop_bits: Option<u8>,
     pub auto_reconnect: Option<bool>,
+    pub flow_control: Option<FlowControl>,
     pub hex_send: Option<bool>,
     pub newline: Option<Newline>,
     pub append_newline: Option<bool>,
@@ -103,6 +111,7 @@ impl From<ConfigPatch> for core::ConfigPatch {
             parity: value.parity.map(Into::into),
             stop_bits: value.stop_bits,
             auto_reconnect: value.auto_reconnect,
+            flow_control: value.flow_control.map(Into::into),
             hex_send: value.hex_send,
             newline: value.newline.map(Into::into),
             append_newline: value.append_newline,
@@ -129,9 +138,39 @@ pub enum ErrorKind {
     TaskFailed,
     Internal,
 }
+#[derive(Clone, Copy, Debug)]
+pub enum ErrorCode {
+    InvalidHexCharacter,
+    IncompleteHexByte,
+    PortNameRequired,
+    PortNameTooLong,
+    PortNameInvalid,
+    BaudRateInvalid,
+    DataBitsInvalid,
+    StopBitsInvalid,
+    LegacyConfigInvalid,
+    ConfigVersionUnsupported,
+    NewlineInvalid,
+    AutoSendIntervalInvalid,
+    LogCapacityInvalid,
+    HistoryTooLong,
+    HistoryEntryEmpty,
+    HistoryTooLarge,
+    ConfigTooLarge,
+    ConfigInvalid,
+    ConfigIo,
+    SendTooLarge,
+    SendInputTooLarge,
+    AutoSendTooLarge,
+    SendEmpty,
+    NoLogsToExport,
+    ExportFailed,
+    QueueCapacityInvalid,
+}
 #[derive(Clone, Debug)]
 pub struct CoreError {
     pub kind: ErrorKind,
+    pub code: Option<ErrorCode>,
     pub message: String,
     pub bytes_written: u64,
 }
@@ -274,8 +313,41 @@ impl From<core::CoreError> for CoreError {
     fn from(error: core::CoreError) -> Self {
         Self {
             kind: error.kind.into(),
+            code: error.code.map(Into::into),
             message: error.message,
             bytes_written: error.bytes_written,
+        }
+    }
+}
+impl From<core::ErrorCode> for ErrorCode {
+    fn from(code: core::ErrorCode) -> Self {
+        match code {
+            core::ErrorCode::InvalidHexCharacter => Self::InvalidHexCharacter,
+            core::ErrorCode::IncompleteHexByte => Self::IncompleteHexByte,
+            core::ErrorCode::PortNameRequired => Self::PortNameRequired,
+            core::ErrorCode::PortNameTooLong => Self::PortNameTooLong,
+            core::ErrorCode::PortNameInvalid => Self::PortNameInvalid,
+            core::ErrorCode::BaudRateInvalid => Self::BaudRateInvalid,
+            core::ErrorCode::DataBitsInvalid => Self::DataBitsInvalid,
+            core::ErrorCode::StopBitsInvalid => Self::StopBitsInvalid,
+            core::ErrorCode::LegacyConfigInvalid => Self::LegacyConfigInvalid,
+            core::ErrorCode::ConfigVersionUnsupported => Self::ConfigVersionUnsupported,
+            core::ErrorCode::NewlineInvalid => Self::NewlineInvalid,
+            core::ErrorCode::AutoSendIntervalInvalid => Self::AutoSendIntervalInvalid,
+            core::ErrorCode::LogCapacityInvalid => Self::LogCapacityInvalid,
+            core::ErrorCode::HistoryTooLong => Self::HistoryTooLong,
+            core::ErrorCode::HistoryEntryEmpty => Self::HistoryEntryEmpty,
+            core::ErrorCode::HistoryTooLarge => Self::HistoryTooLarge,
+            core::ErrorCode::ConfigTooLarge => Self::ConfigTooLarge,
+            core::ErrorCode::ConfigInvalid => Self::ConfigInvalid,
+            core::ErrorCode::ConfigIo => Self::ConfigIo,
+            core::ErrorCode::SendTooLarge => Self::SendTooLarge,
+            core::ErrorCode::SendInputTooLarge => Self::SendInputTooLarge,
+            core::ErrorCode::AutoSendTooLarge => Self::AutoSendTooLarge,
+            core::ErrorCode::SendEmpty => Self::SendEmpty,
+            core::ErrorCode::NoLogsToExport => Self::NoLogsToExport,
+            core::ErrorCode::ExportFailed => Self::ExportFailed,
+            core::ErrorCode::QueueCapacityInvalid => Self::QueueCapacityInvalid,
         }
     }
 }
@@ -316,6 +388,24 @@ impl From<core::Parity> for Parity {
         }
     }
 }
+impl From<FlowControl> for core::FlowControl {
+    fn from(value: FlowControl) -> Self {
+        match value {
+            FlowControl::None => Self::None,
+            FlowControl::Hardware => Self::Hardware,
+            FlowControl::Software => Self::Software,
+        }
+    }
+}
+impl From<core::FlowControl> for FlowControl {
+    fn from(value: core::FlowControl) -> Self {
+        match value {
+            core::FlowControl::None => Self::None,
+            core::FlowControl::Hardware => Self::Hardware,
+            core::FlowControl::Software => Self::Software,
+        }
+    }
+}
 impl From<Newline> for core::Newline {
     fn from(value: Newline) -> Self {
         match value {
@@ -345,6 +435,7 @@ impl From<SerialConfig> for core::SerialConfig {
             parity: value.parity.into(),
             stop_bits: value.stop_bits,
             auto_reconnect: value.auto_reconnect,
+            flow_control: value.flow_control.into(),
         }
     }
 }
@@ -357,6 +448,7 @@ impl From<core::SerialConfig> for SerialConfig {
             parity: value.parity.into(),
             stop_bits: value.stop_bits,
             auto_reconnect: value.auto_reconnect,
+            flow_control: value.flow_control.into(),
         }
     }
 }
@@ -734,21 +826,6 @@ pub fn export_log(handle: &CoreHandle, path: String, options: ExportOptions) -> 
                 timestamps: options.timestamps,
                 strip_ansi: options.strip_ansi,
             },
-        },
-    )
-}
-pub fn import_file(
-    handle: &CoreHandle,
-    path: String,
-    hex: bool,
-    newline: Newline,
-) -> DispatchReply {
-    dispatch(
-        handle,
-        core::Command::ImportFile {
-            path,
-            hex,
-            newline: newline.into(),
         },
     )
 }

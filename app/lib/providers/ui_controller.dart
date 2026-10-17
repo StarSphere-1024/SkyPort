@@ -203,6 +203,7 @@ class UiController extends Notifier<UiState> {
     int? dataBits,
     UiParity? parity,
     int? stopBits,
+    UiFlowControl? flowControl,
     bool? autoReconnect,
   }) async {
     await _dispatch(
@@ -219,7 +220,12 @@ class UiController extends Notifier<UiState> {
             null => null,
           },
           stopBits: stopBits,
-          autoReconnect: autoReconnect,
+          flowControl: switch (flowControl) {
+            UiFlowControl.none => rust.FlowControl.none,
+            UiFlowControl.hardware => rust.FlowControl.hardware,
+            UiFlowControl.software => rust.FlowControl.software,
+            null => null,
+          },
         ),
       ),
     );
@@ -231,6 +237,7 @@ class UiController extends Notifier<UiState> {
   void setParity(UiParity value) => _setConfig(parity: value);
   void setStopBits(int value) => _setConfig(stopBits: value);
   void setAutoReconnect(bool value) => _setConfig(autoReconnect: value);
+  void setFlowControl(UiFlowControl value) => _setConfig(flowControl: value);
 
   Future<void> connect() async {
     await _dispatch(rust.connect(handle: _handle));
@@ -299,17 +306,6 @@ class UiController extends Notifier<UiState> {
       rust.updateConfig(
         handle: _handle,
         patch: rust.ConfigPatch(logCapacityBytes: megabytes * 1024 * 1024),
-      ),
-    );
-  }
-
-  Future<void> importFile(String path) async {
-    await _dispatch(
-      rust.importFile(
-        handle: _handle,
-        path: path,
-        hex: state.hexSend,
-        newline: rust.Newline.none,
       ),
     );
   }

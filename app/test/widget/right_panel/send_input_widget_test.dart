@@ -43,6 +43,7 @@ UiState sendState({
   baudRate: 9600,
   dataBits: 8,
   parity: UiParity.none,
+  flowControl: UiFlowControl.none,
   stopBits: 1,
   autoReconnect: true,
   hexSend: hex,

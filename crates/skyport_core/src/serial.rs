@@ -1,6 +1,9 @@
 #[cfg(target_os = "linux")]
 const DEVPTS_SUPER_MAGIC: libc::c_long = 0x1cd1;
-use crate::{CoreError, ErrorKind, Newline, Parity, SerialConfig};
+use crate::{
+    CoreError, ErrorCode, ErrorKind, FlowControl as ConfigFlowControl, Newline, Parity,
+    SerialConfig,
+};
 use serialport::{DataBits, Parity as PortParity, StopBits};
 use std::time::Duration;
 
@@ -29,7 +32,8 @@ pub(crate) fn open(config: &SerialConfig) -> Result<Box<dyn serialport::SerialPo
             return Err(CoreError::new(
                 ErrorKind::UnsupportedConfiguration,
                 "unsupported data bits",
-            ))
+            )
+            .with_code(ErrorCode::DataBitsInvalid))
         }
     };
     let parity = match config.parity {
@@ -44,14 +48,20 @@ pub(crate) fn open(config: &SerialConfig) -> Result<Box<dyn serialport::SerialPo
             return Err(CoreError::new(
                 ErrorKind::UnsupportedConfiguration,
                 "unsupported stop bits",
-            ))
+            )
+            .with_code(ErrorCode::StopBitsInvalid))
         }
+    };
+    let flow_control = match config.flow_control {
+        ConfigFlowControl::None => serialport::FlowControl::None,
+        ConfigFlowControl::Hardware => serialport::FlowControl::Hardware,
+        ConfigFlowControl::Software => serialport::FlowControl::Software,
     };
     let builder = serialport::new(&config.port_name, config.baud_rate)
         .data_bits(data_bits)
         .parity(parity)
         .stop_bits(stop_bits)
-        .flow_control(serialport::FlowControl::None)
+        .flow_control(flow_control)
         .timeout(READ_POLL_TIMEOUT);
     #[cfg(unix)]
     {
@@ -85,6 +95,10 @@ pub(crate) fn open(config: &SerialConfig) -> Result<Box<dyn serialport::SerialPo
         }
         let mut termios = unsafe { termios.assume_init() };
         termios.c_cflag &= !libc::HUPCL;
+        if config.flow_control == ConfigFlowControl::Software {
+            termios.c_cc[libc::VSTART] = 0x11;
+            termios.c_cc[libc::VSTOP] = 0x13;
+        }
         if unsafe { libc::tcsetattr(fd, libc::TCSANOW, &termios) } < 0 {
             return Err(CoreError::new(
                 ErrorKind::OpenFailed,
@@ -96,8 +110,13 @@ pub(crate) fn open(config: &SerialConfig) -> Result<Box<dyn serialport::SerialPo
         #[cfg(not(target_os = "linux"))]
         let devpts = false;
         if !devpts {
-            // Separate DTR/RTS writes pass through the ESP USB/UART reset state.
-            let lines: libc::c_int = libc::TIOCM_DTR | libc::TIOCM_RTS;
+            // Preserve driver-owned RTS when hardware flow control is enabled.
+            let lines: libc::c_int = libc::TIOCM_DTR
+                | if config.flow_control == ConfigFlowControl::Hardware {
+                    0
+                } else {
+                    libc::TIOCM_RTS
+                };
             if unsafe { libc::ioctl(fd, libc::TIOCMBIC, &lines) } < 0 {
                 return Err(CoreError::new(
                     ErrorKind::OpenFailed,
@@ -112,7 +131,11 @@ pub(crate) fn open(config: &SerialConfig) -> Result<Box<dyn serialport::SerialPo
         let mut port = builder
             .open_native()
             .map_err(|error| port_error(error, "open", &config.port_name, ErrorKind::OpenFailed))?;
-        disable_modem_lines(&mut port, &config.port_name)?;
+        disable_modem_lines(
+            &mut port,
+            &config.port_name,
+            config.flow_control == ConfigFlowControl::Hardware,
+        )?;
         Ok(Box::new(port))
     }
 }
@@ -152,11 +175,17 @@ pub(crate) fn set_read_timeout(
 }
 
 #[cfg(windows)]
-fn disable_modem_lines(port: &mut dyn serialport::SerialPort, name: &str) -> Result<(), CoreError> {
+fn disable_modem_lines(
+    port: &mut dyn serialport::SerialPort,
+    name: &str,
+    hardware_flow_control: bool,
+) -> Result<(), CoreError> {
     port.write_data_terminal_ready(false)
         .map_err(|error| port_error(error, "clear DTR on", name, ErrorKind::OpenFailed))?;
-    port.write_request_to_send(false)
-        .map_err(|error| port_error(error, "clear RTS on", name, ErrorKind::OpenFailed))?;
+    if !hardware_flow_control {
+        port.write_request_to_send(false)
+            .map_err(|error| port_error(error, "clear RTS on", name, ErrorKind::OpenFailed))?;
+    }
     Ok(())
 }
 
@@ -188,19 +217,22 @@ pub(crate) fn validate_hex(input: &str) -> Result<(), CoreError> {
             return Err(CoreError::new(
                 ErrorKind::InvalidArgument,
                 "hex input contains a non-hexadecimal character",
-            ));
+            )
+            .with_code(ErrorCode::InvalidHexCharacter));
         }
         let lo = digits.next().ok_or_else(|| {
             CoreError::new(
                 ErrorKind::InvalidArgument,
                 "hex input must contain complete byte pairs",
             )
+            .with_code(ErrorCode::IncompleteHexByte)
         })?;
         if hex_digit(lo).is_none() {
             return Err(CoreError::new(
                 ErrorKind::InvalidArgument,
                 "hex input contains a non-hexadecimal character",
-            ));
+            )
+            .with_code(ErrorCode::InvalidHexCharacter));
         }
     }
     Ok(())
@@ -214,18 +246,21 @@ pub(crate) fn decode_hex(input: &str) -> Result<Vec<u8>, CoreError> {
                 ErrorKind::InvalidArgument,
                 "hex input contains a non-hexadecimal character",
             )
+            .with_code(ErrorCode::InvalidHexCharacter)
         })?;
         let lo = digits.next().ok_or_else(|| {
             CoreError::new(
                 ErrorKind::InvalidArgument,
                 "hex input must contain complete byte pairs",
             )
+            .with_code(ErrorCode::IncompleteHexByte)
         })?;
         let lo = hex_digit(lo).ok_or_else(|| {
             CoreError::new(
                 ErrorKind::InvalidArgument,
                 "hex input contains a non-hexadecimal character",
             )
+            .with_code(ErrorCode::InvalidHexCharacter)
         })?;
         bytes.push((hi << 4) | lo);
     }

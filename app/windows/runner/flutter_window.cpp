@@ -93,8 +93,8 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     case WM_GETMINMAXINFO: {
       auto info = reinterpret_cast<MINMAXINFO*>(lparam);
       const UINT dpi = GetDpiForWindow(hwnd);
-      info->ptMinTrackSize.x = MulDiv(800, dpi, 96);
-      info->ptMinTrackSize.y = MulDiv(600, dpi, 96);
+      info->ptMinTrackSize.x = MulDiv(320, dpi, 96);
+      info->ptMinTrackSize.y = MulDiv(480, dpi, 96);
       return 0;
     }
 

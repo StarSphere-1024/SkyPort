@@ -7,6 +7,8 @@ import '../../providers/ui_controller.dart';
 import '../../models/log_model.dart';
 import '../../utils/constants.dart';
 import '../../l10n/app_localizations.dart';
+import '../../services/log_export_service.dart';
+import '../../src/rust/api.dart' as rust;
 
 class LogIndexMapper {
   final List<LogChunk> chunks;
@@ -137,11 +139,41 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
     });
   }
 
+  Future<void> _exportLogs() async {
+    final settings = ref.read(uiSettingsProvider);
+    final state = ref.read(uiControllerProvider);
+    await LogExportService.exportLogs(
+      context: context,
+      defaultPath: settings.logExportPath,
+      portName: state.portName,
+      export: (path) => ref
+          .read(uiControllerProvider.notifier)
+          .exportLog(
+            path,
+            rust.ExportOptions(
+              showSent: settings.showSent,
+              hex: settings.hexDisplay,
+              timestamps: settings.showTimestamp,
+              stripAnsi: settings.enableAnsi,
+            ),
+          ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final settings = ref.watch(uiSettingsProvider);
+    final hasVisibleLogs = ref.watch(
+      uiControllerProvider.select(
+        (state) => state.logs.chunks.any(
+          (chunk) => settings.showSent
+              ? chunk.entries.isNotEmpty
+              : chunk.rxEntries.isNotEmpty,
+        ),
+      ),
+    );
 
     ref.listen(uiControllerProvider.select((state) => state.logs), (
       previous,
@@ -288,7 +320,7 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                   Positioned(
                     top: 8,
                     left: 8,
-                    right: 8,
+                    right: hasVisibleLogs ? 76 : 8,
                     child: Consumer(
                       builder: (context, ref, _) {
                         final state = ref.watch(
@@ -327,6 +359,79 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                       },
                     ),
                   ),
+                  if (hasVisibleLogs)
+                    Positioned(
+                      top: 4,
+                      right: 0,
+                      child: IconButtonTheme(
+                        data: IconButtonThemeData(
+                          style: ButtonStyle(
+                            minimumSize: const WidgetStatePropertyAll(
+                              Size.square(32),
+                            ),
+                            padding: const WidgetStatePropertyAll(
+                              EdgeInsets.all(7),
+                            ),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            foregroundColor: WidgetStateProperty.resolveWith(
+                              (states) => colorScheme.onSurface.withValues(
+                                alpha:
+                                    states.contains(WidgetState.hovered) ||
+                                        states.contains(WidgetState.focused) ||
+                                        states.contains(WidgetState.pressed)
+                                    ? 1
+                                    : 0.4,
+                              ),
+                            ),
+                            backgroundColor: WidgetStateProperty.resolveWith(
+                              (states) =>
+                                  states.contains(WidgetState.hovered) ||
+                                      states.contains(WidgetState.focused) ||
+                                      states.contains(WidgetState.pressed)
+                                  ? colorScheme.onSurface.withValues(
+                                      alpha: 0.08,
+                                    )
+                                  : Colors.transparent,
+                            ),
+                            shape: WidgetStatePropertyAll(
+                              RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: AppLocalizations.of(context).exportLogs,
+                              icon: const Icon(
+                                Icons.file_download_outlined,
+                                size: 18,
+                              ),
+                              onPressed: _exportLogs,
+                            ),
+                            const SizedBox(width: 4),
+                            IconButton(
+                              tooltip: AppLocalizations.of(
+                                context,
+                              ).clearReceiveArea,
+                              icon: Builder(
+                                builder: (context) => CustomPaint(
+                                  size: const Size.square(18),
+                                  painter: _BroomPainter(
+                                    IconTheme.of(context).color!,
+                                  ),
+                                ),
+                              ),
+                              onPressed: () => ref
+                                  .read(uiControllerProvider.notifier)
+                                  .clearLog(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   if (!_stickToBottom)
                     Positioned(
                       right: 16,
@@ -344,4 +449,38 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
       ),
     );
   }
+}
+
+class _BroomPainter extends CustomPainter {
+  const _BroomPainter(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.scale(size.width / 24, size.height / 24);
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.7
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawLine(const Offset(20, 3), const Offset(11, 12), paint);
+    canvas.drawPath(
+      Path()
+        ..moveTo(9, 10)
+        ..lineTo(14, 15)
+        ..lineTo(10, 22)
+        ..quadraticBezierTo(5, 21, 2, 16)
+        ..close(),
+      paint,
+    );
+    canvas.drawLine(const Offset(8, 15), const Offset(5, 19), paint);
+    canvas.drawLine(const Offset(11, 17), const Offset(8, 21), paint);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_BroomPainter oldDelegate) => oldDelegate.color != color;
 }

@@ -40,7 +40,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1795546135;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -374635432;
 
 // Section: executor
 
@@ -428,65 +428,6 @@ fn wire__crate__api__export_log_impl(
                         &*api_handle_guard,
                         api_path,
                         api_options,
-                    ))?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__import_file_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "import_file",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_handle = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<CoreHandle>,
-            >>::sse_decode(&mut deserializer);
-            let api_path = <String>::sse_decode(&mut deserializer);
-            let api_hex = <bool>::sse_decode(&mut deserializer);
-            let api_newline = <crate::api::Newline>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, ()>((move || {
-                    let mut api_handle_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_handle,
-                                0,
-                                false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_handle_guard = Some(api_handle.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_handle_guard = api_handle_guard.unwrap();
-                    let output_ok = Ok::<_, ()>(crate::api::import_file(
-                        &*api_handle_guard,
-                        api_path,
-                        api_hex,
-                        api_newline,
                     ))?;
                     std::result::Result::Ok(output_ok)
                 })())
@@ -1256,6 +1197,7 @@ impl SseDecode for crate::api::ConfigPatch {
         let mut var_parity = <Option<crate::api::Parity>>::sse_decode(deserializer);
         let mut var_stopBits = <Option<u8>>::sse_decode(deserializer);
         let mut var_autoReconnect = <Option<bool>>::sse_decode(deserializer);
+        let mut var_flowControl = <Option<crate::api::FlowControl>>::sse_decode(deserializer);
         let mut var_hexSend = <Option<bool>>::sse_decode(deserializer);
         let mut var_newline = <Option<crate::api::Newline>>::sse_decode(deserializer);
         let mut var_appendNewline = <Option<bool>>::sse_decode(deserializer);
@@ -1270,6 +1212,7 @@ impl SseDecode for crate::api::ConfigPatch {
             parity: var_parity,
             stop_bits: var_stopBits,
             auto_reconnect: var_autoReconnect,
+            flow_control: var_flowControl,
             hex_send: var_hexSend,
             newline: var_newline,
             append_newline: var_appendNewline,
@@ -1303,10 +1246,12 @@ impl SseDecode for crate::api::CoreError {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_kind = <crate::api::ErrorKind>::sse_decode(deserializer);
+        let mut var_code = <Option<crate::api::ErrorCode>>::sse_decode(deserializer);
         let mut var_message = <String>::sse_decode(deserializer);
         let mut var_bytesWritten = <u64>::sse_decode(deserializer);
         return crate::api::CoreError {
             kind: var_kind,
+            code: var_code,
             message: var_message,
             bytes_written: var_bytesWritten,
         };
@@ -1345,6 +1290,42 @@ impl SseDecode for crate::api::DispatchReply {
         return crate::api::DispatchReply {
             request_id: var_requestId,
             error: var_error,
+        };
+    }
+}
+
+impl SseDecode for crate::api::ErrorCode {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::ErrorCode::InvalidHexCharacter,
+            1 => crate::api::ErrorCode::IncompleteHexByte,
+            2 => crate::api::ErrorCode::PortNameRequired,
+            3 => crate::api::ErrorCode::PortNameTooLong,
+            4 => crate::api::ErrorCode::PortNameInvalid,
+            5 => crate::api::ErrorCode::BaudRateInvalid,
+            6 => crate::api::ErrorCode::DataBitsInvalid,
+            7 => crate::api::ErrorCode::StopBitsInvalid,
+            8 => crate::api::ErrorCode::LegacyConfigInvalid,
+            9 => crate::api::ErrorCode::ConfigVersionUnsupported,
+            10 => crate::api::ErrorCode::NewlineInvalid,
+            11 => crate::api::ErrorCode::AutoSendIntervalInvalid,
+            12 => crate::api::ErrorCode::LogCapacityInvalid,
+            13 => crate::api::ErrorCode::HistoryTooLong,
+            14 => crate::api::ErrorCode::HistoryEntryEmpty,
+            15 => crate::api::ErrorCode::HistoryTooLarge,
+            16 => crate::api::ErrorCode::ConfigTooLarge,
+            17 => crate::api::ErrorCode::ConfigInvalid,
+            18 => crate::api::ErrorCode::ConfigIo,
+            19 => crate::api::ErrorCode::SendTooLarge,
+            20 => crate::api::ErrorCode::SendInputTooLarge,
+            21 => crate::api::ErrorCode::AutoSendTooLarge,
+            22 => crate::api::ErrorCode::SendEmpty,
+            23 => crate::api::ErrorCode::NoLogsToExport,
+            24 => crate::api::ErrorCode::ExportFailed,
+            25 => crate::api::ErrorCode::QueueCapacityInvalid,
+            _ => unreachable!("Invalid variant for ErrorCode: {}", inner),
         };
     }
 }
@@ -1448,6 +1429,19 @@ impl SseDecode for crate::api::ExportOptions {
             hex: var_hex,
             timestamps: var_timestamps,
             strip_ansi: var_stripAnsi,
+        };
+    }
+}
+
+impl SseDecode for crate::api::FlowControl {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::FlowControl::None,
+            1 => crate::api::FlowControl::Hardware,
+            2 => crate::api::FlowControl::Software,
+            _ => unreachable!("Invalid variant for FlowControl: {}", inner),
         };
     }
 }
@@ -1731,6 +1725,28 @@ impl SseDecode for Option<crate::api::CoreError> {
     }
 }
 
+impl SseDecode for Option<crate::api::ErrorCode> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::ErrorCode>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::FlowControl> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::FlowControl>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::api::LegacyConfig> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1870,6 +1886,7 @@ impl SseDecode for crate::api::SerialConfig {
         let mut var_parity = <crate::api::Parity>::sse_decode(deserializer);
         let mut var_stopBits = <u8>::sse_decode(deserializer);
         let mut var_autoReconnect = <bool>::sse_decode(deserializer);
+        let mut var_flowControl = <crate::api::FlowControl>::sse_decode(deserializer);
         return crate::api::SerialConfig {
             port_name: var_portName,
             baud_rate: var_baudRate,
@@ -1877,6 +1894,7 @@ impl SseDecode for crate::api::SerialConfig {
             parity: var_parity,
             stop_bits: var_stopBits,
             auto_reconnect: var_autoReconnect,
+            flow_control: var_flowControl,
         };
     }
 }
@@ -1957,18 +1975,17 @@ fn pde_ffi_dispatcher_primary_impl(
         6 => wire__crate__api__create_core_impl(port, ptr, rust_vec_len, data_len),
         7 => wire__crate__api__disconnect_impl(port, ptr, rust_vec_len, data_len),
         8 => wire__crate__api__export_log_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__import_file_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__list_ports_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__next_events_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__send_hex_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__send_input_impl(port, ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__send_text_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__set_auto_reconnect_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__set_auto_send_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__set_config_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__snapshot_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__subscribe_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__update_config_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__list_ports_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__next_events_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__send_hex_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__send_input_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__send_text_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__set_auto_reconnect_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__set_auto_send_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__set_config_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__snapshot_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__subscribe_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__update_config_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -2114,6 +2131,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::ConfigPatch {
             self.parity.into_into_dart().into_dart(),
             self.stop_bits.into_into_dart().into_dart(),
             self.auto_reconnect.into_into_dart().into_dart(),
+            self.flow_control.into_into_dart().into_dart(),
             self.hex_send.into_into_dart().into_dart(),
             self.newline.into_into_dart().into_dart(),
             self.append_newline.into_into_dart().into_dart(),
@@ -2160,6 +2178,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::CoreError {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.kind.into_into_dart().into_dart(),
+            self.code.into_into_dart().into_dart(),
             self.message.into_into_dart().into_dart(),
             self.bytes_written.into_into_dart().into_dart(),
         ]
@@ -2219,6 +2238,46 @@ impl flutter_rust_bridge::IntoDart for crate::api::DispatchReply {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::DispatchReply {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::DispatchReply> for crate::api::DispatchReply {
     fn into_into_dart(self) -> crate::api::DispatchReply {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::ErrorCode {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::InvalidHexCharacter => 0.into_dart(),
+            Self::IncompleteHexByte => 1.into_dart(),
+            Self::PortNameRequired => 2.into_dart(),
+            Self::PortNameTooLong => 3.into_dart(),
+            Self::PortNameInvalid => 4.into_dart(),
+            Self::BaudRateInvalid => 5.into_dart(),
+            Self::DataBitsInvalid => 6.into_dart(),
+            Self::StopBitsInvalid => 7.into_dart(),
+            Self::LegacyConfigInvalid => 8.into_dart(),
+            Self::ConfigVersionUnsupported => 9.into_dart(),
+            Self::NewlineInvalid => 10.into_dart(),
+            Self::AutoSendIntervalInvalid => 11.into_dart(),
+            Self::LogCapacityInvalid => 12.into_dart(),
+            Self::HistoryTooLong => 13.into_dart(),
+            Self::HistoryEntryEmpty => 14.into_dart(),
+            Self::HistoryTooLarge => 15.into_dart(),
+            Self::ConfigTooLarge => 16.into_dart(),
+            Self::ConfigInvalid => 17.into_dart(),
+            Self::ConfigIo => 18.into_dart(),
+            Self::SendTooLarge => 19.into_dart(),
+            Self::SendInputTooLarge => 20.into_dart(),
+            Self::AutoSendTooLarge => 21.into_dart(),
+            Self::SendEmpty => 22.into_dart(),
+            Self::NoLogsToExport => 23.into_dart(),
+            Self::ExportFailed => 24.into_dart(),
+            Self::QueueCapacityInvalid => 25.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::ErrorCode {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::ErrorCode> for crate::api::ErrorCode {
+    fn into_into_dart(self) -> crate::api::ErrorCode {
         self
     }
 }
@@ -2331,6 +2390,23 @@ impl flutter_rust_bridge::IntoDart for crate::api::ExportOptions {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::ExportOptions {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::ExportOptions> for crate::api::ExportOptions {
     fn into_into_dart(self) -> crate::api::ExportOptions {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::FlowControl {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::None => 0.into_dart(),
+            Self::Hardware => 1.into_dart(),
+            Self::Software => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::FlowControl {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::FlowControl> for crate::api::FlowControl {
+    fn into_into_dart(self) -> crate::api::FlowControl {
         self
     }
 }
@@ -2484,6 +2560,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::SerialConfig {
             self.parity.into_into_dart().into_dart(),
             self.stop_bits.into_into_dart().into_dart(),
             self.auto_reconnect.into_into_dart().into_dart(),
+            self.flow_control.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -2642,6 +2719,7 @@ impl SseEncode for crate::api::ConfigPatch {
         <Option<crate::api::Parity>>::sse_encode(self.parity, serializer);
         <Option<u8>>::sse_encode(self.stop_bits, serializer);
         <Option<bool>>::sse_encode(self.auto_reconnect, serializer);
+        <Option<crate::api::FlowControl>>::sse_encode(self.flow_control, serializer);
         <Option<bool>>::sse_encode(self.hex_send, serializer);
         <Option<crate::api::Newline>>::sse_encode(self.newline, serializer);
         <Option<bool>>::sse_encode(self.append_newline, serializer);
@@ -2678,6 +2756,7 @@ impl SseEncode for crate::api::CoreError {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <crate::api::ErrorKind>::sse_encode(self.kind, serializer);
+        <Option<crate::api::ErrorCode>>::sse_encode(self.code, serializer);
         <String>::sse_encode(self.message, serializer);
         <u64>::sse_encode(self.bytes_written, serializer);
     }
@@ -2712,6 +2791,46 @@ impl SseEncode for crate::api::DispatchReply {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <Option<u64>>::sse_encode(self.request_id, serializer);
         <Option<crate::api::CoreError>>::sse_encode(self.error, serializer);
+    }
+}
+
+impl SseEncode for crate::api::ErrorCode {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::ErrorCode::InvalidHexCharacter => 0,
+                crate::api::ErrorCode::IncompleteHexByte => 1,
+                crate::api::ErrorCode::PortNameRequired => 2,
+                crate::api::ErrorCode::PortNameTooLong => 3,
+                crate::api::ErrorCode::PortNameInvalid => 4,
+                crate::api::ErrorCode::BaudRateInvalid => 5,
+                crate::api::ErrorCode::DataBitsInvalid => 6,
+                crate::api::ErrorCode::StopBitsInvalid => 7,
+                crate::api::ErrorCode::LegacyConfigInvalid => 8,
+                crate::api::ErrorCode::ConfigVersionUnsupported => 9,
+                crate::api::ErrorCode::NewlineInvalid => 10,
+                crate::api::ErrorCode::AutoSendIntervalInvalid => 11,
+                crate::api::ErrorCode::LogCapacityInvalid => 12,
+                crate::api::ErrorCode::HistoryTooLong => 13,
+                crate::api::ErrorCode::HistoryEntryEmpty => 14,
+                crate::api::ErrorCode::HistoryTooLarge => 15,
+                crate::api::ErrorCode::ConfigTooLarge => 16,
+                crate::api::ErrorCode::ConfigInvalid => 17,
+                crate::api::ErrorCode::ConfigIo => 18,
+                crate::api::ErrorCode::SendTooLarge => 19,
+                crate::api::ErrorCode::SendInputTooLarge => 20,
+                crate::api::ErrorCode::AutoSendTooLarge => 21,
+                crate::api::ErrorCode::SendEmpty => 22,
+                crate::api::ErrorCode::NoLogsToExport => 23,
+                crate::api::ErrorCode::ExportFailed => 24,
+                crate::api::ErrorCode::QueueCapacityInvalid => 25,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
@@ -2800,6 +2919,23 @@ impl SseEncode for crate::api::ExportOptions {
         <bool>::sse_encode(self.hex, serializer);
         <bool>::sse_encode(self.timestamps, serializer);
         <bool>::sse_encode(self.strip_ansi, serializer);
+    }
+}
+
+impl SseEncode for crate::api::FlowControl {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::FlowControl::None => 0,
+                crate::api::FlowControl::Hardware => 1,
+                crate::api::FlowControl::Software => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
@@ -3029,6 +3165,26 @@ impl SseEncode for Option<crate::api::CoreError> {
     }
 }
 
+impl SseEncode for Option<crate::api::ErrorCode> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::ErrorCode>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::FlowControl> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::FlowControl>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::api::LegacyConfig> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -3156,6 +3312,7 @@ impl SseEncode for crate::api::SerialConfig {
         <crate::api::Parity>::sse_encode(self.parity, serializer);
         <u8>::sse_encode(self.stop_bits, serializer);
         <bool>::sse_encode(self.auto_reconnect, serializer);
+        <crate::api::FlowControl>::sse_encode(self.flow_control, serializer);
     }
 }
 

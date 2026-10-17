@@ -12,6 +12,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appTitle => 'SkyPort';
 
   @override
+  String get serialPageLabel => '串口';
+
+  @override
+  String get settingsPageLabel => '设置';
+
+  @override
+  String get expandConfiguration => '展开配置面板';
+
+  @override
+  String get collapseConfiguration => '收起配置面板';
+
+  @override
+  String get noPortSelected => '未选择端口';
+
+  @override
   String get serialPortSettings => '串口设置';
 
   @override
@@ -21,12 +36,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noPortsFound => '未发现端口';
 
   @override
-  String get loadingPorts => '正在加载端口...';
-
-  @override
-  String get errorLoadingPorts => '加载端口出错';
-
-  @override
   String get open => '打开';
 
   @override
@@ -34,6 +43,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get baudRate => '波特率';
+
+  @override
+  String get flowControl => '流控制';
+
+  @override
+  String get flowControlNone => '无';
+
+  @override
+  String get flowControlHardware => 'RTS/CTS';
+
+  @override
+  String get flowControlSoftware => 'XON/XOFF';
+
+  @override
+  String get flowControlSoftwareWarning =>
+      '启用 XON/XOFF 时，接收到 0x13 会暂停本机发送，接收到 0x11 会恢复本机发送。这些控制字节不适用于透明二进制传输。';
 
   @override
   String get dataBits => '数据位';
@@ -81,9 +106,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get newlineMode => '换行符';
 
   @override
-  String get loadMore => '加载更多';
-
-  @override
   String get enterDataToSend => '输入要发送的数据';
 
   @override
@@ -96,15 +118,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get send => '发送';
 
   @override
-  String get txLabel => '发送';
-
-  @override
   String get rxLabel => '接收';
 
   @override
-  String connectedStatus(String port, int baud) {
-    return '已连接 $port@$baud';
-  }
+  String get connected => '已连接';
 
   @override
   String get connecting => '连接中...';
@@ -131,12 +148,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get trafficStatsTooltip => '累计接收字节数 - 上次包大小 | 累计发送字节数';
-
-  @override
-  String get timeoutLabel => '块间隔';
-
-  @override
-  String get settingsTitle => '设置';
 
   @override
   String get theme => '主题';
@@ -166,15 +177,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autoSend => '自动发送';
 
   @override
-  String get autoSendInterval => '间隔';
-
-  @override
-  String get autoSendIntervalError => '0.01-60';
-
-  @override
-  String get autoSendHint => '自动发送间隔（秒）';
-
-  @override
   String get secondsUnit => '秒';
 
   @override
@@ -190,7 +192,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get logsExportedTo => '日志已导出到：';
 
   @override
-  String get exportFailed => '导出失败：';
+  String exportFailed(String message) {
+    return '导出失败：$message';
+  }
 
   @override
   String writeFailure(int bytes, String message) {
@@ -201,9 +205,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String autoSendPaused(String message) {
     return '自动发送已暂停：$message';
   }
-
-  @override
-  String get importFile => '导入文件';
 
   @override
   String get applyingConfiguration => '正在应用配置...';
@@ -257,4 +258,106 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get logIncomplete => '当前保留的日志存在串口数据或会话缺口。';
+
+  @override
+  String get diagnosticDetails => '诊断详情';
+
+  @override
+  String get errorWriteFailed => '串口写入失败';
+
+  @override
+  String get errorPortNameRequired => '请选择串口。';
+
+  @override
+  String get errorPortNameTooLong => '串口名称不能超过 4096 字节。';
+
+  @override
+  String get errorPortNameInvalid => '串口名称不能包含空字符或换行符。';
+
+  @override
+  String get errorBaudRateInvalid => '波特率必须大于零。';
+
+  @override
+  String get errorDataBitsInvalid => '数据位必须在 5 到 8 之间。';
+
+  @override
+  String get errorStopBitsInvalid => '停止位必须为 1 或 2。';
+
+  @override
+  String get errorLegacyConfigInvalid => '旧版应用的串口设置无效。';
+
+  @override
+  String get errorConfigVersionUnsupported => '不支持此配置文件版本。';
+
+  @override
+  String get errorNewlineInvalid => '保存的换行符必须为 LF、CR 或 CRLF。';
+
+  @override
+  String get errorAutoSendIntervalInvalid => '自动发送间隔必须在 0.01 到 60 秒之间。';
+
+  @override
+  String get errorLogCapacityInvalid => '日志缓冲区大小必须在 16 到 512 MiB 之间。';
+
+  @override
+  String get errorHistoryTooLong => '发送历史不能超过 100 条。';
+
+  @override
+  String get errorHistoryEntryEmpty => '发送历史不能包含空记录。';
+
+  @override
+  String get errorHistoryTooLarge => '发送历史不能超过 1 MiB。';
+
+  @override
+  String get errorConfigTooLarge => '配置文件不能超过 8 MiB。';
+
+  @override
+  String get errorConfigInvalid => '配置文件无效。';
+
+  @override
+  String get errorConfigIo => '无法读取或保存配置文件。';
+
+  @override
+  String get errorSendTooLarge => '单次发送的数据不能超过 1 MiB。';
+
+  @override
+  String get errorSendInputTooLarge => '发送输入不能超过 2 MiB。';
+
+  @override
+  String get errorAutoSendTooLarge => '自动发送的数据不能超过 1 MiB。';
+
+  @override
+  String get errorSendEmpty => '请输入要发送的数据。';
+
+  @override
+  String get errorNoLogsToExport => '没有符合导出选项的日志记录。';
+
+  @override
+  String get errorExportLog => '无法写入日志文件。';
+
+  @override
+  String get errorQueueCapacityInvalid => '队列容量必须在 1 到 4096 之间。';
+
+  @override
+  String get errorBridgeInitialization => '无法加载串口核心组件，请检查应用安装文件是否完整。';
+
+  @override
+  String get errorPreferenceMigration => '无法保存旧设置的迁移状态。';
+
+  @override
+  String get errorPreferencesUnavailable => '无法读取应用设置。';
+
+  @override
+  String get errorFileAccess => '无法访问所需的文件或文件夹。';
+
+  @override
+  String get errorPluginUnavailable => '所需的平台服务不可用。';
+
+  @override
+  String get errorPlatform => '系统服务调用失败。';
+
+  @override
+  String get errorPlatformUnsupported => '不支持此平台。';
+
+  @override
+  String get errorUnexpected => '发生意外错误，请查看诊断详情。';
 }

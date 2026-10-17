@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,6 +24,7 @@ class ReceiveController extends UiController {
           baudRate: 9600,
           dataBits: 8,
           parity: rust.Parity.none,
+          flowControl: rust.FlowControl.none,
           stopBits: 1,
           autoReconnect: false,
         ),
@@ -51,6 +53,8 @@ class ReceiveController extends UiController {
       autoSendInput: '',
     ),
   );
+
+  void resetLogs() => state = build();
 
   void receiveThrough(int last) {
     state = state.withLogDelta(
@@ -104,8 +108,34 @@ void main() {
           ),
         ),
       );
+      expect(find.byType(IconButton), findsNothing);
       controller.receiveThrough(100);
       await tester.pumpAndSettle();
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(ReceiveDisplayWidget)),
+      );
+      final clearButton = find.byTooltip(l10n.clearReceiveArea);
+      final exportButton = find.byTooltip(l10n.exportLogs);
+      expect(tester.getSize(exportButton), const Size.square(32));
+      expect(
+        tester.getRect(exportButton).right,
+        tester.getRect(clearButton).left - 4,
+      );
+      final clear = find
+          .descendant(of: clearButton, matching: find.byType(CustomPaint))
+          .last;
+      expect(tester.getSize(clearButton), const Size.square(32));
+      Color? clearColor() => IconTheme.of(tester.element(clear)).color;
+      expect(clearColor()!.a, closeTo(0.4, 0.01));
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      await mouse.moveTo(tester.getCenter(clear));
+      await tester.pumpAndSettle();
+      expect(clearColor()!.a, 1);
+      await mouse.moveTo(Offset.zero);
+      await tester.pumpAndSettle();
+      expect(clearColor()!.a, closeTo(0.4, 0.01));
+      await mouse.removePointer();
       final position = tester
           .state<ScrollableState>(
             find.descendant(
@@ -154,6 +184,13 @@ void main() {
       controller.receiveThrough(103);
       await tester.pumpAndSettle();
       expect(position.pixels, closeTo(readingPosition, 1));
+      controller.resetLogs();
+      await tester.pumpAndSettle();
+      expect(find.byType(IconButton), findsNothing);
+      controller.receiveThrough(100);
+      await tester.pumpAndSettle();
+      expect(clearButton, findsOneWidget);
+      expect(exportButton, findsOneWidget);
     },
   );
 }

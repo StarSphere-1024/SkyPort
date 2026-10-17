@@ -1,6 +1,7 @@
 use crate::{
     serial, timestamp_ms, AppConfig, AppOptions, AppSnapshot, AppState, Command, ConnectionState,
-    CoreError, ErrorKind, Event, EventKind, LogDelta, LogStore, Newline, RequestId, SerialConfig,
+    CoreError, ErrorCode, ErrorKind, Event, EventKind, LogDelta, LogStore, Newline, RequestId,
+    SerialConfig,
 };
 use std::{
     collections::HashMap,
@@ -66,7 +67,8 @@ impl AppCore {
             return Err(CoreError::new(
                 ErrorKind::InvalidArgument,
                 "queue capacities must be between 1 and 4096",
-            ));
+            )
+            .with_code(ErrorCode::QueueCapacityInvalid));
         }
         let config = AppConfig::load(&options.data_directory, options.legacy_config)?;
         let snapshot = AppSnapshot {
@@ -396,8 +398,7 @@ fn run_worker(
                 match command {
                     Command::SendText { .. }
                     | Command::SendHex { .. }
-                    | Command::SendInput { .. }
-                    | Command::ImportFile { .. } => publish_write_failed(&shared, id, error),
+                    | Command::SendInput { .. } => publish_write_failed(&shared, id, error),
                     _ => complete_failure(&shared, id, error),
                 }
             }
@@ -556,6 +557,9 @@ fn handle_command(
                 if let Some(value) = patch.auto_reconnect {
                     config.serial.auto_reconnect = value;
                 }
+                if let Some(value) = patch.flow_control {
+                    config.serial.flow_control = value;
+                }
                 if let Some(value) = patch.hex_send {
                     config.send.hex = value;
                 }
@@ -651,10 +655,10 @@ fn handle_command(
                     .saturating_add(newline_len(effective_newline(&settings)))
                     > 1_048_576
                 {
-                    Err(CoreError::new(
-                        ErrorKind::InvalidArgument,
-                        "send exceeds 1 MiB",
-                    ))
+                    Err(
+                        CoreError::new(ErrorKind::InvalidArgument, "send exceeds 1 MiB")
+                            .with_code(ErrorCode::SendTooLarge),
+                    )
                 } else {
                     Ok(serial::encode_text(&input, effective_newline(&settings)))
                 };
@@ -734,54 +738,13 @@ fn handle_command(
                     return Err(CoreError::new(
                         ErrorKind::InvalidArgument,
                         "no retained log records match the export options",
-                    ));
+                    )
+                    .with_code(ErrorCode::NoLogsToExport));
                 }
                 write_export_atomic(Path::new(&path), &bytes).map_err(|error| {
                     CoreError::new(ErrorKind::TaskFailed, format!("export log: {error}"))
+                        .with_code(ErrorCode::ExportFailed)
                 })
-            }
-            Command::ImportFile { path, hex, newline } => {
-                let prepared = (|| -> Result<Vec<u8>, CoreError> {
-                    let file = fs::File::open(&path).map_err(|error| {
-                        CoreError::new(ErrorKind::TaskFailed, format!("read import file: {error}"))
-                    })?;
-                    let mut bytes = Vec::new();
-                    file.take(1_048_577)
-                        .read_to_end(&mut bytes)
-                        .map_err(|error| {
-                            CoreError::new(
-                                ErrorKind::TaskFailed,
-                                format!("read import file: {error}"),
-                            )
-                        })?;
-                    if bytes.len() > 1_048_576 {
-                        return Err(CoreError::new(
-                            ErrorKind::InvalidArgument,
-                            "import exceeds 1 MiB",
-                        ));
-                    }
-                    let data = if hex {
-                        serial::decode_hex(&String::from_utf8_lossy(&bytes))?
-                    } else {
-                        match newline {
-                            Newline::None => {}
-                            Newline::Lf => bytes.push(b'\n'),
-                            Newline::Cr => bytes.push(b'\r'),
-                            Newline::CrLf => bytes.extend_from_slice(b"\r\n"),
-                        }
-                        bytes
-                    };
-                    Ok(data)
-                })();
-                send_final = true;
-                let data = match prepared {
-                    Ok(data) => data,
-                    Err(error) => {
-                        publish_write_failed(shared, id, error.clone());
-                        return Err(error);
-                    }
-                };
-                send(id, data, "", shared, dir, port)
             }
         }
     })();
@@ -840,7 +803,8 @@ fn apply_config(
         || previous.serial.baud_rate != config.serial.baud_rate
         || previous.serial.data_bits != config.serial.data_bits
         || previous.serial.parity != config.serial.parity
-        || previous.serial.stop_bits != config.serial.stop_bits;
+        || previous.serial.stop_bits != config.serial.stop_bits
+        || previous.serial.flow_control != config.serial.flow_control;
     if port.is_some() && transport_changed {
         publish_state(shared, ConnectionState::Reconfiguring, None);
         mark_log_incomplete_if_pending(shared);
@@ -886,10 +850,10 @@ fn apply_config(
 fn validate_auto_input(config: &AppConfig, input: &str) -> Option<CoreError> {
     if config.send.hex {
         if input.len() > 2_097_152 {
-            return Some(CoreError::new(
-                ErrorKind::InvalidArgument,
-                "auto-send input exceeds 1 MiB",
-            ));
+            return Some(
+                CoreError::new(ErrorKind::InvalidArgument, "auto-send input exceeds 1 MiB")
+                    .with_code(ErrorCode::AutoSendTooLarge),
+            );
         }
         serial::validate_hex(input).err()
     } else if input
@@ -897,10 +861,10 @@ fn validate_auto_input(config: &AppConfig, input: &str) -> Option<CoreError> {
         .saturating_add(newline_len(effective_newline(&config.send)))
         > 1_048_576
     {
-        Some(CoreError::new(
-            ErrorKind::InvalidArgument,
-            "auto-send input exceeds 1 MiB",
-        ))
+        Some(
+            CoreError::new(ErrorKind::InvalidArgument, "auto-send input exceeds 1 MiB")
+                .with_code(ErrorCode::AutoSendTooLarge),
+        )
     } else {
         None
     }
@@ -925,32 +889,36 @@ fn validate_command(command: &Command) -> Result<(), CoreError> {
         Command::SendText { text, newline }
             if text.len().saturating_add(newline_len(*newline)) > 1_048_576 =>
         {
-            Err(CoreError::new(
-                ErrorKind::InvalidArgument,
-                "send exceeds 1 MiB",
-            ))
+            Err(
+                CoreError::new(ErrorKind::InvalidArgument, "send exceeds 1 MiB")
+                    .with_code(ErrorCode::SendTooLarge),
+            )
         }
         Command::SendHex { input } if input.len() > 2_097_152 => Err(CoreError::new(
             ErrorKind::InvalidArgument,
             "send exceeds 1 MiB",
-        )),
+        )
+        .with_code(ErrorCode::SendTooLarge)),
         Command::SendHex { input } => serial::validate_hex(input),
         Command::SendInput { input } if input.len() > 2_097_152 => Err(CoreError::new(
             ErrorKind::InvalidArgument,
             "send input exceeds its bounded capacity",
-        )),
+        )
+        .with_code(ErrorCode::SendInputTooLarge)),
         Command::SetAutoSend { interval_ms, .. } if !(10..=60_000).contains(interval_ms) => {
             Err(CoreError::new(
                 ErrorKind::InvalidArgument,
                 "auto-send interval must be between 10 and 60000 milliseconds",
-            ))
+            )
+            .with_code(ErrorCode::AutoSendIntervalInvalid))
         }
         Command::SetAutoSend {
             input, hex: true, ..
         } if input.len() > 2_097_152 => Err(CoreError::new(
             ErrorKind::InvalidArgument,
             "auto-send input exceeds 1 MiB",
-        )),
+        )
+        .with_code(ErrorCode::AutoSendTooLarge)),
         Command::SetAutoSend {
             input,
             hex: false,
@@ -959,7 +927,8 @@ fn validate_command(command: &Command) -> Result<(), CoreError> {
         } if input.len().saturating_add(newline_len(*newline)) > 1_048_576 => Err(CoreError::new(
             ErrorKind::InvalidArgument,
             "auto-send input exceeds 1 MiB",
-        )),
+        )
+        .with_code(ErrorCode::AutoSendTooLarge)),
         Command::SetAutoSend {
             input, hex: true, ..
         } => serial::validate_hex(input),
@@ -969,10 +938,10 @@ fn validate_command(command: &Command) -> Result<(), CoreError> {
                 .as_ref()
                 .is_some_and(|input| input.len() > 2_097_152) =>
         {
-            Err(CoreError::new(
-                ErrorKind::InvalidArgument,
-                "auto-send input exceeds 1 MiB",
-            ))
+            Err(
+                CoreError::new(ErrorKind::InvalidArgument, "auto-send input exceeds 1 MiB")
+                    .with_code(ErrorCode::AutoSendTooLarge),
+            )
         }
         _ => Ok(()),
     }
@@ -986,12 +955,14 @@ fn send(
     port: &mut Option<Box<dyn serialport::SerialPort>>,
 ) -> Result<(), CoreError> {
     if data.is_empty() {
-        let error = CoreError::new(ErrorKind::InvalidArgument, "send data must not be empty");
+        let error = CoreError::new(ErrorKind::InvalidArgument, "send data must not be empty")
+            .with_code(ErrorCode::SendEmpty);
         publish_write_failed(shared, id, error.clone());
         return Err(error);
     }
     if data.len() > 1_048_576 {
-        let e = CoreError::new(ErrorKind::InvalidArgument, "send exceeds 1 MiB");
+        let e = CoreError::new(ErrorKind::InvalidArgument, "send exceeds 1 MiB")
+            .with_code(ErrorCode::SendTooLarge);
         publish_write_failed(shared, id, e.clone());
         return Err(e);
     }
@@ -1450,10 +1421,13 @@ fn record_history(shared: &Shared, dir: &Path, item: &str) {
     if item.len() > 1_048_576 {
         publish_simple(
             shared,
-            EventKind::TaskFailed(CoreError::new(
-                ErrorKind::InvalidArgument,
-                "send history entry exceeds 1 MiB",
-            )),
+            EventKind::TaskFailed(
+                CoreError::new(
+                    ErrorKind::InvalidArgument,
+                    "send history entry exceeds 1 MiB",
+                )
+                .with_code(ErrorCode::HistoryTooLarge),
+            ),
         );
         return;
     }

@@ -6,6 +6,8 @@ import '../../models/ui_state.dart';
 import '../../providers/ui_controller.dart';
 import '../../utils/constants.dart';
 import '../shared/compact_switch.dart';
+import '../../utils/error_messages.dart';
+import '../shared/error_notice.dart';
 
 class SendSettingsWidget extends ConsumerWidget {
   const SendSettingsWidget({super.key});
@@ -41,8 +43,12 @@ class SendSettingsWidget extends ConsumerWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(l10n.autoSend, style: Theme.of(context).textTheme.bodyMedium),
-            const Spacer(),
+            Expanded(
+              child: Text(
+                l10n.autoSend,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
             Row(
               children: [
                 SizedBox(
@@ -60,7 +66,9 @@ class SendSettingsWidget extends ConsumerWidget {
                         horizontal: 0,
                         vertical: 8,
                       ),
-                      border: UnderlineInputBorder(),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(12)),
+                      ),
                     ),
                     textAlign: TextAlign.center,
                     validator: (value) {
@@ -102,20 +110,26 @@ class SendSettingsWidget extends ConsumerWidget {
             ),
           ],
         ),
-        if (settings.autoSendError != null)
+        if (settings.autoSendError != null) ...[
           Text(
-            l10n.autoSendPaused(settings.autoSendError!.message),
+            l10n.autoSendPaused(localizedError(l10n, settings.autoSendError!)),
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
+          TextButton(
+            onPressed: () => showErrorDetails(context, settings.autoSendError!),
+            child: Text(l10n.diagnosticDetails),
+          ),
+        ],
         const SizedBox(height: 8),
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(
-              l10n.appendNewline,
-              style: Theme.of(context).textTheme.bodyMedium,
+            Expanded(
+              child: Text(
+                l10n.appendNewline,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
             ),
-            const Spacer(),
             Row(
               children: [
                 SizedBox(

@@ -104,6 +104,36 @@ abstract class AppLocalizations {
   /// **'SkyPort'**
   String get appTitle;
 
+  /// No description provided for @serialPageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Port'**
+  String get serialPageLabel;
+
+  /// No description provided for @settingsPageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settingsPageLabel;
+
+  /// No description provided for @expandConfiguration.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand configuration panel'**
+  String get expandConfiguration;
+
+  /// No description provided for @collapseConfiguration.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse configuration panel'**
+  String get collapseConfiguration;
+
+  /// No description provided for @noPortSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'No port selected'**
+  String get noPortSelected;
+
   /// No description provided for @serialPortSettings.
   ///
   /// In en, this message translates to:
@@ -122,18 +152,6 @@ abstract class AppLocalizations {
   /// **'No ports found'**
   String get noPortsFound;
 
-  /// No description provided for @loadingPorts.
-  ///
-  /// In en, this message translates to:
-  /// **'Loading ports...'**
-  String get loadingPorts;
-
-  /// No description provided for @errorLoadingPorts.
-  ///
-  /// In en, this message translates to:
-  /// **'Error loading ports'**
-  String get errorLoadingPorts;
-
   /// No description provided for @open.
   ///
   /// In en, this message translates to:
@@ -151,6 +169,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Baud Rate'**
   String get baudRate;
+
+  /// No description provided for @flowControl.
+  ///
+  /// In en, this message translates to:
+  /// **'Flow Control'**
+  String get flowControl;
+
+  /// No description provided for @flowControlNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get flowControlNone;
+
+  /// No description provided for @flowControlHardware.
+  ///
+  /// In en, this message translates to:
+  /// **'RTS/CTS'**
+  String get flowControlHardware;
+
+  /// No description provided for @flowControlSoftware.
+  ///
+  /// In en, this message translates to:
+  /// **'XON/XOFF'**
+  String get flowControlSoftware;
+
+  /// No description provided for @flowControlSoftwareWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'With XON/XOFF enabled, receiving 0x13 pauses outbound transmission and receiving 0x11 resumes it. These control bytes are unsuitable for transparent binary transfer.'**
+  String get flowControlSoftwareWarning;
 
   /// No description provided for @dataBits.
   ///
@@ -242,12 +290,6 @@ abstract class AppLocalizations {
   /// **'Newline'**
   String get newlineMode;
 
-  /// No description provided for @loadMore.
-  ///
-  /// In en, this message translates to:
-  /// **'Load More'**
-  String get loadMore;
-
   /// No description provided for @enterDataToSend.
   ///
   /// In en, this message translates to:
@@ -272,23 +314,17 @@ abstract class AppLocalizations {
   /// **'Send'**
   String get send;
 
-  /// No description provided for @txLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'TX'**
-  String get txLabel;
-
   /// No description provided for @rxLabel.
   ///
   /// In en, this message translates to:
   /// **'RX'**
   String get rxLabel;
 
-  /// No description provided for @connectedStatus.
+  /// No description provided for @connected.
   ///
   /// In en, this message translates to:
-  /// **'Connected to {port}@{baud}'**
-  String connectedStatus(String port, int baud);
+  /// **'Connected'**
+  String get connected;
 
   /// No description provided for @connecting.
   ///
@@ -337,18 +373,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Total received bytes - Last packet size | Total sent bytes'**
   String get trafficStatsTooltip;
-
-  /// No description provided for @timeoutLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Block Interval'**
-  String get timeoutLabel;
-
-  /// No description provided for @settingsTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Settings'**
-  String get settingsTitle;
 
   /// No description provided for @theme.
   ///
@@ -404,24 +428,6 @@ abstract class AppLocalizations {
   /// **'Auto Send'**
   String get autoSend;
 
-  /// No description provided for @autoSendInterval.
-  ///
-  /// In en, this message translates to:
-  /// **'Interval'**
-  String get autoSendInterval;
-
-  /// No description provided for @autoSendIntervalError.
-  ///
-  /// In en, this message translates to:
-  /// **'0.01-60'**
-  String get autoSendIntervalError;
-
-  /// No description provided for @autoSendHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Auto-send interval in seconds'**
-  String get autoSendHint;
-
   /// No description provided for @secondsUnit.
   ///
   /// In en, this message translates to:
@@ -452,11 +458,11 @@ abstract class AppLocalizations {
   /// **'Logs exported to: '**
   String get logsExportedTo;
 
-  /// No description provided for @exportFailed.
+  /// Export failure with a localized reason.
   ///
   /// In en, this message translates to:
-  /// **'Export failed: '**
-  String get exportFailed;
+  /// **'Export failed: {message}'**
+  String exportFailed(String message);
 
   /// No description provided for @writeFailure.
   ///
@@ -469,12 +475,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Auto-send paused: {message}'**
   String autoSendPaused(String message);
-
-  /// No description provided for @importFile.
-  ///
-  /// In en, this message translates to:
-  /// **'Import File'**
-  String get importFile;
 
   /// No description provided for @applyingConfiguration.
   ///
@@ -577,6 +577,210 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The retained log contains a serial data or session gap.'**
   String get logIncomplete;
+
+  /// No description provided for @diagnosticDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostic details'**
+  String get diagnosticDetails;
+
+  /// No description provided for @errorWriteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Serial write failed'**
+  String get errorWriteFailed;
+
+  /// No description provided for @errorPortNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a serial port.'**
+  String get errorPortNameRequired;
+
+  /// No description provided for @errorPortNameTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'The port name must not exceed 4096 bytes.'**
+  String get errorPortNameTooLong;
+
+  /// No description provided for @errorPortNameInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'The port name must not contain NUL or line breaks.'**
+  String get errorPortNameInvalid;
+
+  /// No description provided for @errorBaudRateInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'The baud rate must be greater than zero.'**
+  String get errorBaudRateInvalid;
+
+  /// No description provided for @errorDataBitsInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Data bits must be between 5 and 8.'**
+  String get errorDataBitsInvalid;
+
+  /// No description provided for @errorStopBitsInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop bits must be 1 or 2.'**
+  String get errorStopBitsInvalid;
+
+  /// No description provided for @errorLegacyConfigInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'The previous application\'s serial settings are invalid.'**
+  String get errorLegacyConfigInvalid;
+
+  /// No description provided for @errorConfigVersionUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This configuration version is not supported.'**
+  String get errorConfigVersionUnsupported;
+
+  /// No description provided for @errorNewlineInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'The stored newline must be LF, CR, or CRLF.'**
+  String get errorNewlineInvalid;
+
+  /// No description provided for @errorAutoSendIntervalInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'The auto-send interval must be between 0.01 and 60 seconds.'**
+  String get errorAutoSendIntervalInvalid;
+
+  /// No description provided for @errorLogCapacityInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'The log buffer size must be between 16 and 512 MiB.'**
+  String get errorLogCapacityInvalid;
+
+  /// No description provided for @errorHistoryTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'Send history must not exceed 100 entries.'**
+  String get errorHistoryTooLong;
+
+  /// No description provided for @errorHistoryEntryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Send history must not contain empty entries.'**
+  String get errorHistoryEntryEmpty;
+
+  /// No description provided for @errorHistoryTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Send history must not exceed 1 MiB.'**
+  String get errorHistoryTooLarge;
+
+  /// No description provided for @errorConfigTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'The configuration file must not exceed 8 MiB.'**
+  String get errorConfigTooLarge;
+
+  /// No description provided for @errorConfigInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'The configuration file is invalid.'**
+  String get errorConfigInvalid;
+
+  /// No description provided for @errorConfigIo.
+  ///
+  /// In en, this message translates to:
+  /// **'The configuration file could not be read or saved.'**
+  String get errorConfigIo;
+
+  /// No description provided for @errorSendTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Each transmission must not exceed 1 MiB.'**
+  String get errorSendTooLarge;
+
+  /// No description provided for @errorSendInputTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Send input must not exceed 2 MiB.'**
+  String get errorSendInputTooLarge;
+
+  /// No description provided for @errorAutoSendTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-send data must not exceed 1 MiB.'**
+  String get errorAutoSendTooLarge;
+
+  /// No description provided for @errorSendEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter data to send.'**
+  String get errorSendEmpty;
+
+  /// No description provided for @errorNoLogsToExport.
+  ///
+  /// In en, this message translates to:
+  /// **'No retained log records match the export options.'**
+  String get errorNoLogsToExport;
+
+  /// No description provided for @errorExportLog.
+  ///
+  /// In en, this message translates to:
+  /// **'The log file could not be written.'**
+  String get errorExportLog;
+
+  /// No description provided for @errorQueueCapacityInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue capacities must be between 1 and 4096.'**
+  String get errorQueueCapacityInvalid;
+
+  /// No description provided for @errorBridgeInitialization.
+  ///
+  /// In en, this message translates to:
+  /// **'The serial core component could not be loaded. Check that the application installation is complete.'**
+  String get errorBridgeInitialization;
+
+  /// No description provided for @errorPreferenceMigration.
+  ///
+  /// In en, this message translates to:
+  /// **'The migration status of the previous settings could not be saved.'**
+  String get errorPreferenceMigration;
+
+  /// No description provided for @errorPreferencesUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The application settings could not be loaded.'**
+  String get errorPreferencesUnavailable;
+
+  /// No description provided for @errorFileAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'A required file or folder could not be accessed.'**
+  String get errorFileAccess;
+
+  /// No description provided for @errorPluginUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'A required platform service is unavailable.'**
+  String get errorPluginUnavailable;
+
+  /// No description provided for @errorPlatform.
+  ///
+  /// In en, this message translates to:
+  /// **'A system service call failed.'**
+  String get errorPlatform;
+
+  /// No description provided for @errorPlatformUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This platform is not supported.'**
+  String get errorPlatformUnsupported;
+
+  /// No description provided for @errorUnexpected.
+  ///
+  /// In en, this message translates to:
+  /// **'An unexpected error occurred. See diagnostic details.'**
+  String get errorUnexpected;
 }
 
 class _AppLocalizationsDelegate

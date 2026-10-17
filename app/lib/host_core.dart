@@ -18,7 +18,11 @@ Future<CoreBootstrap> createCoreFromHost(
   SharedPreferences prefs, {
   String? dataDirectory,
 }) async {
-  await RustLib.init(externalLibrary: ExternalLibrary.open(_bridgePath()));
+  try {
+    await RustLib.init(externalLibrary: ExternalLibrary.open(_bridgePath()));
+  } catch (error) {
+    throw HostStartupException(HostFailure.bridgeInitialization, error);
+  }
   final support = dataDirectory == null
       ? await getApplicationSupportDirectory()
       : null;
@@ -35,8 +39,16 @@ Future<CoreBootstrap> createCoreFromHost(
   try {
     subscribed = await rust.subscribe(handle: handle);
     if (subscribed.error != null) throw CoreHostException(subscribed.error!);
-    if (legacy != null && await prefs.setBool(_migrationKey, true) == false) {
-      throw StateError('Failed to acknowledge migrated legacy preferences.');
+    if (legacy != null) {
+      try {
+        if (await prefs.setBool(_migrationKey, true) == false) {
+          throw StateError(
+            'Failed to acknowledge migrated legacy preferences.',
+          );
+        }
+      } catch (error) {
+        throw HostStartupException(HostFailure.preferenceMigration, error);
+      }
     }
     return CoreBootstrap(
       handle,
@@ -244,4 +256,19 @@ class CoreHostException implements Exception {
   @override
   String toString() =>
       '${error.kind.name}: ${error.message} (bytes written: ${error.bytesWritten})';
+}
+
+enum HostFailure {
+  bridgeInitialization,
+  preferenceMigration,
+  preferencesUnavailable,
+}
+
+class HostStartupException implements Exception {
+  const HostStartupException(this.failure, this.cause);
+  final HostFailure failure;
+  final Object cause;
+
+  @override
+  String toString() => '${failure.name}: $cause';
 }

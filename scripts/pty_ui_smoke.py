@@ -52,7 +52,7 @@ def main() -> None:
                         process.wait()
                 output.seek(0)
                 print(output.read(), end="")
-        print(f"FLUTTER_PTY_UI_SMOKE_OK: exact text/Hex TX={received.hex()}, binary RX=00fffe0d0a, dispose/resubscribe, bounded overflow recovery, clear+stats+gap reset")
+        print(f"FLUTTER_PTY_UI_SMOKE_OK: exact text/Hex TX={received.hex()}, binary RX=00fffe0d0a, dispose/resubscribe, bounded overflow recovery, clear+stats+gap reset, en/zh selection translation, all flow modes saved/reloaded/applied after core restart")
     finally:
         os.close(master)
         os.close(slave)
