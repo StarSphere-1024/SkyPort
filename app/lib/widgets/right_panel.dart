@@ -8,13 +8,13 @@ class RightPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.all(8.0),
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
       child: Column(
         children: [
-          ReceiveDisplayWidget(),
-          SizedBox(height: 8),
-          SendInputWidget(),
+          const ReceiveDisplayWidget(),
+          const SizedBox(height: 8),
+          const SendInputWidget(),
         ],
       ),
     );

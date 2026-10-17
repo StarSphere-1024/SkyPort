@@ -177,24 +177,41 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
     );
   }
 
-  Widget _buildSendButton(UiConnection connectionState, bool canSend) {
-    return FilledButton.icon(
-      icon: const Icon(Icons.send),
-      label: Text(AppLocalizations.of(context).send),
-      onPressed: connectionState == UiConnection.connected && canSend
-          ? () {
-              if (_formKey.currentState!.validate()) {
-                final text = _sendController.text;
-                ref.read(uiControllerProvider.notifier).send(text);
-                setState(() {
-                  _historyIndex = -1;
-                  _tempInput = '';
-                });
+  Widget _buildSendButton(
+    UiConnection connectionState,
+    bool canSend, {
+    required bool compact,
+  }) {
+    final label = AppLocalizations.of(context).send;
+    return Tooltip(
+      message: label,
+      child: FilledButton(
+        onPressed: connectionState == UiConnection.connected && canSend
+            ? () {
+                if (_formKey.currentState!.validate()) {
+                  final text = _sendController.text;
+                  ref.read(uiControllerProvider.notifier).send(text);
+                  setState(() {
+                    _historyIndex = -1;
+                    _tempInput = '';
+                  });
+                }
               }
-            }
-          : null,
-      style: FilledButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 24.0),
+            : null,
+        style: FilledButton.styleFrom(
+          padding: EdgeInsets.symmetric(
+            vertical: 16,
+            horizontal: compact ? 12 : 24,
+          ),
+          minimumSize: const Size(48, 48),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.send),
+            if (!compact) ...[const SizedBox(width: 8), Text(label)],
+          ],
+        ),
       ),
     );
   }
@@ -224,15 +241,26 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: _buildTextField(hexSend, AppLocalizations.of(context)),
-              ),
-              const SizedBox(width: 8),
-              _buildSendButton(connectionState, _canSend),
-            ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final input = _buildTextField(
+                hexSend,
+                AppLocalizations.of(context),
+              );
+              final send = _buildSendButton(
+                connectionState,
+                _canSend,
+                compact: constraints.maxWidth < 400,
+              );
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(child: input),
+                  const SizedBox(width: 8),
+                  send,
+                ],
+              );
+            },
           ),
         ),
       ),

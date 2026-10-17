@@ -1,5 +1,5 @@
-use crate::{CoreError, ErrorKind};
-use serde::{Deserialize, Serialize};
+use crate::{CoreError, ErrorCode, ErrorKind};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::{
     fs::{self, OpenOptions},
     io::{Read, Write},
@@ -33,7 +33,15 @@ pub enum Newline {
     CrLf,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+pub enum FlowControl {
+    #[default]
+    None,
+    Hardware,
+    Software,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct SerialConfig {
     pub port_name: String,
@@ -42,6 +50,53 @@ pub struct SerialConfig {
     pub parity: Parity,
     pub stop_bits: u8,
     pub auto_reconnect: bool,
+    pub flow_control: FlowControl,
+}
+
+impl<'de> Deserialize<'de> for SerialConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct StoredSerialConfig {
+            port_name: String,
+            baud_rate: u32,
+            data_bits: u8,
+            parity: Parity,
+            stop_bits: u8,
+            auto_reconnect: bool,
+            #[serde(default, deserialize_with = "deserialize_non_null")]
+            flow_control: Option<FlowControl>,
+            #[serde(default, deserialize_with = "deserialize_non_null")]
+            hardware_flow_control: Option<bool>,
+        }
+
+        let stored = StoredSerialConfig::deserialize(deserializer)?;
+        Ok(Self {
+            port_name: stored.port_name,
+            baud_rate: stored.baud_rate,
+            data_bits: stored.data_bits,
+            parity: stored.parity,
+            stop_bits: stored.stop_bits,
+            auto_reconnect: stored.auto_reconnect,
+            flow_control: stored.flow_control.unwrap_or_else(|| {
+                if stored.hardware_flow_control.unwrap_or(false) {
+                    FlowControl::Hardware
+                } else {
+                    FlowControl::None
+                }
+            }),
+        })
+    }
+}
+fn deserialize_non_null<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    T::deserialize(deserializer).map(Some)
 }
 
 impl Default for SerialConfig {
@@ -53,6 +108,7 @@ impl Default for SerialConfig {
             parity: Parity::None,
             stop_bits: 1,
             auto_reconnect: true,
+            flow_control: FlowControl::None,
         }
     }
 }
@@ -60,26 +116,34 @@ impl Default for SerialConfig {
 impl SerialConfig {
     pub fn validate(&self, require_port: bool) -> Result<(), CoreError> {
         if require_port && self.port_name.trim().is_empty() {
-            return Err(invalid("port name must not be empty"));
+            return Err(
+                invalid("port name must not be empty").with_code(ErrorCode::PortNameRequired)
+            );
         }
         if self.port_name.len() > MAX_PORT_NAME_BYTES {
-            return Err(invalid("port name exceeds 4096 bytes"));
+            return Err(
+                invalid("port name exceeds 4096 bytes").with_code(ErrorCode::PortNameTooLong)
+            );
         }
         if self
             .port_name
             .chars()
             .any(|character| matches!(character, '\0' | '\n' | '\r'))
         {
-            return Err(invalid("port name must not contain NUL or line breaks"));
+            return Err(invalid("port name must not contain NUL or line breaks")
+                .with_code(ErrorCode::PortNameInvalid));
         }
         if self.baud_rate == 0 {
-            return Err(invalid("baud rate must be greater than zero"));
+            return Err(invalid("baud rate must be greater than zero")
+                .with_code(ErrorCode::BaudRateInvalid));
         }
         if !(5..=8).contains(&self.data_bits) {
-            return Err(invalid("data bits must be between 5 and 8"));
+            return Err(
+                invalid("data bits must be between 5 and 8").with_code(ErrorCode::DataBitsInvalid)
+            );
         }
         if !matches!(self.stop_bits, 1 | 2) {
-            return Err(invalid("stop bits must be 1 or 2"));
+            return Err(invalid("stop bits must be 1 or 2").with_code(ErrorCode::StopBitsInvalid));
         }
         Ok(())
     }
@@ -129,30 +193,42 @@ impl LegacyConfig {
             0 => Parity::None,
             1 => Parity::Odd,
             2 => Parity::Even,
-            value => return Err(invalid(format!("invalid legacy parity {value}"))),
+            value => {
+                return Err(invalid(format!("invalid legacy parity {value}"))
+                    .with_code(ErrorCode::LegacyConfigInvalid))
+            }
         };
         let newline_mode = match self.newline_mode.unwrap_or(0) {
             0 => Newline::Lf,
             1 => Newline::Cr,
             2 => Newline::CrLf,
-            value => return Err(invalid(format!("invalid legacy newline mode {value}"))),
+            value => {
+                return Err(invalid(format!("invalid legacy newline mode {value}"))
+                    .with_code(ErrorCode::LegacyConfigInvalid))
+            }
         };
         let log_capacity_bytes = u64::try_from(self.log_buffer_megabytes.unwrap_or(128))
             .ok()
             .and_then(|value| value.checked_mul(1024 * 1024))
-            .ok_or_else(|| invalid("invalid legacy log buffer size"))?;
+            .ok_or_else(|| {
+                invalid("invalid legacy log buffer size").with_code(ErrorCode::LegacyConfigInvalid)
+            })?;
         let config = AppConfig {
             version: CURRENT_VERSION,
             serial: SerialConfig {
                 port_name: self.port_name.unwrap_or_default(),
-                baud_rate: u32::try_from(self.baud_rate.unwrap_or(9600))
-                    .map_err(|_| invalid("invalid legacy baud rate"))?,
-                data_bits: u8::try_from(self.data_bits.unwrap_or(8))
-                    .map_err(|_| invalid("invalid legacy data bits"))?,
+                baud_rate: u32::try_from(self.baud_rate.unwrap_or(9600)).map_err(|_| {
+                    invalid("invalid legacy baud rate").with_code(ErrorCode::LegacyConfigInvalid)
+                })?,
+                data_bits: u8::try_from(self.data_bits.unwrap_or(8)).map_err(|_| {
+                    invalid("invalid legacy data bits").with_code(ErrorCode::LegacyConfigInvalid)
+                })?,
                 parity,
-                stop_bits: u8::try_from(self.stop_bits.unwrap_or(1))
-                    .map_err(|_| invalid("invalid legacy stop bits"))?,
+                stop_bits: u8::try_from(self.stop_bits.unwrap_or(1)).map_err(|_| {
+                    invalid("invalid legacy stop bits").with_code(ErrorCode::LegacyConfigInvalid)
+                })?,
                 auto_reconnect: self.auto_reconnect.unwrap_or(true),
+                flow_control: FlowControl::None,
             },
             send: SendSettings {
                 hex: self.hex_send.unwrap_or(false),
@@ -160,7 +236,10 @@ impl LegacyConfig {
                 append_newline: self.append_newline.unwrap_or(false),
                 auto_send_enabled: self.auto_send_enabled.unwrap_or(false),
                 auto_send_interval_ms: u32::try_from(self.auto_send_interval_ms.unwrap_or(1000))
-                    .map_err(|_| invalid("invalid legacy auto-send interval"))?,
+                    .map_err(|_| {
+                        invalid("invalid legacy auto-send interval")
+                            .with_code(ErrorCode::LegacyConfigInvalid)
+                    })?,
             },
             log_capacity_bytes,
             history: self.history.unwrap_or_default(),
@@ -193,32 +272,38 @@ impl Default for AppConfig {
 impl AppConfig {
     pub fn validate(&self) -> Result<(), CoreError> {
         if self.version != CURRENT_VERSION {
-            return Err(invalid(format!(
-                "unsupported config version {}",
-                self.version
-            )));
+            return Err(
+                invalid(format!("unsupported config version {}", self.version))
+                    .with_code(ErrorCode::ConfigVersionUnsupported),
+            );
         }
         self.serial.validate(false)?;
         if self.send.newline == Newline::None {
             return Err(invalid(
                 "stored newline mode must be LF, CR, or CRLF; use append_newline to disable it",
-            ));
+            )
+            .with_code(ErrorCode::NewlineInvalid));
         }
         if !(MIN_AUTO_SEND_INTERVAL_MS..=MAX_AUTO_SEND_INTERVAL_MS)
             .contains(&self.send.auto_send_interval_ms)
         {
-            return Err(invalid(
-                "auto-send interval must be between 10 and 60000 ms",
-            ));
+            return Err(
+                invalid("auto-send interval must be between 10 and 60000 ms")
+                    .with_code(ErrorCode::AutoSendIntervalInvalid),
+            );
         }
         if !(MIN_LOG_CAPACITY_BYTES..=MAX_LOG_CAPACITY_BYTES).contains(&self.log_capacity_bytes) {
-            return Err(invalid("log capacity must be between 16 and 512 MiB"));
+            return Err(invalid("log capacity must be between 16 and 512 MiB")
+                .with_code(ErrorCode::LogCapacityInvalid));
         }
         if self.history.len() > MAX_HISTORY {
-            return Err(invalid("send history exceeds 100 entries"));
+            return Err(
+                invalid("send history exceeds 100 entries").with_code(ErrorCode::HistoryTooLong)
+            );
         }
         if self.history.iter().any(|entry| entry.is_empty()) {
-            return Err(invalid("send history entries must not be empty"));
+            return Err(invalid("send history entries must not be empty")
+                .with_code(ErrorCode::HistoryEntryEmpty));
         }
         if self
             .history
@@ -226,7 +311,7 @@ impl AppConfig {
             .fold(0usize, |bytes, entry| bytes.saturating_add(entry.len()))
             > MAX_HISTORY_BYTES
         {
-            return Err(invalid("send history exceeds 1 MiB"));
+            return Err(invalid("send history exceeds 1 MiB").with_code(ErrorCode::HistoryTooLarge));
         }
         Ok(())
     }
@@ -240,10 +325,13 @@ impl AppConfig {
                     .read_to_end(&mut bytes)
                     .map_err(|e| config_io("read config", e))?;
                 if bytes.len() > MAX_CONFIG_BYTES {
-                    return Err(invalid("persisted config exceeds 8 MiB"));
+                    return Err(invalid("persisted config exceeds 8 MiB")
+                        .with_code(ErrorCode::ConfigTooLarge));
                 }
-                let config: Self = serde_json::from_slice(&bytes)
-                    .map_err(|e| invalid(format!("invalid persisted config: {e}")))?;
+                let config: Self = serde_json::from_slice(&bytes).map_err(|e| {
+                    invalid(format!("invalid persisted config: {e}"))
+                        .with_code(ErrorCode::ConfigInvalid)
+                })?;
                 config.validate()?;
                 Ok(config)
             }
@@ -258,8 +346,9 @@ impl AppConfig {
 
     pub fn save(&self, directory: &Path) -> Result<(), CoreError> {
         self.validate()?;
-        let bytes = serde_json::to_vec_pretty(self)
-            .map_err(|e| invalid(format!("serialize config: {e}")))?;
+        let bytes = serde_json::to_vec_pretty(self).map_err(|e| {
+            invalid(format!("serialize config: {e}")).with_code(ErrorCode::ConfigInvalid)
+        })?;
         fs::create_dir_all(directory).map_err(|e| config_io("create config directory", e))?;
         let path = directory.join("config.json");
         let (temporary, mut file) = loop {
@@ -299,6 +388,7 @@ fn invalid(message: impl Into<String>) -> CoreError {
 }
 fn config_io(operation: &str, error: std::io::Error) -> CoreError {
     CoreError::new(ErrorKind::Internal, format!("{operation}: {error}"))
+        .with_code(ErrorCode::ConfigIo)
 }
 #[cfg(not(windows))]
 pub(crate) fn replace_file(temporary: &Path, destination: &Path) -> std::io::Result<()> {
@@ -331,5 +421,100 @@ pub(crate) fn replace_file(temporary: &Path, destination: &Path) -> std::io::Res
         Err(std::io::Error::last_os_error())
     } else {
         Ok(())
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn old_config_flow_control_migrates_and_canonical_mode_wins() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut old_config = serde_json::to_value(AppConfig::default()).unwrap();
+        old_config["serial"]["hardware_flow_control"] = true.into();
+        old_config["serial"]
+            .as_object_mut()
+            .unwrap()
+            .remove("flow_control");
+        fs::write(
+            directory.path().join("config.json"),
+            serde_json::to_vec(&old_config).unwrap(),
+        )
+        .unwrap();
+
+        let hardware = AppConfig::load(directory.path(), None).unwrap();
+        assert_eq!(hardware.serial.flow_control, FlowControl::Hardware);
+        hardware.save(directory.path()).unwrap();
+        let saved: serde_json::Value =
+            serde_json::from_slice(&fs::read(directory.path().join("config.json")).unwrap())
+                .unwrap();
+        assert_eq!(saved["serial"]["flow_control"], "Hardware");
+        assert!(saved["serial"].get("hardware_flow_control").is_none());
+
+        old_config["serial"]["hardware_flow_control"] = false.into();
+        fs::write(
+            directory.path().join("config.json"),
+            serde_json::to_vec(&old_config).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            AppConfig::load(directory.path(), None)
+                .unwrap()
+                .serial
+                .flow_control,
+            FlowControl::None
+        );
+        old_config["serial"]
+            .as_object_mut()
+            .unwrap()
+            .remove("hardware_flow_control");
+        fs::write(
+            directory.path().join("config.json"),
+            serde_json::to_vec(&old_config).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            AppConfig::load(directory.path(), None)
+                .unwrap()
+                .serial
+                .flow_control,
+            FlowControl::None
+        );
+
+        old_config["serial"]["hardware_flow_control"] = true.into();
+        old_config["serial"]["flow_control"] = "Software".into();
+        fs::write(
+            directory.path().join("config.json"),
+            serde_json::to_vec(&old_config).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            AppConfig::load(directory.path(), None)
+                .unwrap()
+                .serial
+                .flow_control,
+            FlowControl::Software
+        );
+
+        old_config["serial"]["flow_control"] = "Invalid".into();
+        fs::write(
+            directory.path().join("config.json"),
+            serde_json::to_vec(&old_config).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            AppConfig::load(directory.path(), None).unwrap_err().code,
+            Some(ErrorCode::ConfigInvalid)
+        );
+        old_config["serial"]["flow_control"] = serde_json::Value::Null;
+        fs::write(
+            directory.path().join("config.json"),
+            serde_json::to_vec(&old_config).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            AppConfig::load(directory.path(), None).unwrap_err().code,
+            Some(ErrorCode::ConfigInvalid)
+        );
     }
 }

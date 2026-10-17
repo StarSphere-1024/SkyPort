@@ -7,7 +7,7 @@ import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `dispatch`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 Future<CreateCoreReply> createCore({
   required String dataDirectory,
@@ -106,18 +106,6 @@ Future<DispatchReply> exportLog({
   handle: handle,
   path: path,
   options: options,
-);
-
-Future<DispatchReply> importFile({
-  required CoreHandle handle,
-  required String path,
-  required bool hex,
-  required Newline newline,
-}) => RustLib.instance.api.crateApiImportFile(
-  handle: handle,
-  path: path,
-  hex: hex,
-  newline: newline,
 );
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<CoreHandle>>
@@ -314,6 +302,7 @@ class ConfigPatch {
   final Parity? parity;
   final int? stopBits;
   final bool? autoReconnect;
+  final FlowControl? flowControl;
   final bool? hexSend;
   final Newline? newline;
   final bool? appendNewline;
@@ -329,6 +318,7 @@ class ConfigPatch {
     this.parity,
     this.stopBits,
     this.autoReconnect,
+    this.flowControl,
     this.hexSend,
     this.newline,
     this.appendNewline,
@@ -349,6 +339,7 @@ class ConfigPatch {
       parity.hashCode ^
       stopBits.hashCode ^
       autoReconnect.hashCode ^
+      flowControl.hashCode ^
       hexSend.hashCode ^
       newline.hashCode ^
       appendNewline.hashCode ^
@@ -368,6 +359,7 @@ class ConfigPatch {
           parity == other.parity &&
           stopBits == other.stopBits &&
           autoReconnect == other.autoReconnect &&
+          flowControl == other.flowControl &&
           hexSend == other.hexSend &&
           newline == other.newline &&
           appendNewline == other.appendNewline &&
@@ -390,17 +382,20 @@ enum ConnectionState {
 
 class CoreError {
   final ErrorKind kind;
+  final ErrorCode? code;
   final String message;
   final int bytesWritten;
 
   const CoreError({
     required this.kind,
+    this.code,
     required this.message,
     required this.bytesWritten,
   });
 
   @override
-  int get hashCode => kind.hashCode ^ message.hashCode ^ bytesWritten.hashCode;
+  int get hashCode =>
+      kind.hashCode ^ code.hashCode ^ message.hashCode ^ bytesWritten.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -408,6 +403,7 @@ class CoreError {
       other is CoreError &&
           runtimeType == other.runtimeType &&
           kind == other.kind &&
+          code == other.code &&
           message == other.message &&
           bytesWritten == other.bytesWritten;
 }
@@ -448,6 +444,35 @@ class DispatchReply {
           runtimeType == other.runtimeType &&
           requestId == other.requestId &&
           error == other.error;
+}
+
+enum ErrorCode {
+  invalidHexCharacter,
+  incompleteHexByte,
+  portNameRequired,
+  portNameTooLong,
+  portNameInvalid,
+  baudRateInvalid,
+  dataBitsInvalid,
+  stopBitsInvalid,
+  legacyConfigInvalid,
+  configVersionUnsupported,
+  newlineInvalid,
+  autoSendIntervalInvalid,
+  logCapacityInvalid,
+  historyTooLong,
+  historyEntryEmpty,
+  historyTooLarge,
+  configTooLarge,
+  configInvalid,
+  configIo,
+  sendTooLarge,
+  sendInputTooLarge,
+  autoSendTooLarge,
+  sendEmpty,
+  noLogsToExport,
+  exportFailed,
+  queueCapacityInvalid,
 }
 
 enum ErrorKind {
@@ -588,6 +613,8 @@ class ExportOptions {
           timestamps == other.timestamps &&
           stripAnsi == other.stripAnsi;
 }
+
+enum FlowControl { none, hardware, software }
 
 class LegacyConfig {
   final String? portName;
@@ -815,6 +842,7 @@ class SerialConfig {
   final Parity parity;
   final int stopBits;
   final bool autoReconnect;
+  final FlowControl flowControl;
 
   const SerialConfig({
     required this.portName,
@@ -823,6 +851,7 @@ class SerialConfig {
     required this.parity,
     required this.stopBits,
     required this.autoReconnect,
+    required this.flowControl,
   });
 
   @override
@@ -832,7 +861,8 @@ class SerialConfig {
       dataBits.hashCode ^
       parity.hashCode ^
       stopBits.hashCode ^
-      autoReconnect.hashCode;
+      autoReconnect.hashCode ^
+      flowControl.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -844,7 +874,8 @@ class SerialConfig {
           dataBits == other.dataBits &&
           parity == other.parity &&
           stopBits == other.stopBits &&
-          autoReconnect == other.autoReconnect;
+          autoReconnect == other.autoReconnect &&
+          flowControl == other.flowControl;
 }
 
 class SnapshotReply {

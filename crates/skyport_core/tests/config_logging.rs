@@ -1,5 +1,8 @@
-use skyport_core::{AppConfig, Direction, ErrorKind, ExportOptions, LegacyConfig, LogStore};
-use std::fs;
+use skyport_core::{
+    AppConfig, AppCore, AppOptions, Command, ConfigPatch, Direction, ErrorKind, EventKind,
+    ExportOptions, FlowControl, LegacyConfig, LogStore,
+};
+use std::{fs, time::Duration};
 use tempfile::tempdir;
 
 #[test]
@@ -57,6 +60,16 @@ fn invalid_legacy_and_persisted_configs_are_errors_not_defaults() {
         fs::read(dir.path().join("config.json")).unwrap(),
         br#"{"version":2}"#
     );
+    let malformed = b"{not valid json";
+    fs::write(dir.path().join("config.json"), malformed).unwrap();
+    assert_eq!(
+        AppConfig::load(dir.path(), Some(LegacyConfig::default()))
+            .unwrap_err()
+            .kind,
+        ErrorKind::InvalidArgument
+    );
+    assert_eq!(fs::read(dir.path().join("config.json")).unwrap(), malformed);
+
     fs::write(
         dir.path().join("config.json"),
         vec![b' '; 8 * 1024 * 1024 + 1],
@@ -120,6 +133,118 @@ fn persisted_config_wins_over_invalid_legacy_and_raw_enums_are_rejected() {
         ErrorKind::InvalidArgument
     );
     assert!(!dir.path().join("config.json").exists());
+}
+
+#[test]
+fn flow_control_updates_persist_through_appcore_restart() {
+    let dir = tempdir().unwrap();
+    let mut core = AppCore::create(AppOptions {
+        data_directory: dir.path().into(),
+        ..AppOptions::default()
+    })
+    .unwrap();
+
+    for mode in [
+        FlowControl::Hardware,
+        FlowControl::Software,
+        FlowControl::None,
+    ] {
+        let (_, events) = core.subscribe().unwrap();
+        let request_id = core
+            .dispatch(Command::UpdateConfig(ConfigPatch {
+                flow_control: Some(mode),
+                baud_rate: (mode == FlowControl::Hardware).then_some(115_200),
+                hex_send: (mode == FlowControl::Hardware).then_some(true),
+                ..ConfigPatch::default()
+            }))
+            .unwrap();
+        loop {
+            match events.recv_timeout(Duration::from_secs(3)).unwrap() {
+                Some(event) => match event.kind {
+                    EventKind::CommandCompleted {
+                        request_id: completed,
+                    } if completed == request_id => {
+                        break;
+                    }
+                    EventKind::CommandFailed {
+                        request_id: failed,
+                        error,
+                    } if failed == request_id => panic!("config update failed: {error:?}"),
+                    _ => {}
+                },
+                None => panic!("config update did not complete"),
+            }
+        }
+
+        let expected = core.snapshot().unwrap().config;
+        assert_eq!(expected.serial.flow_control, mode);
+        assert_eq!(expected.serial.baud_rate, 115_200);
+        assert!(expected.send.hex);
+        let saved: serde_json::Value =
+            serde_json::from_slice(&fs::read(dir.path().join("config.json")).unwrap()).unwrap();
+        assert_eq!(saved["serial"]["flow_control"], format!("{mode:?}"));
+        assert!(saved["serial"].get("hardware_flow_control").is_none());
+        assert_eq!(
+            serde_json::from_value::<AppConfig>(saved).unwrap(),
+            expected
+        );
+
+        core.close().unwrap();
+        core = AppCore::create(AppOptions {
+            data_directory: dir.path().into(),
+            ..AppOptions::default()
+        })
+        .unwrap();
+        assert_eq!(core.snapshot().unwrap().config, expected);
+        assert_eq!(core.snapshot().unwrap().config.serial.flow_control, mode);
+    }
+    core.close().unwrap();
+}
+
+#[test]
+fn flow_control_update_is_not_applied_when_atomic_save_fails() {
+    let dir = tempdir().unwrap();
+    let core = AppCore::create(AppOptions {
+        data_directory: dir.path().into(),
+        ..AppOptions::default()
+    })
+    .unwrap();
+    fs::remove_file(dir.path().join("config.json")).unwrap();
+    fs::create_dir(dir.path().join("config.json")).unwrap();
+    let (_, events) = core.subscribe().unwrap();
+    let request_id = core
+        .dispatch(Command::UpdateConfig(ConfigPatch {
+            flow_control: Some(FlowControl::Hardware),
+            ..ConfigPatch::default()
+        }))
+        .unwrap();
+
+    loop {
+        match events.recv_timeout(Duration::from_secs(3)).unwrap() {
+            Some(event) => match event.kind {
+                EventKind::CommandFailed {
+                    request_id: failed,
+                    error,
+                } if failed == request_id => {
+                    assert_eq!(error.code, Some(skyport_core::ErrorCode::ConfigIo));
+                    break;
+                }
+                EventKind::CommandCompleted {
+                    request_id: completed,
+                } if completed == request_id => {
+                    panic!("failed config save was applied")
+                }
+                _ => {}
+            },
+            None => panic!("config update did not fail"),
+        }
+    }
+
+    assert_eq!(
+        core.snapshot().unwrap().config.serial.flow_control,
+        FlowControl::None
+    );
+    core.close().unwrap();
 }
 
 #[test]

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../l10n/app_localizations.dart';
+import '../utils/error_messages.dart';
+import '../widgets/shared/error_notice.dart';
 
 class LogExportService {
   static Future<void> exportLogs({
@@ -16,15 +18,15 @@ class LogExportService {
         ? 'serial'
         : portName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
     final date = DateFormat('yyyyMMdd').format(DateTime.now());
-    final destination = await getSaveLocation(
-      suggestedName: '${safePortName}_$date.txt',
-      initialDirectory: defaultPath.isEmpty ? null : defaultPath,
-      acceptedTypeGroups: [
-        XTypeGroup(label: l10n.exportLogs, extensions: const ['txt']),
-      ],
-    );
-    if (destination == null || !context.mounted) return;
     try {
+      final destination = await getSaveLocation(
+        suggestedName: '${safePortName}_$date.txt',
+        initialDirectory: defaultPath.isEmpty ? null : defaultPath,
+        acceptedTypeGroups: [
+          XTypeGroup(label: l10n.exportLogs, extensions: const ['txt']),
+        ],
+      );
+      if (destination == null || !context.mounted) return;
       await export(destination.path);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -33,9 +35,11 @@ class LogExportService {
       }
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
+        showErrorNotice(
           context,
-        ).showSnackBar(SnackBar(content: Text('${l10n.exportFailed}$error')));
+          error,
+          message: l10n.exportFailed(localizedError(l10n, error)),
+        );
       }
     }
   }

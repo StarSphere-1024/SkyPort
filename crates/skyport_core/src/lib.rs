@@ -4,7 +4,9 @@ pub mod logging;
 mod serial;
 
 pub use app::{AppCore, EventSubscription};
-pub use config::{AppConfig, LegacyConfig, Newline, Parity, SendSettings, SerialConfig};
+pub use config::{
+    AppConfig, FlowControl, LegacyConfig, Newline, Parity, SendSettings, SerialConfig,
+};
 pub use logging::{Direction, ExportOptions, LogDelta, LogRecord, LogSnapshot, LogStore};
 use serde::{Deserialize, Serialize};
 use std::{error::Error, fmt, path::PathBuf, time::Duration};
@@ -28,9 +30,40 @@ pub enum ErrorKind {
     Internal,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum ErrorCode {
+    InvalidHexCharacter,
+    IncompleteHexByte,
+    PortNameRequired,
+    PortNameTooLong,
+    PortNameInvalid,
+    BaudRateInvalid,
+    DataBitsInvalid,
+    StopBitsInvalid,
+    LegacyConfigInvalid,
+    ConfigVersionUnsupported,
+    NewlineInvalid,
+    AutoSendIntervalInvalid,
+    LogCapacityInvalid,
+    HistoryTooLong,
+    HistoryEntryEmpty,
+    HistoryTooLarge,
+    ConfigTooLarge,
+    ConfigInvalid,
+    ConfigIo,
+    SendTooLarge,
+    SendInputTooLarge,
+    AutoSendTooLarge,
+    SendEmpty,
+    NoLogsToExport,
+    ExportFailed,
+    QueueCapacityInvalid,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CoreError {
     pub kind: ErrorKind,
+    pub code: Option<ErrorCode>,
     pub message: String,
     pub bytes_written: u64,
 }
@@ -38,9 +71,14 @@ impl CoreError {
     pub fn new(kind: ErrorKind, message: impl Into<String>) -> Self {
         Self {
             kind,
+            code: None,
             message: message.into(),
             bytes_written: 0,
         }
+    }
+    pub fn with_code(mut self, code: ErrorCode) -> Self {
+        self.code = Some(code);
+        self
     }
     pub fn with_written(mut self, bytes_written: u64) -> Self {
         self.bytes_written = bytes_written;
@@ -106,6 +144,7 @@ pub struct ConfigPatch {
     pub parity: Option<Parity>,
     pub stop_bits: Option<u8>,
     pub auto_reconnect: Option<bool>,
+    pub flow_control: Option<FlowControl>,
     pub hex_send: Option<bool>,
     pub newline: Option<Newline>,
     pub append_newline: Option<bool>,
@@ -143,11 +182,6 @@ pub enum Command {
     ExportLog {
         path: String,
         options: ExportOptions,
-    },
-    ImportFile {
-        path: String,
-        hex: bool,
-        newline: Newline,
     },
 }
 

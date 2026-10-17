@@ -19,11 +19,17 @@ class DropdownBuilders {
     required String label,
     required ValueChanged<T?>? onSelected,
     EdgeInsetsGeometry expandedInsets = EdgeInsets.zero,
+    double? width,
+    InputDecorationThemeData? inputDecorationTheme,
+    Widget? trailingIcon,
   }) {
     return DropdownMenu<T>(
       expandedInsets: expandedInsets,
       initialSelection: initialSelection,
       dropdownMenuEntries: entries,
+      width: width,
+      inputDecorationTheme: inputDecorationTheme,
+      trailingIcon: trailingIcon,
       onSelected: onSelected,
       label: Text(label),
     );

@@ -34,35 +34,10 @@ class PortSelectionWidget extends ConsumerWidget {
     final isUnavailable =
         !isConnected && selectedPort != null && !ports.contains(selectedPort);
 
-    Widget connectButtonChild;
-    switch (connectionState) {
-      case UiConnection.connected:
-        connectButtonChild = Text(AppLocalizations.of(context).close);
-        break;
-      case UiConnection.reconnecting:
-      case UiConnection.disconnected:
-      case UiConnection.closed:
-        connectButtonChild = Text(AppLocalizations.of(context).open);
-        break;
-      case UiConnection.connecting:
-      case UiConnection.disconnecting:
-      case UiConnection.reconfiguring:
-      case UiConnection.closing:
-        connectButtonChild = SizedBox(
-          height: 16,
-          width: 16,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: isConnected
-                ? Theme.of(context).colorScheme.onError
-                : Theme.of(context).colorScheme.onPrimary,
-          ),
-        );
-        break;
-    }
-
+    final disconnect =
+        isConnected || connectionState == UiConnection.reconnecting;
+    final l10n = AppLocalizations.of(context);
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: _buildPortDropdown(
@@ -72,48 +47,23 @@ class PortSelectionWidget extends ConsumerWidget {
             isUnavailable: isUnavailable,
             isDisabled: isConnected || isBusy,
             onSelected: (value) {
-              if (value != null) {
-                controller.setPort(value);
-              }
+              if (value != null) controller.setPort(value);
             },
           ),
         ),
-        const SizedBox(width: 12),
-        SizedBox(
-          child: FilledButton(
-            style: ButtonStyle(
-              backgroundColor: WidgetStateProperty.resolveWith<Color?>((
-                states,
-              ) {
-                final colors = Theme.of(context).colorScheme;
-                if (states.contains(WidgetState.disabled)) {
-                  return null;
-                }
-                return isConnected ? colors.error : colors.primary;
-              }),
-              foregroundColor: WidgetStateProperty.resolveWith<Color?>((
-                states,
-              ) {
-                final colors = Theme.of(context).colorScheme;
-                if (states.contains(WidgetState.disabled)) {
-                  return null;
-                }
-                return isConnected ? colors.onError : colors.onPrimary;
-              }),
-            ),
-            onPressed: isBusy || (!isConnected && selectedPort == null)
-                ? null
-                : () async {
-                    if (isConnected ||
-                        connectionState == UiConnection.reconnecting) {
-                      await controller.disconnect();
-                      return;
-                    }
-
-                    await controller.connect();
-                  },
-            child: connectButtonChild,
-          ),
+        const SizedBox(width: 8),
+        FilledButton(
+          onPressed: isBusy || (!disconnect && selectedPort == null)
+              ? null
+              : () =>
+                    disconnect ? controller.disconnect() : controller.connect(),
+          child: isBusy
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text(disconnect ? l10n.close : l10n.open),
         ),
       ],
     );
@@ -146,7 +96,7 @@ class PortSelectionWidget extends ConsumerWidget {
       ),
     ];
 
-    if (isUnavailable && selectedPort != null) {
+    if (selectedPort != null && !ports.contains(selectedPort)) {
       entries.add(
         DropdownMenuEntry<String>(value: selectedPort, label: selectedPort),
       );
@@ -161,7 +111,7 @@ class PortSelectionWidget extends ConsumerWidget {
           ? AppLocalizations.of(context).unavailable
           : null,
       label: Text(AppLocalizations.of(context).portName),
-      enabled: entries.isNotEmpty,
+      enabled: !isDisabled && entries.isNotEmpty,
     );
   }
 
@@ -169,7 +119,7 @@ class PortSelectionWidget extends ConsumerWidget {
     return InputDecoration(
       labelText: label,
       isDense: true,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 12.0,
         vertical: 14.0,

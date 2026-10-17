@@ -17,6 +17,8 @@ enum UiConnection {
 
 enum UiParity { none, odd, even }
 
+enum UiFlowControl { none, hardware, software }
+
 enum UiNewline { none, lf, cr, crlf }
 
 class UiState {
@@ -26,6 +28,7 @@ class UiState {
   final int baudRate;
   final int dataBits;
   final UiParity parity;
+  final UiFlowControl flowControl;
   final int stopBits;
   final bool autoReconnect;
   final bool hexSend;
@@ -55,6 +58,7 @@ class UiState {
     required this.baudRate,
     required this.dataBits,
     required this.parity,
+    required this.flowControl,
     required this.stopBits,
     required this.autoReconnect,
     required this.hexSend,
@@ -94,6 +98,7 @@ class UiState {
       dataBits: snapshot.config.serial.dataBits,
       parity: _parity(snapshot.config.serial.parity),
       stopBits: snapshot.config.serial.stopBits,
+      flowControl: _flowControl(snapshot.config.serial.flowControl),
       autoReconnect: snapshot.config.serial.autoReconnect,
       hexSend: snapshot.config.send.hex,
       newline: _newline(snapshot.config.send.newline),
@@ -126,6 +131,7 @@ class UiState {
     parity: _parity(update.config.serial.parity),
     stopBits: update.config.serial.stopBits,
     autoReconnect: update.config.serial.autoReconnect,
+    flowControl: _flowControl(update.config.serial.flowControl),
     hexSend: update.config.send.hex,
     newline: _newline(update.config.send.newline),
     appendNewline: update.config.send.appendNewline,
@@ -284,6 +290,7 @@ class UiState {
     dataBits: dataBits,
     parity: parity,
     stopBits: stopBits,
+    flowControl: flowControl,
     autoReconnect: autoReconnect,
     hexSend: hexSend,
     newline: newline,
@@ -348,6 +355,11 @@ class UiState {
     rust.Parity.none => UiParity.none,
     rust.Parity.odd => UiParity.odd,
     rust.Parity.even => UiParity.even,
+  };
+  static UiFlowControl _flowControl(rust.FlowControl value) => switch (value) {
+    rust.FlowControl.none => UiFlowControl.none,
+    rust.FlowControl.hardware => UiFlowControl.hardware,
+    rust.FlowControl.software => UiFlowControl.software,
   };
   static UiNewline _newline(rust.Newline value) => switch (value) {
     rust.Newline.none => UiNewline.none,

@@ -1,8 +1,8 @@
 #![cfg(target_os = "linux")]
 
 use skyport_core::{
-    AppCore, AppOptions, Command, ConfigPatch, ConnectionState, ErrorKind, EventKind, LegacyConfig,
-    Newline,
+    AppCore, AppOptions, Command, ConfigPatch, ConnectionState, ErrorCode, ErrorKind, EventKind,
+    FlowControl, LegacyConfig, Newline,
 };
 use std::{
     ffi::CStr,
@@ -105,50 +105,6 @@ fn options(dir: PathBuf, port: String) -> AppOptions {
         command_capacity: 16,
         event_capacity: 64,
     }
-}
-
-#[test]
-fn accepted_file_send_reports_preparation_failure_as_write_failed() {
-    let dir = tempfile::tempdir().unwrap();
-    let core = AppCore::create(AppOptions {
-        data_directory: dir.path().into(),
-        ..AppOptions::default()
-    })
-    .unwrap();
-    let (_, events) = core.subscribe().unwrap();
-    let request = core
-        .dispatch(Command::ImportFile {
-            path: dir
-                .path()
-                .join("missing.bin")
-                .to_string_lossy()
-                .into_owned(),
-            hex: false,
-            newline: Newline::None,
-        })
-        .unwrap();
-    let deadline = Instant::now() + Duration::from_secs(2);
-    loop {
-        assert!(
-            Instant::now() < deadline,
-            "accepted file send had no final outcome"
-        );
-        if let Some(event) = events.recv_timeout(Duration::from_millis(50)).unwrap() {
-            match event.kind {
-                EventKind::WriteFailed { request_id, error } if request_id == request => {
-                    assert_eq!(error.kind, ErrorKind::TaskFailed);
-                    assert_eq!(error.bytes_written, 0);
-                    break;
-                }
-                EventKind::CommandFailed { request_id, .. } if request_id == request => {
-                    panic!("file send used a non-send terminal outcome")
-                }
-                _ => {}
-            }
-        }
-    }
-    assert_eq!(core.snapshot().unwrap().tx_bytes, 0);
-    core.close().unwrap();
 }
 
 #[test]
@@ -272,14 +228,25 @@ fn pty_connect_disconnect_and_reconfigure_keep_hangup_disabled() {
         wait_for(|| core.snapshot().unwrap().connection == ConnectionState::Connected);
         let mut config = core.snapshot().unwrap().config;
         config.serial.baud_rate += 1200;
+        config.serial.flow_control = FlowControl::Hardware;
         let baud_rate = config.serial.baud_rate;
         core.dispatch(Command::SetConfig(config)).unwrap();
         wait_for(|| {
             core.snapshot()
                 .unwrap()
                 .applied_config
-                .is_some_and(|config| config.baud_rate == baud_rate)
+                .is_some_and(|config| {
+                    config.baud_rate == baud_rate && config.flow_control == FlowControl::Hardware
+                })
         });
+        #[cfg(target_os = "linux")]
+        {
+            assert_eq!(
+                unsafe { libc::tcgetattr(observer.as_raw_fd(), &mut settings) },
+                0
+            );
+            assert_ne!(settings.c_cflag & libc::CRTSCTS, 0);
+        }
         core.dispatch(Command::SendHex {
             input: "00 FF".into(),
         })
@@ -294,6 +261,61 @@ fn pty_connect_disconnect_and_reconfigure_keep_hangup_disabled() {
         );
         assert_eq!(settings.c_cflag & libc::HUPCL, 0);
     }
+    core.close().unwrap();
+}
+#[test]
+fn pty_software_flow_control_pauses_and_resumes_output() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut pty = Pty::new();
+    let observer = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(&pty.slave)
+        .unwrap();
+    let core = AppCore::create(options(
+        dir.path().into(),
+        pty.slave.to_string_lossy().into_owned(),
+    ))
+    .unwrap();
+    core.dispatch(Command::Connect).unwrap();
+    wait_for(|| core.snapshot().unwrap().connection == ConnectionState::Connected);
+    core.dispatch(Command::UpdateConfig(ConfigPatch {
+        flow_control: Some(FlowControl::Software),
+        ..ConfigPatch::default()
+    }))
+    .unwrap();
+    wait_for(|| {
+        core.snapshot()
+            .unwrap()
+            .applied_config
+            .is_some_and(|config| config.flow_control == FlowControl::Software)
+    });
+
+    let mut settings = std::mem::MaybeUninit::<libc::termios>::uninit();
+    assert_eq!(
+        unsafe { libc::tcgetattr(observer.as_raw_fd(), settings.as_mut_ptr()) },
+        0
+    );
+    let settings = unsafe { settings.assume_init() };
+    assert_eq!(
+        settings.c_iflag & (libc::IXON | libc::IXOFF),
+        libc::IXON | libc::IXOFF
+    );
+    assert_eq!(settings.c_cc[libc::VSTART] as u8, 0x11);
+    assert_eq!(settings.c_cc[libc::VSTOP] as u8, 0x13);
+
+    pty.write(&[0x13]);
+    core.dispatch(Command::SendText {
+        text: "paused".into(),
+        newline: Newline::None,
+    })
+    .unwrap();
+    thread::sleep(Duration::from_millis(100));
+    assert!(!pty.contains_bytes(b"paused"));
+    assert!(pty.observed.is_empty());
+
+    pty.write(&[0x11]);
+    wait_for(|| pty.contains_bytes(b"paused"));
     core.close().unwrap();
 }
 
@@ -395,17 +417,36 @@ fn pty_configured_name_reconnect_and_subscription_overflow() {
     let overflow_core = AppCore::create(overflow_options).unwrap();
     let (_, slow) = overflow_core.subscribe().unwrap();
     overflow_core
-        .dispatch(Command::SetAutoReconnect(false))
+        .dispatch(Command::UpdateConfig(ConfigPatch {
+            baud_rate: Some(115200),
+            ..ConfigPatch::default()
+        }))
         .unwrap();
+    wait_for(|| {
+        overflow_core
+            .snapshot()
+            .is_ok_and(|snapshot| snapshot.config.serial.baud_rate == 115200)
+    });
+    overflow_core
+        .dispatch(Command::UpdateConfig(ConfigPatch {
+            data_bits: Some(7),
+            ..ConfigPatch::default()
+        }))
+        .unwrap();
+    wait_for(|| {
+        overflow_core
+            .snapshot()
+            .is_ok_and(|snapshot| snapshot.config.serial.data_bits == 7)
+    });
     wait_for(
-        || matches!(slow.recv_timeout(Duration::from_millis(20)),Err(e) if e.kind==ErrorKind::QueueOverflow),
+        || matches!(slow.recv_timeout(Duration::from_millis(20)), Err(error) if error.kind == ErrorKind::QueueOverflow),
     );
     slow.cancel();
     overflow_core.close().unwrap();
 }
 
 #[test]
-fn pty_import_auto_send_export_and_history() {
+fn pty_auto_send_export_and_history() {
     let dir = tempfile::tempdir().unwrap();
     let mut pty = Pty::new();
     let core = AppCore::create(options(
@@ -413,33 +454,8 @@ fn pty_import_auto_send_export_and_history() {
         pty.slave.to_string_lossy().into_owned(),
     ))
     .unwrap();
-    let (_, events) = core.subscribe().unwrap();
     core.dispatch(Command::Connect).unwrap();
     wait_for(|| core.snapshot().unwrap().connection == ConnectionState::Connected);
-
-    let input = dir.path().join("payload.bin");
-    fs::write(&input, b"file bytes").unwrap();
-    let import_id = core
-        .dispatch(Command::ImportFile {
-            path: input.to_string_lossy().into_owned(),
-            hex: false,
-            newline: Newline::CrLf,
-        })
-        .unwrap();
-    wait_for(|| pty.has_bytes(b"file bytes\r\n"));
-    let deadline = Instant::now() + Duration::from_secs(2);
-    let mut import_completed = false;
-    while Instant::now() < deadline {
-        if let Some(event) = events.recv_timeout(Duration::from_millis(40)).unwrap() {
-            if let EventKind::DataSent { request_id, .. } = event.kind {
-                if request_id == import_id {
-                    import_completed = true;
-                    break;
-                }
-            }
-        }
-    }
-    assert!(import_completed);
 
     core.dispatch(Command::SetAutoSend {
         enabled: true,
@@ -459,23 +475,21 @@ fn pty_import_auto_send_export_and_history() {
             .is_some_and(|entry| entry == "periodic")
     });
     let export = dir.path().join("export.txt");
-    let export_id = core
-        .dispatch(Command::ExportLog {
-            path: export.to_string_lossy().into_owned(),
-            options: skyport_core::ExportOptions {
-                show_sent: true,
-                hex: false,
-                timestamps: false,
-                strip_ansi: false,
-            },
-        })
-        .unwrap();
+    core.dispatch(Command::ExportLog {
+        path: export.to_string_lossy().into_owned(),
+        options: skyport_core::ExportOptions {
+            show_sent: true,
+            hex: false,
+            timestamps: false,
+            strip_ansi: false,
+        },
+    })
+    .unwrap();
     wait_for(|| {
         fs::read(&export)
-            .map(|bytes| bytes.windows(15).any(|window| window == b"TX > file bytes"))
+            .map(|bytes| bytes.windows(13).any(|window| window == b"TX > periodic"))
             .unwrap_or(false)
     });
-    assert!(export_id > import_id);
     core.close().unwrap();
 }
 
@@ -524,6 +538,12 @@ fn manual_connect_failure_does_not_start_configured_retries() {
         .unwrap_err()
         .kind,
         ErrorKind::InvalidArgument
+    );
+    assert_eq!(
+        core.dispatch(Command::SendHex { input: "0".into() })
+            .unwrap_err()
+            .code,
+        Some(ErrorCode::IncompleteHexByte)
     );
     core.close().unwrap();
 }
@@ -703,6 +723,10 @@ fn configured_send_and_invalid_auto_edits_use_current_core_settings() {
     let paused = core.snapshot().unwrap();
     assert!(paused.config.send.auto_send_enabled);
     assert_eq!(paused.auto_send_input, "0G");
+    assert_eq!(
+        paused.auto_send_error.as_ref().unwrap().code,
+        Some(ErrorCode::InvalidHexCharacter)
+    );
     thread::sleep(Duration::from_millis(100));
     assert_eq!(core.snapshot().unwrap().tx_bytes, paused.tx_bytes);
     core.dispatch(Command::UpdateConfig(ConfigPatch {

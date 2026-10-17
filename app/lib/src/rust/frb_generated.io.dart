@@ -114,7 +114,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CoreError dco_decode_box_autoadd_core_error(dynamic raw);
 
   @protected
+  ErrorCode dco_decode_box_autoadd_error_code(dynamic raw);
+
+  @protected
   ExportOptions dco_decode_box_autoadd_export_options(dynamic raw);
+
+  @protected
+  FlowControl dco_decode_box_autoadd_flow_control(dynamic raw);
 
   @protected
   LegacyConfig dco_decode_box_autoadd_legacy_config(dynamic raw);
@@ -159,6 +165,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DispatchReply dco_decode_dispatch_reply(dynamic raw);
 
   @protected
+  ErrorCode dco_decode_error_code(dynamic raw);
+
+  @protected
   ErrorKind dco_decode_error_kind(dynamic raw);
 
   @protected
@@ -172,6 +181,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ExportOptions dco_decode_export_options(dynamic raw);
+
+  @protected
+  FlowControl dco_decode_flow_control(dynamic raw);
 
   @protected
   int dco_decode_i_32(dynamic raw);
@@ -241,6 +253,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CoreError? dco_decode_opt_box_autoadd_core_error(dynamic raw);
+
+  @protected
+  ErrorCode? dco_decode_opt_box_autoadd_error_code(dynamic raw);
+
+  @protected
+  FlowControl? dco_decode_opt_box_autoadd_flow_control(dynamic raw);
 
   @protected
   LegacyConfig? dco_decode_opt_box_autoadd_legacy_config(dynamic raw);
@@ -387,9 +405,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CoreError sse_decode_box_autoadd_core_error(SseDeserializer deserializer);
 
   @protected
+  ErrorCode sse_decode_box_autoadd_error_code(SseDeserializer deserializer);
+
+  @protected
   ExportOptions sse_decode_box_autoadd_export_options(
     SseDeserializer deserializer,
   );
+
+  @protected
+  FlowControl sse_decode_box_autoadd_flow_control(SseDeserializer deserializer);
 
   @protected
   LegacyConfig sse_decode_box_autoadd_legacy_config(
@@ -438,6 +462,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DispatchReply sse_decode_dispatch_reply(SseDeserializer deserializer);
 
   @protected
+  ErrorCode sse_decode_error_code(SseDeserializer deserializer);
+
+  @protected
   ErrorKind sse_decode_error_kind(SseDeserializer deserializer);
 
   @protected
@@ -451,6 +478,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ExportOptions sse_decode_export_options(SseDeserializer deserializer);
+
+  @protected
+  FlowControl sse_decode_flow_control(SseDeserializer deserializer);
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
@@ -522,6 +552,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CoreError? sse_decode_opt_box_autoadd_core_error(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ErrorCode? sse_decode_opt_box_autoadd_error_code(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  FlowControl? sse_decode_opt_box_autoadd_flow_control(
     SseDeserializer deserializer,
   );
 
@@ -697,8 +737,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_error_code(
+    ErrorCode self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_export_options(
     ExportOptions self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_flow_control(
+    FlowControl self,
     SseSerializer serializer,
   );
 
@@ -760,6 +812,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_dispatch_reply(DispatchReply self, SseSerializer serializer);
 
   @protected
+  void sse_encode_error_code(ErrorCode self, SseSerializer serializer);
+
+  @protected
   void sse_encode_error_kind(ErrorKind self, SseSerializer serializer);
 
   @protected
@@ -773,6 +828,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_export_options(ExportOptions self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_flow_control(FlowControl self, SseSerializer serializer);
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
@@ -860,6 +918,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_core_error(
     CoreError? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_error_code(
+    ErrorCode? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_flow_control(
+    FlowControl? self,
     SseSerializer serializer,
   );
 
