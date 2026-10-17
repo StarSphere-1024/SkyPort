@@ -56,11 +56,11 @@ class ReceiveController extends UiController {
 
   void resetLogs() => state = build();
 
-  void receiveThrough(int last) {
+  void receiveThrough(int last, {int? first}) {
     state = state.withLogDelta(
       rust.LogDelta(
         upsert: [
-          for (var id = last - 99; id <= last; id++)
+          for (var id = first ?? last - 99; id <= last; id++)
             rust.LogRecord(
               id: id,
               timestampMs: 0,
@@ -72,7 +72,7 @@ class ReceiveController extends UiController {
             ),
         ],
         removedIds: const [],
-        earliestId: last - 99,
+        earliestId: first ?? last - 99,
         totalBytes: 700,
         trimmedBytes: (last - 100) * 7,
         trimmedRecords: last - 100,
@@ -91,6 +91,36 @@ class ReceiveSettings extends UiSettingsNotifier {
 }
 
 void main() {
+  testWidgets('short output starts at the top and appends downward', (
+    tester,
+  ) async {
+    final controller = ReceiveController();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          uiControllerProvider.overrideWith(() => controller),
+          uiSettingsProvider.overrideWith(ReceiveSettings.new),
+        ],
+        child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: Column(children: [ReceiveDisplayWidget()])),
+        ),
+      ),
+    );
+    controller.receiveThrough(2, first: 1);
+    await tester.pumpAndSettle();
+    final top = tester.getTopLeft(find.byType(ListView)).dy;
+    final row1 = tester
+        .getTopLeft(find.textContaining('row 001', findRichText: true))
+        .dy;
+    final row2 = tester
+        .getTopLeft(find.textContaining('row 002', findRichText: true))
+        .dy;
+    expect(row1, closeTo(top + 8, 1));
+    expect(row2, greaterThan(row1));
+  });
+
   testWidgets(
     'follow remains current at capacity and yields to user scrolling',
     (tester) async {
@@ -144,12 +174,12 @@ void main() {
             ),
           )
           .position;
-      expect(position.extentBefore, closeTo(0, 1));
+      expect(position.extentAfter, closeTo(0, 1));
 
       controller.receiveThrough(101);
       controller.receiveThrough(102);
       await tester.pumpAndSettle();
-      expect(position.extentBefore, closeTo(0, 1));
+      expect(position.extentAfter, closeTo(0, 1));
       expect(
         find.textContaining('row 102', findRichText: true),
         findsOneWidget,
@@ -169,7 +199,7 @@ void main() {
       ).read(uiSettingsProvider.notifier);
       settings.setHexDisplay(true);
       await tester.pumpAndSettle();
-      expect(position.extentBefore, closeTo(0, 1));
+      expect(position.extentAfter, closeTo(0, 1));
       expect(
         find.textContaining('72 6F 77 20 31 30 32', findRichText: true),
         findsOneWidget,
@@ -180,7 +210,7 @@ void main() {
       await tester.drag(find.byType(ListView), const Offset(0, 200));
       await tester.pumpAndSettle();
       final readingPosition = position.pixels;
-      expect(position.extentBefore, greaterThan(0));
+      expect(position.extentAfter, greaterThan(0));
       controller.receiveThrough(103);
       await tester.pumpAndSettle();
       expect(position.pixels, closeTo(readingPosition, 1));
