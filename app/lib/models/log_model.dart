@@ -54,8 +54,6 @@ class LogEntry {
 
   bool get debugHasCachedDisplayText => _cachedText != null;
 
-  static int get debugSpanCacheSize => _spanCache.length;
-
   void clearDisplayCache() {
     _cachedText = null;
     _cachedHexMode = null;
@@ -365,7 +363,6 @@ class _CachedSpanData {
 
 class LogChunk {
   final List<LogEntry> entries;
-  final int totalBytes;
   final int id;
 
   List<LogEntry>? _rxEntries;
@@ -373,7 +370,7 @@ class LogChunk {
       .where((e) => e.type == LogEntryType.received)
       .toList();
 
-  LogChunk({required this.entries, required this.totalBytes, required this.id});
+  LogChunk({required this.entries, required this.id});
 
   // Core IDs increase by completion; the reserved pending ID is always last.
   static int insertionIndex(List<LogChunk> chunks, int id) {
