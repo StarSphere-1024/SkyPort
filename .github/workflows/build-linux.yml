@@ -108,11 +108,11 @@ jobs:
       - name: System dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libudev-dev liblzma-dev libstdc++-12-dev patchelf xvfb cpio
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libudev-dev liblzma-dev libstdc++-12-dev patchelf xvfb
 
       - name: Install RPM build tools
         if: matrix.package_type == 'rpm'
-        run: sudo apt-get install -y rpm
+        run: sudo apt-get install -y rpm libarchive-tools
 
       - name: Install AppImage tool (appimagetool)
         if: matrix.package_type == 'appimage'

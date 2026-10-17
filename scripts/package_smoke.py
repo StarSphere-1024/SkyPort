@@ -48,11 +48,7 @@ def main() -> None:
         if artifact.suffix == ".deb":
             subprocess.run(["dpkg-deb", "--extract", str(artifact), str(root)], check=True)
         elif artifact.suffix == ".rpm":
-            with subprocess.Popen(["rpm2cpio", str(artifact)], stdout=subprocess.PIPE) as archive:
-                subprocess.run(["cpio", "-id", "--quiet", "--no-absolute-filenames"], stdin=archive.stdout, cwd=root, check=True)
-                archive.stdout.close()
-                if archive.wait() != 0:
-                    raise RuntimeError("rpm2cpio extraction failed")
+            subprocess.run(["bsdtar", "-xf", str(artifact), "-C", str(root)], check=True)
         elif artifact.suffix.lower() == ".appimage":
             artifact.chmod(artifact.stat().st_mode | 0o111)
             subprocess.run([str(artifact), "--appimage-extract"], cwd=root, check=True, stdout=subprocess.DEVNULL)
