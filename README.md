@@ -23,7 +23,6 @@
     *   采用**统一流式缓冲架构**，自动处理数据包边界：
     *   每条记录可选显示时间戳，并区分显示"发送"和"接收"记录。
     *   可配置日志缓冲区大小（16-512MB，默认128MB）来控制内存使用。
-    *   一键清空接收区。
 
 *   **发送配置**
     *   支持 Hex 发送和文本发送模式切换。
@@ -48,7 +47,7 @@
 ## 🚀 如何构建
 
 ### 环境准备
-安装满足 `SkyPort/pubspec.yaml` 的 Flutter/Dart SDK、Rust stable 和对应桌面平台编译工具链。Linux 需要 GTK3、`pkg-config` 和 libudev 开发包（Debian/Ubuntu：`libgtk-3-dev libudev-dev`）。核心可单独构建，不需要 Flutter SDK。
+安装满足 `app/pubspec.yaml` 的 Flutter/Dart SDK、Rust stable 和对应桌面平台编译工具链。Linux 需要 GTK3、`pkg-config` 和 libudev 开发包（Debian/Ubuntu：`libgtk-3-dev libudev-dev`）。核心可单独构建，不需要 Flutter SDK。
 
 ### 构建步骤
 
@@ -62,18 +61,19 @@
     从仓库根目录执行：
     ```bash
     cargo test --locked -p skyport_core
-    cd SkyPort
+    cd app
     flutter pub get
     ```
 
 3.  **运行应用（桌面）**
+    在 `app/` 目录执行：
     ```bash
     flutter run -d windows  # Windows
     flutter run -d linux    # Linux
     ```
 
 4.  **构建发布版本**
-    在对应宿主机及其平台工具链上执行：
+    在 `app/` 目录、对应宿主机及其平台工具链上执行：
     ```bash
     flutter build windows --release  # Windows host
     flutter build linux --release    # Linux host
@@ -92,11 +92,11 @@ python3 scripts/package_smoke.py <bundle或发行包> # 验证打包后的真实
 
 有显示环境时可直接运行 smoke；无显示的 Linux CI 使用 `xvfb-run -a`。支持检查目录、deb、rpm、AppImage 和 Windows portable zip。Windows 安装程序须先安装到隔离目录，再检查该目录；物理串口和不同架构仍需各自验收。
 
-修改 bridge API 后，从仓库根目录安装生成器，再进入 `SkyPort/` 生成绑定：
+修改 bridge API 后，从仓库根目录安装生成器，再进入 `app/` 生成绑定：
 
 ```bash
 cargo install flutter_rust_bridge_codegen --version 2.13.0 --locked
-cd SkyPort
+cd app
 flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml
 ```
 
@@ -122,9 +122,9 @@ flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml
 5. 开启一个 Pull Request
 
 ### 开发环境设置
-- 安装满足 `SkyPort/pubspec.yaml` 要求的 Flutter SDK（Dart SDK `>=3.10.0`）。
-- 从仓库根目录执行 `cargo test --locked -p skyport_core`；从 `SkyPort/` 执行 `flutter pub get`。
-- 从 `SkyPort/` 使用 `flutter run -d linux` 或在 Windows 宿主机上使用 `flutter run -d windows`。
+- 安装满足 `app/pubspec.yaml` 要求的 Flutter SDK（Dart SDK `>=3.10.0`）。
+- 从仓库根目录执行 `cargo test --locked -p skyport_core`；从 `app/` 执行 `flutter pub get`。
+- 从 `app/` 使用 `flutter run -d linux` 或在 Windows 宿主机上使用 `flutter run -d windows`。
 
 ## 🐛 问题报告
 
@@ -141,4 +141,3 @@ flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml
 ---
 
 *如果这个项目对你有帮助，请给它一个 ⭐！*
-
