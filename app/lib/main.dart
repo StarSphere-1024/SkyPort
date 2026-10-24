@@ -332,10 +332,13 @@ class _HomePageState extends ConsumerState<HomePage>
                                           ),
                                         ),
                                         if (compact && _panelOpen)
-                                          const Positioned.fill(
+                                          Positioned.fill(
                                             child: ModalBarrier(
                                               dismissible: false,
-                                              color: Colors.black38,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .scrim
+                                                  .withValues(alpha: 0.32),
                                             ),
                                           ),
                                         PositionedDirectional(

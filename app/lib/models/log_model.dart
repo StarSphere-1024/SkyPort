@@ -207,9 +207,7 @@ class LogEntry {
         );
       }
 
-      final contentColor = isSent
-          ? primaryColor.withValues(alpha: 0.8)
-          : onSurfaceColor;
+      final contentColor = isSent ? primaryColor : onSurfaceColor;
 
       final contentStyle = baseStyle.copyWith(color: contentColor);
 
@@ -262,7 +260,10 @@ class LogEntry {
       spans.add(
         TextSpan(
           text: ' ... [TRUNCATED]',
-          style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+          style: baseStyle.copyWith(
+            color: onSurfaceColor,
+            fontStyle: FontStyle.italic,
+          ),
         ),
       );
     }

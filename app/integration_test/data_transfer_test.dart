@@ -18,6 +18,7 @@ import 'package:skyport/src/rust/api.dart' as rust;
 import 'package:skyport/src/rust/frb_generated.dart';
 import 'package:skyport/widgets/connection_rail.dart';
 import 'package:skyport/widgets/right_panel/send_input_widget.dart';
+import 'package:skyport/widgets/application_settings.dart';
 import 'package:skyport/widgets/left_panel/send_settings_widget.dart';
 import 'package:skyport/widgets/left_panel/serial_params_widget.dart';
 import 'package:skyport/widgets/status_bar.dart';
@@ -152,6 +153,43 @@ void main() {
           .map((row) => row.data)
           .toList();
       final controller = container.read(uiControllerProvider.notifier);
+      const draft = 'unsent theme draft';
+      await tester.ensureVisible(input);
+      await tester.tap(input);
+      await tester.enterText(input, draft);
+      await tester.pump();
+      final inputController = tester.widget<TextField>(input).controller!;
+      expect(inputController.text, draft);
+      await tester.tap(find.byTooltip(l10n.settingsPageLabel));
+      await tester.pumpAndSettle();
+      final capacityInput = find.descendant(
+        of: find.byType(ApplicationSettings),
+        matching: find.byType(TextFormField),
+      );
+      await tester.ensureVisible(capacityInput);
+      await tester.enterText(capacityInput, '256');
+      await tester.pump();
+      final exportPath = '${directory.path}/before-theme.txt';
+      final exportBefore = await tester.runAsync(() async {
+        final result = await rust.exportLog(
+          handle: handle,
+          path: exportPath,
+          options: const rust.ExportOptions(
+            showSent: true,
+            hex: false,
+            timestamps: true,
+            stripAnsi: false,
+          ),
+        );
+        expect(result.error, isNull);
+        return File(exportPath).readAsBytes();
+      });
+      final exportedBefore = exportBefore!;
+      final capacity = tester.widget<TextFormField>(capacityInput).controller!;
+      final expectedLogCapacity = state.logCapacityBytes;
+      expect(expectedLogCapacity, 128 * 1024 * 1024);
+      expect(capacity.text, '256');
+      expect(inputController.text, draft);
       for (final seed in [Colors.red, const Color(0xffab34ef)]) {
         container.read(themeColorProvider.notifier).setThemeColor(seed);
         container.read(themeModeProvider.notifier).toggleTheme();
@@ -172,6 +210,27 @@ void main() {
           retainedLogBytes,
         );
       }
+      expect(inputController.text, draft);
+      expect(capacity.text, '256');
+      expect(
+        container.read(uiControllerProvider).logCapacityBytes,
+        expectedLogCapacity,
+      );
+      final exportAfter = await tester.runAsync(() async {
+        final result = await rust.exportLog(
+          handle: handle,
+          path: '${directory.path}/after-theme.txt',
+          options: const rust.ExportOptions(
+            showSent: true,
+            hex: false,
+            timestamps: true,
+            stripAnsi: false,
+          ),
+        );
+        expect(result.error, isNull);
+        return File('${directory.path}/after-theme.txt').readAsBytes();
+      });
+      expect(exportAfter, exportedBefore);
 
       await tester.pumpWidget(const SizedBox.shrink());
       container.dispose();
@@ -218,6 +277,15 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      if (find.byType(SerialParamsWidget).hitTestable().evaluate().isEmpty) {
+        await tester.tap(
+          find.descendant(
+            of: find.byType(ConnectionRail),
+            matching: find.text(l10n.serialPageLabel),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
 
       // Exercise every driver mode through the real UI and bridge.
       final flowMenu = find.descendant(
