@@ -323,21 +323,17 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                           uiControllerProvider.select(
                             (state) => (
                               dataGap: state.dataGap,
-                              logIncomplete: state.logIncomplete,
                               trimmedRecords: state.trimmedRecords,
                               trimmedBytes: state.trimmedBytes,
                             ),
                           ),
                         );
-                        if (!state.dataGap &&
-                            !state.logIncomplete &&
-                            state.trimmedRecords == 0) {
+                        if (!state.dataGap && state.trimmedRecords == 0) {
                           return const SizedBox.shrink();
                         }
                         final l10n = AppLocalizations.of(context);
                         final messages = <String>[
                           if (state.dataGap) l10n.logDataGap,
-                          if (state.logIncomplete) l10n.logIncomplete,
                           if (state.trimmedRecords > 0)
                             l10n.logTrimmed(
                               state.trimmedRecords,
