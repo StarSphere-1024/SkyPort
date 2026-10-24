@@ -204,7 +204,6 @@ class UiController extends Notifier<UiState> {
     UiParity? parity,
     int? stopBits,
     UiFlowControl? flowControl,
-    bool? autoReconnect,
   }) async {
     await _dispatch(
       rust.updateConfig(
@@ -236,7 +235,8 @@ class UiController extends Notifier<UiState> {
   void setDataBits(int value) => _setConfig(dataBits: value);
   void setParity(UiParity value) => _setConfig(parity: value);
   void setStopBits(int value) => _setConfig(stopBits: value);
-  void setAutoReconnect(bool value) => _setConfig(autoReconnect: value);
+  void setAutoReconnect(bool value) =>
+      _dispatch(rust.setAutoReconnect(handle: _handle, enabled: value));
   void setFlowControl(UiFlowControl value) => _setConfig(flowControl: value);
 
   Future<void> connect() async {
