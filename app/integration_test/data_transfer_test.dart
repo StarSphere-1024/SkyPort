@@ -13,7 +13,9 @@ import 'package:skyport/models/log_model.dart';
 import 'package:skyport/models/ui_state.dart';
 import 'package:skyport/providers/common_providers.dart';
 import 'package:skyport/providers/ui_controller.dart';
+import 'package:skyport/providers/theme_provider.dart';
 import 'package:skyport/src/rust/api.dart' as rust;
+import 'package:skyport/src/rust/frb_generated.dart';
 import 'package:skyport/widgets/connection_rail.dart';
 import 'package:skyport/widgets/right_panel/send_input_widget.dart';
 import 'package:skyport/widgets/left_panel/send_settings_widget.dart';
@@ -79,6 +81,7 @@ void main() {
         () => rust.closeCore(handle: bootstrap.handle),
       );
       expect(closed!.error, isNull);
+      RustLib.dispose();
       await tester.runAsync(() => directory.delete(recursive: true));
     }
   });
@@ -149,6 +152,31 @@ void main() {
             .data,
         [0, 0xff, 0xfe],
       );
+      final retainedLogBytes = state.logs.chunks
+          .expand((chunk) => chunk.entries)
+          .map((row) => row.data)
+          .toList();
+      final controller = container.read(uiControllerProvider.notifier);
+      for (final seed in [Colors.red, const Color(0xffab34ef)]) {
+        container.read(themeColorProvider.notifier).setThemeColor(seed);
+        container.read(themeModeProvider.notifier).toggleTheme();
+        await tester.pumpAndSettle();
+        state = container.read(uiControllerProvider);
+        expect(
+          identical(controller, container.read(uiControllerProvider.notifier)),
+          isTrue,
+        );
+        expect(state.connection, UiConnection.connected);
+        expect(state.rxBytes, 5);
+        expect(state.txBytes, 5);
+        expect(
+          state.logs.chunks
+              .expand((chunk) => chunk.entries)
+              .map((row) => row.data)
+              .toList(),
+          retainedLogBytes,
+        );
+      }
 
       await tester.pumpWidget(const SizedBox.shrink());
       container.dispose();
@@ -473,6 +501,7 @@ void main() {
         () => rust.closeCore(handle: handle),
       );
       expect(closed!.error, isNull);
+      RustLib.dispose();
       await tester.runAsync(() => directory.delete(recursive: true));
     }
   }, skip: Platform.environment['SKYPORT_PTY'] == null);

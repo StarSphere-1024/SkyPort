@@ -1,3 +1,5 @@
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,10 +24,11 @@ class SettingsController extends LayoutController {
 }
 
 void main() {
-  testWidgets('theme color selection is exclusive and persists', (
-    tester,
-  ) async {
-    SharedPreferences.setMockInitialValues({});
+  Future<({SharedPreferences prefs, BuildContext context})> openSettings(
+    WidgetTester tester, {
+    Color initial = Colors.blue,
+  }) async {
+    SharedPreferences.setMockInitialValues({'theme_color': initial.toARGB32()});
     final prefs = await SharedPreferences.getInstance();
     await tester.pumpWidget(
       ProviderScope(
@@ -38,36 +41,202 @@ void main() {
     );
     await tester.pumpAndSettle();
     final context = tester.element(find.byType(HomePage));
-    final l10n = AppLocalizations.of(context);
-    await tester.tap(find.byTooltip(l10n.settingsPageLabel));
+    await tester.tap(
+      find.byTooltip(AppLocalizations.of(context).settingsPageLabel),
+    );
     await tester.pumpAndSettle();
-    final red = find.byTooltip('${l10n.themeColor} #F44336');
+    return (prefs: prefs, context: context);
+  }
+
+  Future<void> openCustom(WidgetTester tester) async {
+    await tester.tap(find.byKey(const ValueKey('theme-color-scheme')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('theme-custom-color')),
+    );
+    await tester.tap(find.byKey(const ValueKey('theme-custom-color')));
+    await tester.pumpAndSettle();
+  }
+
+  final hexField = find.byKey(const ValueKey('theme-color-hex'));
+  final apply = find.byKey(const ValueKey('theme-color-apply'));
+
+  testWidgets('narrow theme entry stays compact and opens palette', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(380, 753);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final app = await openSettings(tester);
+    final entry = find.byKey(const ValueKey('theme-color-scheme'));
+    expect(tester.getSize(entry).height, lessThanOrEqualTo(72));
+    await tester.tap(entry);
+    await tester.pumpAndSettle();
+    final red = find.byKey(ValueKey('theme-preset-${Colors.red.toARGB32()}'));
+    expect(red.hitTestable(), findsOneWidget);
+    await tester.tap(red);
+    await tester.pumpAndSettle();
+    expect(app.prefs.getInt('theme_color'), Colors.red.toARGB32());
+    expect(tester.getSize(entry).height, lessThanOrEqualTo(72));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('preset palette cards wrap horizontally', (tester) async {
+    await openSettings(tester);
+    await tester.tap(find.byKey(const ValueKey('theme-color-scheme')));
+    await tester.pumpAndSettle();
+    final blue = find.byKey(ValueKey('theme-preset-${Colors.blue.toARGB32()}'));
+    final red = find.byKey(ValueKey('theme-preset-${Colors.red.toARGB32()}'));
+    final blueTopLeft = tester.getTopLeft(blue);
+    final redTopLeft = tester.getTopLeft(red);
+    expect((blueTopLeft.dx - redTopLeft.dx).abs(), greaterThan(1));
+    expect((blueTopLeft.dy - redTopLeft.dy).abs(), lessThan(1));
+  });
+
+  testWidgets('named preset updates theme and exclusive selection', (
+    tester,
+  ) async {
+    final app = await openSettings(tester);
+    await tester.tap(find.byKey(const ValueKey('theme-color-scheme')));
+    await tester.pumpAndSettle();
+    final red = find.byKey(ValueKey('theme-preset-${Colors.red.toARGB32()}'));
     await tester.ensureVisible(red);
     await tester.tap(red);
     await tester.pumpAndSettle();
+    expect(app.prefs.getInt('theme_color'), Colors.red.toARGB32());
     expect(
-      ProviderScope.containerOf(context).read(themeColorProvider),
-      Colors.red,
+      Theme.of(app.context).colorScheme,
+      ColorScheme.fromSeed(seedColor: Colors.red),
     );
-    expect(prefs.getInt('theme_color'), Colors.red.toARGB32());
-    expect(
-      find.byWidgetPredicate(
-        (widget) => widget is IconButton && widget.isSelected == true,
-      ),
-      findsOneWidget,
-    );
-    final blue = find.byTooltip('${l10n.themeColor} #2196F3');
-    await tester.tap(blue);
+    await tester.tap(find.byKey(const ValueKey('theme-color-scheme')));
     await tester.pumpAndSettle();
-    IconButton button(String tooltip) => tester.widget<IconButton>(
-      find.byWidgetPredicate(
-        (widget) => widget is IconButton && widget.tooltip == tooltip,
-      ),
+    expect(
+      tester.getSemantics(red).flagsCollection.isSelected,
+      Tristate.isTrue,
     );
-    expect(button('${l10n.themeColor} #F44336').isSelected, isFalse);
-    expect(button('${l10n.themeColor} #2196F3').isSelected, isTrue);
-    expect(prefs.getInt('theme_color'), Colors.blue.toARGB32());
-    expect(tester.takeException(), isNull);
+    final blue = find.byKey(ValueKey('theme-preset-${Colors.blue.toARGB32()}'));
+    expect(
+      tester.getSemantics(blue).flagsCollection.isSelected,
+      Tristate.isFalse,
+    );
+  });
+
+  testWidgets('Hex applies generated light and dark themes and reloads', (
+    tester,
+  ) async {
+    final app = await openSettings(tester);
+    await openCustom(tester);
+    await tester.enterText(hexField, '  #aB34eF  ');
+    await tester.pumpAndSettle();
+    expect(app.prefs.getInt('theme_color'), Colors.blue.toARGB32());
+    await tester.tap(apply);
+    await tester.pumpAndSettle();
+    const seed = Color(0xffab34ef);
+    final container = ProviderScope.containerOf(app.context);
+    expect(container.read(themeColorProvider), seed);
+    expect(
+      Theme.of(app.context).colorScheme,
+      ColorScheme.fromSeed(seedColor: seed),
+    );
+    container.read(themeModeProvider.notifier).setThemeMode(ThemeMode.dark);
+    await tester.pumpAndSettle();
+    expect(
+      Theme.of(app.context).colorScheme,
+      ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.dark),
+    );
+    await app.prefs.reload();
+    final reloaded = ProviderContainer(
+      overrides: [sharedPreferencesProvider.overrideWithValue(app.prefs)],
+    );
+    addTearDown(reloaded.dispose);
+    expect(reloaded.read(themeColorProvider), seed);
+  });
+
+  testWidgets('invalid Hex and alpha cannot submit', (tester) async {
+    final app = await openSettings(tester);
+    await openCustom(tester);
+    for (final invalid in ['#123', '123456', '#12345678', '#GG1234', '']) {
+      await tester.enterText(hexField, invalid);
+      await tester.pumpAndSettle();
+      expect(tester.widget<FilledButton>(apply).onPressed, isNull);
+      expect(
+        tester.widget<TextField>(hexField).decoration!.errorText,
+        isNotNull,
+      );
+      expect(app.prefs.getInt('theme_color'), Colors.blue.toARGB32());
+    }
+  });
+
+  testWidgets('cancel, back and barrier discard custom edits', (tester) async {
+    const old = Color(0xff123456);
+    final app = await openSettings(tester, initial: old);
+    final container = ProviderScope.containerOf(app.context);
+    for (final dismissal in ['cancel', 'back', 'barrier']) {
+      await openCustom(tester);
+      expect(tester.widget<TextField>(hexField).controller!.text, '#123456');
+      await tester.enterText(hexField, '#654321');
+      await tester.pumpAndSettle();
+      if (dismissal == 'cancel') {
+        await tester.tap(find.byKey(const ValueKey('theme-color-cancel')));
+      } else if (dismissal == 'back') {
+        await tester.binding.handlePopRoute();
+      } else {
+        await tester.tapAt(const Offset(5, 5));
+      }
+      await tester.pumpAndSettle();
+      expect(container.read(themeColorProvider), old);
+      expect(app.prefs.getInt('theme_color'), old.toARGB32());
+    }
+  });
+
+  testWidgets('visual channels and Hex share the same pending seed', (
+    tester,
+  ) async {
+    final app = await openSettings(tester);
+    await openCustom(tester);
+    await tester.enterText(hexField, '#123456');
+    await tester.pumpAndSettle();
+    final red = find.byKey(const ValueKey('theme-color-red'));
+    final green = find.byKey(const ValueKey('theme-color-green'));
+    final blue = find.byKey(const ValueKey('theme-color-blue'));
+    expect(tester.widget<Slider>(red).value, 0x12);
+    expect(tester.widget<Slider>(green).value, 0x34);
+    expect(tester.widget<Slider>(blue).value, 0x56);
+    await tester.tapAt(tester.getCenter(red));
+    await tester.pumpAndSettle();
+    final selected = tester.widget<Slider>(red).value.round();
+    final expected = Color.fromARGB(255, selected, 0x34, 0x56);
+    expect(
+      tester.widget<TextField>(hexField).controller!.text,
+      '#${expected.toARGB32().toRadixString(16).substring(2).toUpperCase()}',
+    );
+    expect(app.prefs.getInt('theme_color'), Colors.blue.toARGB32());
+    await tester.tap(apply);
+    await tester.pumpAndSettle();
+    expect(
+      ProviderScope.containerOf(app.context).read(themeColorProvider),
+      expected,
+    );
+    expect(app.prefs.getInt('theme_color'), expected.toARGB32());
+  });
+
+  testWidgets('old non-preset seed stays selected as custom', (tester) async {
+    const old = Color(0xff9c27b0);
+    final app = await openSettings(tester, initial: old);
+    await tester.tap(find.byKey(const ValueKey('theme-color-scheme')));
+    await tester.pumpAndSettle();
+    expect(find.text('#9C27B0'), findsWidgets);
+    final custom = find.byKey(const ValueKey('theme-custom-color'));
+    expect(
+      tester.getSemantics(custom).flagsCollection.isSelected,
+      Tristate.isTrue,
+    );
+    expect(
+      ProviderScope.containerOf(app.context).read(themeColorProvider),
+      old,
+    );
+    expect(app.prefs.getInt('theme_color'), old.toARGB32());
   });
 
   testWidgets('unsubmitted log capacity survives theme and panel changes', (
@@ -103,7 +272,11 @@ void main() {
     await tester.tap(find.text(l10n.dark).last);
     await tester.pumpAndSettle();
     expect(container.read(themeModeProvider), ThemeMode.dark);
-    await tester.tap(find.byTooltip('${l10n.themeColor} #F44336'));
+    await tester.tap(find.byKey(const ValueKey('theme-color-scheme')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(ValueKey('theme-preset-${Colors.red.toARGB32()}')),
+    );
     await tester.pumpAndSettle();
     await tester.tap(settings);
     await tester.pumpAndSettle();

@@ -410,6 +410,108 @@ abstract class AppLocalizations {
   /// **'Theme Color'**
   String get themeColor;
 
+  /// No description provided for @colorScheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Color scheme'**
+  String get colorScheme;
+
+  /// No description provided for @themeBlue.
+  ///
+  /// In en, this message translates to:
+  /// **'Default blue'**
+  String get themeBlue;
+
+  /// No description provided for @themeRed.
+  ///
+  /// In en, this message translates to:
+  /// **'Red'**
+  String get themeRed;
+
+  /// No description provided for @themeGreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Green'**
+  String get themeGreen;
+
+  /// No description provided for @themeTeal.
+  ///
+  /// In en, this message translates to:
+  /// **'Teal'**
+  String get themeTeal;
+
+  /// No description provided for @themeIndigo.
+  ///
+  /// In en, this message translates to:
+  /// **'Indigo'**
+  String get themeIndigo;
+
+  /// No description provided for @themeViolet.
+  ///
+  /// In en, this message translates to:
+  /// **'Violet'**
+  String get themeViolet;
+
+  /// No description provided for @themePink.
+  ///
+  /// In en, this message translates to:
+  /// **'Pink'**
+  String get themePink;
+
+  /// No description provided for @themeYellow.
+  ///
+  /// In en, this message translates to:
+  /// **'Yellow'**
+  String get themeYellow;
+
+  /// No description provided for @themeOrange.
+  ///
+  /// In en, this message translates to:
+  /// **'Orange'**
+  String get themeOrange;
+
+  /// No description provided for @customSeedColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom seed color'**
+  String get customSeedColor;
+
+  /// No description provided for @seedColorHex.
+  ///
+  /// In en, this message translates to:
+  /// **'Seed color (#RRGGBB)'**
+  String get seedColorHex;
+
+  /// No description provided for @seedColorHexError.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter #RRGGBB (six hexadecimal digits, no alpha).'**
+  String get seedColorHexError;
+
+  /// No description provided for @colorChannelRed.
+  ///
+  /// In en, this message translates to:
+  /// **'Red channel'**
+  String get colorChannelRed;
+
+  /// No description provided for @colorChannelGreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Green channel'**
+  String get colorChannelGreen;
+
+  /// No description provided for @colorChannelBlue.
+  ///
+  /// In en, this message translates to:
+  /// **'Blue channel'**
+  String get colorChannelBlue;
+
+  /// No description provided for @applyColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get applyColor;
+
   /// No description provided for @followSystem.
   ///
   /// In en, this message translates to:

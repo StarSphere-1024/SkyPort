@@ -169,6 +169,58 @@ class AppLocalizationsEn extends AppLocalizations {
   String get themeColor => 'Theme Color';
 
   @override
+  String get colorScheme => 'Color scheme';
+
+  @override
+  String get themeBlue => 'Default blue';
+
+  @override
+  String get themeRed => 'Red';
+
+  @override
+  String get themeGreen => 'Green';
+
+  @override
+  String get themeTeal => 'Teal';
+
+  @override
+  String get themeIndigo => 'Indigo';
+
+  @override
+  String get themeViolet => 'Violet';
+
+  @override
+  String get themePink => 'Pink';
+
+  @override
+  String get themeYellow => 'Yellow';
+
+  @override
+  String get themeOrange => 'Orange';
+
+  @override
+  String get customSeedColor => 'Custom seed color';
+
+  @override
+  String get seedColorHex => 'Seed color (#RRGGBB)';
+
+  @override
+  String get seedColorHexError =>
+      'Enter #RRGGBB (six hexadecimal digits, no alpha).';
+
+  @override
+  String get colorChannelRed => 'Red channel';
+
+  @override
+  String get colorChannelGreen => 'Green channel';
+
+  @override
+  String get colorChannelBlue => 'Blue channel';
+
+  @override
+  String get applyColor => 'Apply';
+
+  @override
   String get followSystem => 'Follow System';
 
   @override

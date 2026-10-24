@@ -160,6 +160,25 @@ void main() {
   });
 
   group('ThemeColorNotifier', () {
+    test('non-preset seed survives persistence and a fresh provider', () async {
+      SharedPreferences.setMockInitialValues({'theme_color': 0xff9c27b0});
+      final prefs = await SharedPreferences.getInstance();
+      final first = ProviderContainer(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      );
+      expect(first.read(themeColorProvider), const Color(0xff9c27b0));
+      first
+          .read(themeColorProvider.notifier)
+          .setThemeColor(const Color(0xffab34ef));
+      first.dispose();
+      await prefs.reload();
+      final restored = ProviderContainer(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      );
+      addTearDown(restored.dispose);
+      expect(restored.read(themeColorProvider), const Color(0xffab34ef));
+    });
+
     late MockSharedPreferences mockPrefs;
 
     setUp(() {

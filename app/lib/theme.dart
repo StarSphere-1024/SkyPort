@@ -6,14 +6,6 @@ extension CodeTextTheme on TextTheme {
   TextStyle get code => bodyMedium!.copyWith(fontFamily: kCodeFontFamily);
 }
 
-final availableThemeColors = [
-  Colors.blue,
-  Colors.red,
-  Colors.green,
-  Colors.purple,
-  Colors.orange,
-];
-
 ThemeData getLightTheme(Color seedColor) {
   return ThemeData(
     colorScheme: ColorScheme.fromSeed(seedColor: seedColor),
