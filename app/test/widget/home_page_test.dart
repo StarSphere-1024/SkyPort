@@ -34,7 +34,7 @@ class LayoutController extends UiController {
     logCapacityBytes: 128 * 1024 * 1024,
     sendHistory: const [],
     autoSendInput: '',
-    ports: const [],
+    ports: [if (portName.isNotEmpty) portName],
     rxBytes: 123456789,
     txBytes: 987654321,
     lastRxBytes: 123456,
