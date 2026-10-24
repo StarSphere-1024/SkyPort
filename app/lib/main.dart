@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'dart:io';
 
@@ -6,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skyport/src/rust/api.dart' as rust;
+import 'package:dynamic_color/dynamic_color.dart';
 import 'host_core.dart';
 import 'providers/common_providers.dart';
 import 'providers/ui_controller.dart';
@@ -101,15 +103,87 @@ class SerialDebuggerApp extends ConsumerWidget {
     }
     final themeMode = ref.watch(themeModeProvider);
     final themeColor = ref.watch(themeColorProvider);
-    return MaterialApp(
-      onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
-      theme: getLightTheme(themeColor),
-      darkTheme: getDarkTheme(themeColor),
-      themeMode: themeMode,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: const HomePage(),
+    final hasManualColor = ref.watch(hasManualThemeColorProvider);
+    final dynamicEnabled = ref.watch(dynamicColorEnabledProvider);
+    final systemAccent = ref.watch(systemAccentColorProvider);
+    Color seedFor(Brightness brightness) => resolveThemeColor(
+      dynamicEnabled: dynamicEnabled,
+      manualSeed: hasManualColor ? themeColor : null,
+      systemAccent: systemAccent,
+      brightness: brightness,
+    ).seed;
+    return _DynamicAccentColorMonitor(
+      child: MaterialApp(
+        onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
+        theme: getLightTheme(seedFor(Brightness.light)),
+        darkTheme: getDarkTheme(seedFor(Brightness.dark)),
+        themeMode: themeMode,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const HomePage(),
+      ),
     );
+  }
+}
+
+class _DynamicAccentColorMonitor extends ConsumerStatefulWidget {
+  const _DynamicAccentColorMonitor({required this.child});
+  final Widget child;
+
+  @override
+  ConsumerState<_DynamicAccentColorMonitor> createState() =>
+      _DynamicAccentColorMonitorState();
+}
+
+class _DynamicAccentColorMonitorState
+    extends ConsumerState<_DynamicAccentColorMonitor> {
+  Timer? _timer;
+  bool _refreshing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = ref.watch(dynamicColorEnabledProvider);
+    final supported =
+        Theme.of(context).platform == TargetPlatform.windows ||
+        Theme.of(context).platform == TargetPlatform.linux;
+    if (enabled && supported) {
+      // ponytail: poll plugin reads; use native events if 10s polling proves costly.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _timer != null) return;
+        _refreshAccent();
+        _timer = Timer.periodic(
+          const Duration(seconds: 10),
+          (_) => _refreshAccent(),
+        );
+      });
+    } else {
+      _timer?.cancel();
+      _timer = null;
+    }
+    return widget.child;
+  }
+
+  Future<void> _refreshAccent() async {
+    if (_refreshing || !mounted) return;
+    _refreshing = true;
+    try {
+      final color = await DynamicColorPlugin.getAccentColor();
+      if (mounted) {
+        ref.read(systemAccentColorProvider.notifier).setColor(color);
+      }
+    } on PlatformException {
+      if (mounted) ref.read(systemAccentColorProvider.notifier).setColor(null);
+    } on MissingPluginException {
+      if (mounted) ref.read(systemAccentColorProvider.notifier).setColor(null);
+    } finally {
+      _refreshing = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 }
 

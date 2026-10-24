@@ -168,6 +168,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get themeColor => '主题颜色';
 
   @override
+  String get dynamicColor => '使用系统强调色';
+
+  @override
+  String get themeColorSaveFailed => '无法保存主题设置';
+
+  @override
   String get colorScheme => '配色方案';
 
   @override

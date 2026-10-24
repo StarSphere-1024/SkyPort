@@ -59,6 +59,8 @@
   "logBufferSizeHint": "16–512 MB · 按 Enter 应用",
   "theme": "主题",
   "themeColor": "主题颜色",
+  "dynamicColor": "使用系统强调色",
+  "themeColorSaveFailed": "无法保存主题设置",
   "colorScheme": "配色方案",
   "themeBlue": "默认蓝",
   "themeRed": "红",

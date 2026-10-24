@@ -61,6 +61,30 @@ void main() {
   final hexField = find.byKey(const ValueKey('theme-color-hex'));
   final apply = find.byKey(const ValueKey('theme-color-apply'));
 
+  testWidgets(
+    'dynamic color switch keeps manual editing enabled without status copy',
+    (tester) async {
+      final app = await openSettings(tester, initial: Colors.green);
+      final switchFinder = find.byKey(const ValueKey('dynamic-color-switch'));
+      expect(switchFinder, findsOneWidget);
+
+      await tester.tap(switchFinder);
+      await tester.pumpAndSettle();
+      expect(app.prefs.getBool('dynamic_color_enabled'), isTrue);
+
+      await tester.tap(find.byKey(const ValueKey('theme-color-scheme')));
+      await tester.pumpAndSettle();
+      final red = find.byKey(ValueKey('theme-preset-${Colors.red.toARGB32()}'));
+      await tester.ensureVisible(red);
+      await tester.tap(red);
+      await tester.pumpAndSettle();
+
+      expect(app.prefs.getBool('dynamic_color_enabled'), isTrue);
+      expect(app.prefs.getInt('theme_color'), Colors.red.toARGB32());
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.linux),
+  );
+
   testWidgets('narrow theme entry stays compact and opens palette', (
     tester,
   ) async {

@@ -28,6 +28,18 @@ class ApplicationSettings extends ConsumerWidget {
     final uiSettings = ref.watch(uiSettingsProvider);
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final dynamicColorEnabled = ref.watch(dynamicColorEnabledProvider);
+    final manualSeed = ref.watch(themeColorProvider);
+    final hasManualSeed = ref.watch(hasManualThemeColorProvider);
+    final systemAccent = ref.watch(systemAccentColorProvider);
+    final showManualColor =
+        resolveThemeColor(
+          dynamicEnabled: dynamicColorEnabled,
+          manualSeed: hasManualSeed ? manualSeed : null,
+          systemAccent: systemAccent,
+          brightness: theme.brightness,
+        ).source !=
+        ThemeColorSource.system;
 
     Future<void> chooseExportDirectory() async {
       final path = await getDirectoryPath();
@@ -144,7 +156,39 @@ class ApplicationSettings extends ConsumerWidget {
                 ],
               ),
             ),
-            const ThemeColorSetting(),
+            if (theme.platform == TargetPlatform.windows ||
+                theme.platform == TargetPlatform.linux)
+              settingRow(
+                icon: Icons.color_lens_outlined,
+                title: localizations.dynamicColor,
+                trailing: Switch(
+                  key: const ValueKey('dynamic-color-switch'),
+                  value: dynamicColorEnabled,
+                  onChanged: (enabled) async {
+                    try {
+                      await ref
+                          .read(dynamicColorEnabledProvider.notifier)
+                          .setEnabled(enabled);
+                    } catch (error, stackTrace) {
+                      FlutterError.reportError(
+                        FlutterErrorDetails(
+                          exception: error,
+                          stack: stackTrace,
+                          library: 'SkyPort theme settings',
+                        ),
+                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(localizations.themeColorSaveFailed),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+              ),
+            if (showManualColor) const ThemeColorSetting(),
           ]),
           section(localizations.settingsConnection, [
             settingRow(
@@ -152,6 +196,7 @@ class ApplicationSettings extends ConsumerWidget {
               title: localizations.autoReconnect,
               onTap: () => controllerNotifier.setAutoReconnect(!autoReconnect),
               trailing: Switch(
+                key: const ValueKey('auto-reconnect-switch'),
                 value: autoReconnect,
                 onChanged: controllerNotifier.setAutoReconnect,
               ),
@@ -215,6 +260,7 @@ class ApplicationSettings extends ConsumerWidget {
                     onPressed: chooseExportDirectory,
                     style: OutlinedButton.styleFrom(
                       alignment: AlignmentDirectional.centerStart,
+
                       padding: const EdgeInsets.all(12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),

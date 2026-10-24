@@ -169,6 +169,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get themeColor => 'Theme Color';
 
   @override
+  String get dynamicColor => 'Use system accent color';
+
+  @override
+  String get themeColorSaveFailed => 'Could not save theme preference';
+
+  @override
   String get colorScheme => 'Color scheme';
 
   @override

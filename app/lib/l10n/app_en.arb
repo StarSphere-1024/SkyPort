@@ -59,6 +59,8 @@
   "logBufferSizeHint": "16–512 MB · Press Enter to apply",
   "theme": "Theme",
   "themeColor": "Theme Color",
+  "dynamicColor": "Use system accent color",
+  "themeColorSaveFailed": "Could not save theme preference",
   "colorScheme": "Color scheme",
   "themeBlue": "Default blue",
   "themeRed": "Red",

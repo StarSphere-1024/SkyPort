@@ -16,14 +16,12 @@ class ThemeModeNotifier extends Notifier<ThemeMode> {
     final themeString = prefs.getString(_themeKey);
     if (themeString == 'light') return ThemeMode.light;
     if (themeString == 'dark') return ThemeMode.dark;
-    return ThemeMode.system; // Default to follow system
+    return ThemeMode.system;
   }
 
   void toggleTheme() {
     if (state == ThemeMode.light) {
       state = ThemeMode.dark;
-    } else if (state == ThemeMode.dark) {
-      state = ThemeMode.light;
     } else {
       state = ThemeMode.light;
     }
@@ -37,14 +35,11 @@ class ThemeModeNotifier extends Notifier<ThemeMode> {
 
   void _saveThemeMode() {
     final prefs = ref.read(sharedPreferencesProvider);
-    String themeString;
-    if (state == ThemeMode.light) {
-      themeString = 'light';
-    } else if (state == ThemeMode.dark) {
-      themeString = 'dark';
-    } else {
-      themeString = 'system';
-    }
+    final themeString = switch (state) {
+      ThemeMode.light => 'light',
+      ThemeMode.dark => 'dark',
+      ThemeMode.system => 'system',
+    };
     prefs.setString(_themeKey, themeString);
   }
 }
@@ -60,26 +55,96 @@ class ThemeColorNotifier extends Notifier<Color> {
   @override
   Color build() {
     final prefs = ref.read(sharedPreferencesProvider);
-    return _loadThemeColor(prefs);
-  }
-
-  Color _loadThemeColor(SharedPreferences prefs) {
     final colorValue = prefs.getInt(_themeColorKey);
-    if (colorValue == null) return defaultColor;
-    return Color(colorValue);
+    return colorValue == null ? defaultColor : Color(colorValue);
   }
 
   void setThemeColor(Color color) {
     state = color;
-    _saveThemeColor();
-  }
-
-  void _saveThemeColor() {
-    final prefs = ref.read(sharedPreferencesProvider);
-    prefs.setInt(_themeColorKey, state.toARGB32());
+    ref
+        .read(sharedPreferencesProvider)
+        .setInt(_themeColorKey, color.toARGB32());
   }
 }
 
 final themeColorProvider = NotifierProvider<ThemeColorNotifier, Color>(
   ThemeColorNotifier.new,
 );
+
+final hasManualThemeColorProvider = Provider<bool>((ref) {
+  ref.watch(themeColorProvider);
+  return ref.read(sharedPreferencesProvider).getInt('theme_color') != null;
+});
+
+enum ThemeColorSource { system, manual, defaultColor }
+
+class ThemeColorResolution {
+  const ThemeColorResolution(this.seed, this.source);
+  final Color seed;
+  final ThemeColorSource source;
+}
+
+ThemeColorResolution resolveThemeColor({
+  required bool dynamicEnabled,
+  required Color? manualSeed,
+  required Color? systemAccent,
+  required Brightness brightness,
+}) {
+  if (dynamicEnabled && systemAccent != null) {
+    return ThemeColorResolution(systemAccent, ThemeColorSource.system);
+  }
+  if (manualSeed != null) {
+    return ThemeColorResolution(manualSeed, ThemeColorSource.manual);
+  }
+  return const ThemeColorResolution(
+    ThemeColorNotifier.defaultColor,
+    ThemeColorSource.defaultColor,
+  );
+}
+
+class DynamicColorEnabledNotifier extends Notifier<bool> {
+  static const _enabledKey = 'dynamic_color_enabled';
+  static const _initializedKey = 'dynamic_color_preference_initialized';
+
+  @override
+  bool build() {
+    final prefs = ref.read(sharedPreferencesProvider);
+    final initialized = prefs.getBool(_initializedKey) ?? false;
+    final saved = prefs.getBool(_enabledKey);
+    final hasLegacyPreferences = prefs.getKeys().any(
+      (key) => key != _enabledKey && key != _initializedKey,
+    );
+    final enabled = initialized ? saved ?? true : !hasLegacyPreferences;
+    prefs.setBool(_enabledKey, enabled);
+    prefs.setBool(_initializedKey, true);
+    return enabled;
+  }
+
+  Future<void> setEnabled(bool enabled) async {
+    final prefs = ref.read(sharedPreferencesProvider);
+    if (!await prefs.setBool(_enabledKey, enabled)) {
+      throw StateError('Could not save dynamic color preference');
+    }
+    if (!await prefs.setBool(_initializedKey, true)) {
+      throw StateError('Could not save dynamic color migration state');
+    }
+    state = enabled;
+  }
+}
+
+final dynamicColorEnabledProvider =
+    NotifierProvider<DynamicColorEnabledNotifier, bool>(
+      DynamicColorEnabledNotifier.new,
+    );
+
+class SystemAccentColorNotifier extends Notifier<Color?> {
+  @override
+  Color? build() => null;
+
+  void setColor(Color? color) => state = color;
+}
+
+final systemAccentColorProvider =
+    NotifierProvider<SystemAccentColorNotifier, Color?>(
+      SystemAccentColorNotifier.new,
+    );
