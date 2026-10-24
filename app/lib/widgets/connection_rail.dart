@@ -7,7 +7,6 @@ class ConnectionRail extends StatelessWidget {
     super.key,
     required this.panelOpen,
     required this.settingsSelected,
-    required this.onTogglePanel,
     required this.onSerial,
     required this.onSettings,
   });
@@ -16,7 +15,6 @@ class ConnectionRail extends StatelessWidget {
 
   final bool panelOpen;
   final bool settingsSelected;
-  final VoidCallback onTogglePanel;
   final VoidCallback onSerial;
   final VoidCallback onSettings;
 
@@ -28,16 +26,6 @@ class ConnectionRail extends StatelessWidget {
       width: width,
       child: Column(
         children: [
-          IconButton(
-            tooltip: panelOpen
-                ? l10n.collapseConfiguration
-                : l10n.expandConfiguration,
-            onPressed: onTogglePanel,
-            icon: Transform.flip(
-              flipX: true,
-              child: const Icon(Icons.view_sidebar_outlined),
-            ),
-          ),
           _RailEntry(
             icon: Icons.cable,
             label: l10n.serialPageLabel,

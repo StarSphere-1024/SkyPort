@@ -90,15 +90,19 @@ void main() {
 
     await mount();
     final l10n = AppLocalizations.of(tester.element(find.byType(HomePage)));
-    final expand = find.byTooltip(l10n.expandConfiguration);
-    final collapse = find.byTooltip(l10n.collapseConfiguration);
+    final expand = find.byWidgetPredicate(
+      (widget) => widget is ConnectionRail && !widget.panelOpen,
+    );
+    final collapse = find.byWidgetPredicate(
+      (widget) => widget is ConnectionRail && widget.panelOpen,
+    );
     expect(collapse, findsOneWidget);
 
     await mount();
     expect(collapse, findsOneWidget);
     expect(find.byType(LeftPanel).hitTestable(), findsOneWidget);
 
-    await tester.tap(collapse);
+    await tester.tap(find.byTooltip(l10n.serialPageLabel));
     await tester.pumpAndSettle();
     await mount();
     expect(expand, findsOneWidget);
@@ -170,11 +174,11 @@ void main() {
       await tester.tap(power);
       await tester.pumpAndSettle();
       expect(controller.connection, UiConnection.disconnected);
-      expect(find.byTooltip(l10n.collapseConfiguration), findsOneWidget);
+      expect(tester.widget<ConnectionRail>(rail).panelOpen, isTrue);
       await tester.tap(power);
       await tester.pumpAndSettle();
       expect(controller.connection, UiConnection.connected);
-      expect(find.byTooltip(l10n.collapseConfiguration), findsOneWidget);
+      expect(tester.widget<ConnectionRail>(rail).panelOpen, isTrue);
       await tester.tap(settingsPage);
       await tester.pumpAndSettle();
       final buffer = find.descendant(
@@ -186,7 +190,7 @@ void main() {
       await tester.pump();
       await tester.tap(settingsPage);
       await tester.pumpAndSettle();
-      expect(find.byTooltip(l10n.expandConfiguration), findsOneWidget);
+      expect(tester.widget<ConnectionRail>(rail).panelOpen, isFalse);
       expect(buffer.hitTestable(), findsNothing);
       await tester.tap(settingsPage);
       await tester.pumpAndSettle();
@@ -204,7 +208,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
-      expect(find.byTooltip(l10n.expandConfiguration), findsOneWidget);
+      expect(tester.widget<ConnectionRail>(rail).panelOpen, isFalse);
 
       for (final size in [
         const Size(320, 480),
@@ -254,17 +258,17 @@ void main() {
         expect(flowRect.left, greaterThan(baudRect.right));
         await tester.tap(portPage);
         await tester.pumpAndSettle();
-        expect(find.byTooltip(l10n.expandConfiguration), findsOneWidget);
+        expect(tester.widget<ConnectionRail>(rail).panelOpen, isFalse);
         expect(find.byType(LeftPanel).hitTestable(), findsNothing);
         await tester.tap(portPage);
         await tester.pumpAndSettle();
-        expect(find.byTooltip(l10n.collapseConfiguration), findsOneWidget);
+        expect(tester.widget<ConnectionRail>(rail).panelOpen, isTrue);
         expect(tester.takeException(), isNull);
 
         if (size.width == 799) {
           await tester.tapAt(const Offset(780, 150));
           await tester.pumpAndSettle();
-          expect(find.byTooltip(l10n.collapseConfiguration), findsOneWidget);
+          expect(tester.widget<ConnectionRail>(rail).panelOpen, isTrue);
         }
         await tester.tap(power);
         await tester.pumpAndSettle();
@@ -274,7 +278,7 @@ void main() {
         expect(tester.widget<FilledButton>(send).onPressed, isNotNull);
         await tester.sendKeyEvent(LogicalKeyboardKey.escape);
         await tester.pumpAndSettle();
-        expect(find.byTooltip(l10n.expandConfiguration), findsOneWidget);
+        expect(tester.widget<ConnectionRail>(rail).panelOpen, isFalse);
         expect(
           tester.widget<TextFormField>(input).controller,
           same(textController),

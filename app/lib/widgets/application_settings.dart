@@ -27,6 +27,7 @@ class ApplicationSettings extends ConsumerWidget {
     );
     final controllerNotifier = ref.read(uiControllerProvider.notifier);
     final uiSettings = ref.watch(uiSettingsProvider);
+    final themeColor = ref.watch(themeColorProvider);
     final labelStyle = TextStyle(color: Theme.of(context).colorScheme.primary);
 
     Future<void> chooseExportDirectory() async {
@@ -83,42 +84,44 @@ class ApplicationSettings extends ConsumerWidget {
           ),
           labeledControl(
             localizations.themeColor,
-            DropdownButton<Color>(
-              isExpanded: true,
-              borderRadius: BorderRadius.circular(12),
-              value: availableThemeColors.firstWhere(
-                (color) =>
-                    color.toARGB32() ==
-                    ref.watch(themeColorProvider).toARGB32(),
-                orElse: () => availableThemeColors.first,
-              ),
-              onChanged: (color) {
-                if (color != null) {
-                  ref.read(themeColorProvider.notifier).setThemeColor(color);
-                }
-              },
-              items: availableThemeColors.map((color) {
-                return DropdownMenuItem(
-                  value: color,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Container(
-                      width: 24,
-                      height: 24,
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: availableThemeColors.map((color) {
+                final selected = color.toARGB32() == themeColor.toARGB32();
+                return Semantics(
+                  inMutuallyExclusiveGroup: true,
+                  selected: selected,
+                  child: IconButton(
+                    tooltip:
+                        '${localizations.themeColor} #${color.toARGB32().toRadixString(16).substring(2).toUpperCase()}',
+                    isSelected: selected,
+                    onPressed: () => ref
+                        .read(themeColorProvider.notifier)
+                        .setThemeColor(color),
+                    icon: Container(
+                      width: 32,
+                      height: 32,
+                      padding: const EdgeInsets.all(3),
                       decoration: BoxDecoration(
-                        color: color,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: Colors.grey.withValues(alpha: 0.3),
-                          width: 1,
+                          color: selected
+                              ? Theme.of(context).colorScheme.onSurface
+                              : Colors.transparent,
+                          width: 2,
+                        ),
+                      ),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
                         ),
                       ),
                     ),
                   ),
                 );
               }).toList(),
-              icon: const SizedBox.shrink(),
-              underline: const SizedBox.shrink(),
             ),
           ),
           const Divider(),
