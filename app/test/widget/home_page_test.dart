@@ -186,10 +186,9 @@ void main() {
       await tester.pump();
       await tester.tap(settingsPage);
       await tester.pumpAndSettle();
-      expect(tester.widget<TextFormField>(buffer).controller!.text, '25');
-      await tester.tap(find.byTooltip(l10n.collapseConfiguration));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip(l10n.expandConfiguration));
+      expect(find.byTooltip(l10n.expandConfiguration), findsOneWidget);
+      expect(buffer.hitTestable(), findsNothing);
+      await tester.tap(settingsPage);
       await tester.pumpAndSettle();
       expect(find.byType(ApplicationSettings), findsOneWidget);
       expect(tester.widget<TextFormField>(buffer).controller!.text, '25');
@@ -253,6 +252,10 @@ void main() {
         expect(flowRect.top, baudRect.top);
         expect(flowRect.height, baudRect.height);
         expect(flowRect.left, greaterThan(baudRect.right));
+        await tester.tap(portPage);
+        await tester.pumpAndSettle();
+        expect(find.byTooltip(l10n.expandConfiguration), findsOneWidget);
+        expect(find.byType(LeftPanel).hitTestable(), findsNothing);
         await tester.tap(portPage);
         await tester.pumpAndSettle();
         expect(find.byTooltip(l10n.collapseConfiguration), findsOneWidget);
