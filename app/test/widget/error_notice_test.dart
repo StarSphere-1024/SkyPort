@@ -7,6 +7,39 @@ import 'package:skyport/src/rust/api.dart' as rust;
 import 'package:skyport/widgets/shared/error_notice.dart';
 
 void main() {
+  testWidgets('error notices expire and can be closed manually', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showErrorNotice(context, StateError('failure')),
+              child: const Icon(Icons.warning),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byIcon(Icons.warning));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.byType(SnackBar), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    expect(find.byType(SnackBar), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.warning));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
   testWidgets(
     'partial writes keep byte progress and reveal raw diagnostics only on request',
     (tester) async {
