@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:skyport/models/log_model.dart';
+import 'package:skyport/theme.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -269,6 +270,58 @@ void main() {
         expect(colorSpan.style?.color, Colors.green);
       });
     });
+    group('theme contrast', () {
+      test('sent payload meets body contrast across generated themes', () {
+        double contrast(Color foreground, Color background) {
+          final rendered = Color.lerp(background, foreground, foreground.a)!;
+          final a = rendered.computeLuminance();
+          final b = background.computeLuminance();
+          return (a > b ? a + 0.05 : b + 0.05) / (a > b ? b + 0.05 : a + 0.05);
+        }
+
+        final entry = LogEntry(
+          Uint8List.fromList('payload'.codeUnits),
+          LogEntryType.sent,
+          DateTime.now(),
+        );
+        for (final seed in [Colors.blue, Colors.yellow, Colors.deepPurple]) {
+          for (final brightness in Brightness.values) {
+            final theme = brightness == Brightness.light
+                ? getLightTheme(seed)
+                : getDarkTheme(seed);
+            final spans = entry.getSpans(
+              hexDisplay: false,
+              showTimestamp: false,
+              showSent: false,
+              enableAnsi: false,
+              baseStyle: theme.textTheme.bodyMedium!,
+              timestampStyle: theme.textTheme.bodySmall!,
+              primaryColor: theme.colorScheme.primary,
+              onSurfaceColor: theme.colorScheme.onSurface,
+            );
+            final payload = spans.whereType<TextSpan>().firstWhere(
+              (span) => span.text == 'payload',
+            );
+            expect(
+              contrast(
+                payload.style!.color!,
+                theme.colorScheme.surfaceContainerLow,
+              ),
+              greaterThanOrEqualTo(4.5),
+              reason: 'sent seed=$seed brightness=$brightness',
+            );
+            expect(
+              contrast(
+                theme.colorScheme.onSurface,
+                theme.colorScheme.surfaceContainerLow,
+              ),
+              greaterThanOrEqualTo(4.5),
+              reason: 'received seed=$seed brightness=$brightness',
+            );
+          }
+        }
+      });
+    });
 
     group('getSpans truncation', () {
       test('truncates long text in text mode', () {
@@ -296,8 +349,8 @@ void main() {
           (s) => s is TextSpan && (s.text?.contains('[TRUNCATED]') ?? false),
           orElse: () => const TextSpan(text: ''),
         );
-        expect(truncationSpan, isA<TextSpan>());
         expect((truncationSpan as TextSpan).text, contains('[TRUNCATED]'));
+        expect(truncationSpan.style?.color, Colors.black);
       });
 
       test('does not truncate in hex mode', () {

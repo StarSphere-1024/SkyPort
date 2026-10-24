@@ -320,4 +320,73 @@ void main() {
       expect(controller.connection, UiConnection.disconnected);
     },
   );
+  testWidgets('connection status indicator stays legible across brightness', (
+    tester,
+  ) async {
+    double contrast(Color foreground, Color background) {
+      final a = foreground.computeLuminance();
+      final b = background.computeLuminance();
+      return (a > b ? a + 0.05 : b + 0.05) / (a > b ? b + 0.05 : a + 0.05);
+    }
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [uiControllerProvider.overrideWith(LayoutController.new)],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData.light(useMaterial3: true),
+          home: const StatusBar(),
+        ),
+      ),
+    );
+    var theme = Theme.of(tester.element(find.byType(StatusBar)));
+    var status = tester.widget<Icon>(find.byIcon(Icons.circle)).color!;
+    expect(
+      contrast(status, theme.colorScheme.surface),
+      greaterThanOrEqualTo(3),
+    );
+    final lightController =
+        ProviderScope.containerOf(
+              tester.element(find.byType(StatusBar)),
+            ).read(uiControllerProvider.notifier)
+            as LayoutController;
+    lightController.showConnection(UiConnection.reconfiguring);
+    await tester.pump();
+    status = tester.widget<Icon>(find.byIcon(Icons.circle)).color!;
+    expect(
+      contrast(status, theme.colorScheme.surface),
+      greaterThanOrEqualTo(3),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [uiControllerProvider.overrideWith(LayoutController.new)],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData.dark(useMaterial3: true),
+          home: const StatusBar(),
+        ),
+      ),
+    );
+    theme = Theme.of(tester.element(find.byType(StatusBar)));
+    status = tester.widget<Icon>(find.byIcon(Icons.circle)).color!;
+    expect(
+      contrast(status, theme.colorScheme.surface),
+      greaterThanOrEqualTo(3),
+    );
+    final darkController =
+        ProviderScope.containerOf(
+              tester.element(find.byType(StatusBar)),
+            ).read(uiControllerProvider.notifier)
+            as LayoutController;
+    darkController.showConnection(UiConnection.reconfiguring);
+    await tester.pump();
+    status = tester.widget<Icon>(find.byIcon(Icons.circle)).color!;
+    expect(
+      contrast(status, theme.colorScheme.surface),
+      greaterThanOrEqualTo(3),
+    );
+  });
 }

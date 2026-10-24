@@ -23,7 +23,9 @@ class StatusBar extends ConsumerWidget {
         ),
       ),
     );
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final light = theme.brightness == Brightness.light;
     final l10n = AppLocalizations.of(context);
 
     final statsText = l10n.trafficStats(
@@ -39,8 +41,10 @@ class StatusBar extends ConsumerWidget {
         (state.connection == UiConnection.disconnected &&
             state.portName.isNotEmpty);
     final statusColor = switch (state.connection) {
-      UiConnection.connected => Colors.green,
-      UiConnection.reconfiguring => Colors.blue,
+      UiConnection.connected =>
+        light ? Colors.green.shade800 : Colors.green.shade300,
+      UiConnection.reconfiguring =>
+        light ? Colors.blue.shade700 : Colors.blue.shade300,
       UiConnection.connecting ||
       UiConnection.reconnecting ||
       UiConnection.disconnecting ||
