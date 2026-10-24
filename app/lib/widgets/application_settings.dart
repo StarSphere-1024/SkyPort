@@ -6,7 +6,7 @@ import '../l10n/app_localizations.dart';
 import '../providers/ui_controller.dart';
 import '../providers/ui_settings_provider.dart';
 import '../providers/theme_provider.dart';
-import '../theme.dart';
+import 'theme_color_setting.dart';
 
 class ApplicationSettings extends ConsumerWidget {
   final TextEditingController controller;
@@ -26,7 +26,6 @@ class ApplicationSettings extends ConsumerWidget {
     );
     final controllerNotifier = ref.read(uiControllerProvider.notifier);
     final uiSettings = ref.watch(uiSettingsProvider);
-    final themeColor = ref.watch(themeColorProvider);
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
@@ -145,49 +144,7 @@ class ApplicationSettings extends ConsumerWidget {
                 ],
               ),
             ),
-            settingRow(
-              icon: Icons.palette_outlined,
-              title: localizations.themeColor,
-              control: Wrap(
-                spacing: 2,
-                runSpacing: 4,
-                children: availableThemeColors.map((color) {
-                  final selected = color.toARGB32() == themeColor.toARGB32();
-                  return Semantics(
-                    inMutuallyExclusiveGroup: true,
-                    selected: selected,
-                    child: IconButton(
-                      tooltip:
-                          '${localizations.themeColor} #${color.toARGB32().toRadixString(16).substring(2).toUpperCase()}',
-                      isSelected: selected,
-                      onPressed: () => ref
-                          .read(themeColorProvider.notifier)
-                          .setThemeColor(color),
-                      icon: Container(
-                        width: 32,
-                        height: 32,
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: selected
-                                ? colors.onSurface
-                                : Colors.transparent,
-                            width: 2,
-                          ),
-                        ),
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: color,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
+            const ThemeColorSetting(),
           ]),
           section(localizations.settingsConnection, [
             settingRow(

@@ -168,6 +168,57 @@ class AppLocalizationsZh extends AppLocalizations {
   String get themeColor => '主题颜色';
 
   @override
+  String get colorScheme => '配色方案';
+
+  @override
+  String get themeBlue => '默认蓝';
+
+  @override
+  String get themeRed => '红';
+
+  @override
+  String get themeGreen => '绿';
+
+  @override
+  String get themeTeal => '青';
+
+  @override
+  String get themeIndigo => '靛蓝';
+
+  @override
+  String get themeViolet => '紫罗兰';
+
+  @override
+  String get themePink => '粉';
+
+  @override
+  String get themeYellow => '黄';
+
+  @override
+  String get themeOrange => '橙';
+
+  @override
+  String get customSeedColor => '自定义种子色';
+
+  @override
+  String get seedColorHex => '种子色 (#RRGGBB)';
+
+  @override
+  String get seedColorHexError => '请输入 #RRGGBB（六位十六进制数，不含透明度）。';
+
+  @override
+  String get colorChannelRed => '红色通道';
+
+  @override
+  String get colorChannelGreen => '绿色通道';
+
+  @override
+  String get colorChannelBlue => '蓝色通道';
+
+  @override
+  String get applyColor => '应用';
+
+  @override
   String get followSystem => '跟随系统';
 
   @override
