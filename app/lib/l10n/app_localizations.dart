@@ -410,6 +410,18 @@ abstract class AppLocalizations {
   /// **'Theme Color'**
   String get themeColor;
 
+  /// No description provided for @dynamicColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Use system accent color'**
+  String get dynamicColor;
+
+  /// No description provided for @themeColorSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save theme preference'**
+  String get themeColorSaveFailed;
+
   /// No description provided for @colorScheme.
   ///
   /// In en, this message translates to:

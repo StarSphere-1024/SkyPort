@@ -21,7 +21,6 @@ import 'package:skyport/widgets/right_panel/send_input_widget.dart';
 import 'package:skyport/widgets/left_panel/send_settings_widget.dart';
 import 'package:skyport/widgets/left_panel/serial_params_widget.dart';
 import 'package:skyport/widgets/status_bar.dart';
-import 'package:skyport/widgets/application_settings.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -52,12 +51,7 @@ void main() {
       final l10n = AppLocalizations.of(tester.element(find.byType(HomePage)));
       await tester.tap(find.byTooltip(l10n.settingsPageLabel));
       await tester.pumpAndSettle();
-      final reconnect = find
-          .descendant(
-            of: find.byType(ApplicationSettings),
-            matching: find.byType(Switch),
-          )
-          .first;
+      final reconnect = find.byKey(const ValueKey('auto-reconnect-switch'));
       for (final enabled in [true, false]) {
         await tester.ensureVisible(reconnect);
         await tester.tap(reconnect);
@@ -97,6 +91,7 @@ void main() {
       'serial_auto_reconnect': false,
       'ui_append_newline': true,
       'ui_newline_mode': 2,
+      'theme_mode': 'system',
     });
     final prefs = await SharedPreferences.getInstance();
     final bootstrap = await tester.runAsync(
@@ -235,12 +230,17 @@ void main() {
         (UiFlowControl.none, rust.FlowControl.none),
       ]) {
         await tester.ensureVisible(flowMenu);
-        await tester.tap(flowMenu);
+        await tester.tap(
+          find.descendant(of: flowMenu, matching: find.byType(EditableText)),
+        );
         await tester.pumpAndSettle();
+        final currentLocalizations = AppLocalizations.of(
+          tester.element(find.byType(HomePage)),
+        );
         final label = switch (uiMode) {
-          UiFlowControl.none => l10n.flowControlNone,
-          UiFlowControl.hardware => l10n.flowControlHardware,
-          UiFlowControl.software => l10n.flowControlSoftware,
+          UiFlowControl.none => currentLocalizations.flowControlNone,
+          UiFlowControl.hardware => currentLocalizations.flowControlHardware,
+          UiFlowControl.software => currentLocalizations.flowControlSoftware,
         };
         await tester.tap(find.text(label).last);
         await _until(
@@ -421,7 +421,12 @@ void main() {
           expect(strings.localeName, language);
           final restoredMenu = find.byType(DropdownMenu<UiFlowControl>);
           await tester.ensureVisible(restoredMenu);
-          await tester.tap(restoredMenu);
+          await tester.tap(
+            find.descendant(
+              of: restoredMenu,
+              matching: find.byType(EditableText),
+            ),
+          );
           await tester.pumpAndSettle();
           final selection = switch (uiMode) {
             UiFlowControl.none => strings.flowControlNone,
