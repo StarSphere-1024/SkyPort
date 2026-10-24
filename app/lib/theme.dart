@@ -12,7 +12,6 @@ final availableThemeColors = [
   Colors.green,
   Colors.purple,
   Colors.orange,
-  Colors.cyan,
 ];
 
 ThemeData getLightTheme(Color seedColor) {

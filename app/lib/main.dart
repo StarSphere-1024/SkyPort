@@ -222,7 +222,6 @@ class _HomePageState extends ConsumerState<HomePage>
                     ConnectionRail(
                       panelOpen: _panelOpen,
                       settingsSelected: _settingsSelected,
-                      onTogglePanel: () => _setPanelOpen(!_panelOpen),
                       onSerial: () => _openPage(false),
                       onSettings: () => _openPage(true),
                     ),
