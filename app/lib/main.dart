@@ -316,9 +316,9 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 
   void _openPage(bool settings) {
-    if (_panelOpen && _settingsSelected == settings) return;
+    final open = !_panelOpen || _settingsSelected != settings;
     setState(() => _settingsSelected = settings);
-    _setPanelOpen(true);
+    _setPanelOpen(open);
   }
 
   Widget _configurationPanel(BuildContext context) {
