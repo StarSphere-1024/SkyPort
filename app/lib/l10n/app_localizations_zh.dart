@@ -150,6 +150,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get trafficStatsTooltip => '累计接收字节数 - 上次包大小 | 累计发送字节数';
 
   @override
+  String get settingsAppearance => '外观';
+
+  @override
+  String get settingsConnection => '连接';
+
+  @override
+  String get settingsLogs => '日志';
+
+  @override
+  String get logBufferSizeHint => '16–512 MB · 按 Enter 应用';
+
+  @override
   String get theme => '主题';
 
   @override

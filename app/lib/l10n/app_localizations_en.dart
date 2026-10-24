@@ -151,6 +151,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'Total received bytes - Last packet size | Total sent bytes';
 
   @override
+  String get settingsAppearance => 'Appearance';
+
+  @override
+  String get settingsConnection => 'Connection';
+
+  @override
+  String get settingsLogs => 'Logs';
+
+  @override
+  String get logBufferSizeHint => '16–512 MB · Press Enter to apply';
+
+  @override
   String get theme => 'Theme';
 
   @override

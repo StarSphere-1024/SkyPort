@@ -374,6 +374,30 @@ abstract class AppLocalizations {
   /// **'Total received bytes - Last packet size | Total sent bytes'**
   String get trafficStatsTooltip;
 
+  /// No description provided for @settingsAppearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get settingsAppearance;
+
+  /// No description provided for @settingsConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection'**
+  String get settingsConnection;
+
+  /// No description provided for @settingsLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs'**
+  String get settingsLogs;
+
+  /// No description provided for @logBufferSizeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'16–512 MB · Press Enter to apply'**
+  String get logBufferSizeHint;
+
   /// No description provided for @theme.
   ///
   /// In en, this message translates to:
