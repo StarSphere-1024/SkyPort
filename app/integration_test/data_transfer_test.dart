@@ -171,17 +171,16 @@ void main() {
       await tester.pump();
       final exportPath = '${directory.path}/before-theme.txt';
       final exportBefore = await tester.runAsync(() async {
-        final result = await rust.exportLog(
-          handle: handle,
-          path: exportPath,
-          options: const rust.ExportOptions(
+        // The raw bridge reply only acknowledges enqueueing, not file creation.
+        await controller.exportLog(
+          exportPath,
+          const rust.ExportOptions(
             showSent: true,
             hex: false,
             timestamps: true,
             stripAnsi: false,
           ),
         );
-        expect(result.error, isNull);
         return File(exportPath).readAsBytes();
       });
       final exportedBefore = exportBefore!;
@@ -217,17 +216,15 @@ void main() {
         expectedLogCapacity,
       );
       final exportAfter = await tester.runAsync(() async {
-        final result = await rust.exportLog(
-          handle: handle,
-          path: '${directory.path}/after-theme.txt',
-          options: const rust.ExportOptions(
+        await controller.exportLog(
+          '${directory.path}/after-theme.txt',
+          const rust.ExportOptions(
             showSent: true,
             hex: false,
             timestamps: true,
             stripAnsi: false,
           ),
         );
-        expect(result.error, isNull);
         return File('${directory.path}/after-theme.txt').readAsBytes();
       });
       expect(exportAfter, exportedBefore);
