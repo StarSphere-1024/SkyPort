@@ -46,6 +46,7 @@ class PortSelectionWidget extends ConsumerWidget {
             ports: ports,
             selectedPort: selectedPort,
             isUnavailable: isUnavailable,
+            isReconnecting: connectionState == UiConnection.reconnecting,
             isDisabled: isConnected || isBusy,
             onSelected: (value) {
               if (value != null) controller.setPort(value);
@@ -58,7 +59,8 @@ class PortSelectionWidget extends ConsumerWidget {
             backgroundColor: isConnected ? colors.error : colors.primary,
             foregroundColor: isConnected ? colors.onError : colors.onPrimary,
           ),
-          onPressed: isBusy || (!disconnect && selectedPort == null)
+          onPressed:
+              isBusy || (!disconnect && (selectedPort == null || isUnavailable))
               ? null
               : () =>
                     disconnect ? controller.disconnect() : controller.connect(),
@@ -79,18 +81,30 @@ class PortSelectionWidget extends ConsumerWidget {
     required List<String> ports,
     required String? selectedPort,
     required bool isUnavailable,
+    required bool isReconnecting,
     required bool isDisabled,
     required ValueChanged<String?> onSelected,
   }) {
-    if (ports.isEmpty && selectedPort == null) {
+    final l10n = AppLocalizations.of(context);
+    if (ports.isEmpty) {
       return InputDecorator(
-        decoration: _denseInputDecoration(
-          context,
-          AppLocalizations.of(context).portName,
-        ),
-        child: Text(
-          AppLocalizations.of(context).noPortsFound,
-          style: Theme.of(context).textTheme.bodyMedium,
+        decoration: _denseInputDecoration(context, l10n.portName),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(l10n.noPortsFound),
+            if (isReconnecting && selectedPort != null)
+              Text(
+                '${l10n.reconnecting}: $selectedPort',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              )
+            else if (isUnavailable)
+              Text(
+                '${l10n.unavailable}: $selectedPort',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+          ],
         ),
       );
     }
@@ -101,19 +115,16 @@ class PortSelectionWidget extends ConsumerWidget {
       ),
     ];
 
-    if (selectedPort != null && !ports.contains(selectedPort)) {
-      entries.add(
-        DropdownMenuEntry<String>(value: selectedPort, label: selectedPort),
-      );
-    }
-
     return DropdownMenu<String>(
+      key: ValueKey('${ports.join('\u0000')}\u0001$selectedPort'),
       expandedInsets: EdgeInsets.zero,
       initialSelection: selectedPort,
       dropdownMenuEntries: entries,
       onSelected: isDisabled ? null : onSelected,
-      errorText: isUnavailable
-          ? AppLocalizations.of(context).unavailable
+      errorText: isReconnecting && selectedPort != null
+          ? '${l10n.reconnecting}: $selectedPort'
+          : isUnavailable
+          ? '${l10n.unavailable}: $selectedPort'
           : null,
       label: Text(AppLocalizations.of(context).portName),
       enabled: !isDisabled && entries.isNotEmpty,
