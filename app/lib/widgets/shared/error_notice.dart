@@ -7,6 +7,8 @@ void showErrorNotice(BuildContext context, Object error, {String? message}) {
   final l10n = AppLocalizations.of(context);
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
+      persist: false,
+      showCloseIcon: true,
       content: SelectableText(message ?? localizedError(l10n, error)),
       action: SnackBarAction(
         label: l10n.diagnosticDetails,
