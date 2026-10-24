@@ -56,7 +56,7 @@ class ReceiveController extends UiController {
 
   void resetLogs() => state = build();
 
-  void receiveThrough(int last, {int? first}) {
+  void receiveThrough(int last, {int? first, String Function(int)? textForId}) {
     state = state.withLogDelta(
       rust.LogDelta(
         upsert: [
@@ -66,7 +66,8 @@ class ReceiveController extends UiController {
               timestampMs: 0,
               direction: rust.Direction.received,
               data: Uint8List.fromList(
-                'row ${id.toString().padLeft(3, '0')}'.codeUnits,
+                (textForId?.call(id) ?? 'row ${id.toString().padLeft(3, '0')}')
+                    .codeUnits,
               ),
               pending: false,
             ),
@@ -119,6 +120,71 @@ void main() {
         .dy;
     expect(row1, closeTo(top + 8, 1));
     expect(row2, greaterThan(row1));
+  });
+
+  testWidgets('return to latest reaches the end of variable-height output', (
+    tester,
+  ) async {
+    final controller = ReceiveController();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          uiControllerProvider.overrideWith(() => controller),
+          uiSettingsProvider.overrideWith(ReceiveSettings.new),
+        ],
+        child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: Column(children: [ReceiveDisplayWidget()])),
+        ),
+      ),
+    );
+    controller.receiveThrough(100);
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView), const Offset(0, 1600));
+    await tester.pumpAndSettle();
+    final position = tester
+        .state<ScrollableState>(
+          find.descendant(
+            of: find.byType(ListView),
+            matching: find.byType(Scrollable),
+          ),
+        )
+        .position;
+    final readingPosition = position.pixels;
+    String textForId(int id) => id > 80
+        ? 'row $id ${List.filled(id % 7 + 1, 'wrapped data ' * 15).join('\n')}'
+        : 'row $id';
+    controller.receiveThrough(200, first: 1, textForId: textForId);
+    await tester.pumpAndSettle();
+    expect(position.pixels, closeTo(readingPosition, 1));
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    expect(position.extentAfter, closeTo(0, 1));
+    expect(find.byType(FloatingActionButton), findsNothing);
+    final latest = find.textContaining('row 200 ', findRichText: true);
+    expect(latest, findsOneWidget);
+    expect(
+      tester.getBottomRight(latest).dy,
+      lessThanOrEqualTo(tester.getBottomRight(find.byType(ListView)).dy),
+    );
+    controller.receiveThrough(
+      201,
+      first: 1,
+      textForId: (id) => id == 201 ? 'row 201' : textForId(id),
+    );
+    await tester.pumpAndSettle();
+    expect(position.extentAfter, closeTo(0, 1));
+    expect(find.textContaining('row 201', findRichText: true), findsOneWidget);
+    await tester.sendEventToBinding(
+      PointerScrollEvent(
+        position: tester.getCenter(find.byType(ListView)),
+        scrollDelta: const Offset(0, -200),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(position.extentAfter, greaterThan(0));
+    expect(find.byType(FloatingActionButton), findsOneWidget);
   });
 
   testWidgets(

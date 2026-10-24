@@ -138,6 +138,7 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
         _programmaticScroll = false;
       }
     });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   Future<void> _exportLogs() async {
@@ -220,9 +221,20 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
 
                       return Scrollbar(
                         controller: _scrollController,
-                        child: NotificationListener<ScrollNotification>(
+                        child: NotificationListener<Notification>(
                           onNotification: (notification) {
-                            if (_programmaticScroll) return false;
+                            if (notification is ScrollMetricsNotification) {
+                              // Lazy variable-height rows refine the estimated end after a jump.
+                              if (!_hasActiveSelection &&
+                                  notification.metrics.extentAfter > 0) {
+                                _scrollToBottom();
+                              }
+                              return false;
+                            }
+                            if (notification is! ScrollNotification ||
+                                _programmaticScroll) {
+                              return false;
+                            }
 
                             // 只有当用户确实开始拖动时，才认为可能需要取消吸附
                             // 避免 SelectionArea 或其他微小抖动误触发 UserScrollNotification
@@ -235,24 +247,11 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                               }
                             }
 
-                            // 桌面端鼠标滚轮通常会触发 UserScroll/ScrollUpdate，但没有 dragDetails。
-                            // 退出粘滞的核心语义：用户向上滚动（离开底部）就取消 stick。
+                            // Wheel scrolling has no dragDetails; only user input cancels follow.
                             if (notification is UserScrollNotification) {
                               // Decreasing offset moves toward older rows.
                               if (notification.direction ==
                                   ScrollDirection.forward) {
-                                if (_stickToBottom) {
-                                  setState(() {
-                                    _stickToBottom = false;
-                                  });
-                                }
-                              }
-                            }
-
-                            // 兜底：部分平台只给 ScrollUpdateNotification（滚轮/触控板）。
-                            if (notification is ScrollUpdateNotification) {
-                              final delta = notification.scrollDelta;
-                              if (delta != null && delta < 0) {
                                 if (_stickToBottom) {
                                   setState(() {
                                     _stickToBottom = false;
