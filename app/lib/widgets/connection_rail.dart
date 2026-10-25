@@ -26,20 +26,20 @@ class ConnectionRail extends StatelessWidget {
       width: width,
       child: Column(
         children: [
+          const SizedBox(height: 12),
           _RailEntry(
             icon: Icons.cable,
             label: l10n.serialPageLabel,
             selected: panelOpen && !settingsSelected,
             onPressed: onSerial,
           ),
-          const Spacer(),
+          const SizedBox(height: 8),
           _RailEntry(
             icon: Icons.settings_outlined,
             label: l10n.settingsPageLabel,
             selected: panelOpen && settingsSelected,
             onPressed: onSettings,
           ),
-          const SizedBox(height: 8),
         ],
       ),
     );
