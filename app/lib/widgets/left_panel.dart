@@ -36,7 +36,7 @@ class LeftPanel extends StatelessWidget {
           ),
           SettingsSection(
             title: AppLocalizations.of(context).receiveSettings,
-            icon: Icons.south_rounded,
+            icon: Icons.desktop_windows_outlined,
             children: const [
               Padding(
                 padding: EdgeInsets.all(12),
@@ -46,7 +46,7 @@ class LeftPanel extends StatelessWidget {
           ),
           SettingsSection(
             title: AppLocalizations.of(context).sendSettings,
-            icon: Icons.north_rounded,
+            icon: Icons.send_rounded,
             children: const [
               Padding(padding: EdgeInsets.all(12), child: SendSettingsWidget()),
             ],
