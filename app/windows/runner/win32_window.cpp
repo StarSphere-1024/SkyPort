@@ -225,7 +225,9 @@ Win32Window::MessageHandler(HWND hwnd,
     }
     case WM_SIZE: {
       RECT rect = GetClientArea();
-      if (child_content_ != nullptr) {
+      // Minimized client bounds are the iconic size (160x28), not a viewport.
+      // Keep the last Flutter surface size until the window is restored.
+      if (child_content_ != nullptr && wparam != SIZE_MINIMIZED) {
         // Size and position the child window.
         MoveWindow(child_content_, rect.left, rect.top, rect.right - rect.left,
                    rect.bottom - rect.top, TRUE);
