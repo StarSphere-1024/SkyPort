@@ -6,11 +6,13 @@ class SettingsSection extends StatelessWidget {
     required this.title,
     required this.children,
     this.icon,
+    this.trailing,
   });
 
   final String title;
   final List<Widget> children;
   final IconData? icon;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +24,11 @@ class SettingsSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.only(left: 12, bottom: 8),
+            padding: EdgeInsets.only(
+              left: 12,
+              right: trailing == null ? 0 : 12,
+              bottom: 8,
+            ),
             child: Semantics(
               header: true,
               child: Row(
@@ -39,6 +45,15 @@ class SettingsSection extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (trailing != null) ...[
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: trailing!,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

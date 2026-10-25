@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/app_localizations.dart';
+import '../providers/ui_controller.dart';
+import '../utils/connection_status.dart';
 import 'left_panel/port_selection_widget.dart';
 import 'left_panel/receive_settings_widget.dart';
 import 'left_panel/send_settings_widget.dart';
@@ -21,6 +24,7 @@ class LeftPanel extends StatelessWidget {
           SettingsSection(
             title: AppLocalizations.of(context).serialPortSettings,
             icon: Icons.usb_rounded,
+            trailing: const _ConnectionStatus(),
             children: const [
               Padding(
                 padding: EdgeInsets.all(12),
@@ -52,6 +56,45 @@ class LeftPanel extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ConnectionStatus extends ConsumerWidget {
+  const _ConnectionStatus();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final connection = ref.watch(
+      uiControllerProvider.select((state) => state.connection),
+    );
+    final theme = Theme.of(context);
+    final label = connectionStatusLabel(
+      connection,
+      AppLocalizations.of(context),
+    );
+    final color = connectionStatusColor(connection, theme);
+    return Semantics(
+      liveRegion: true,
+      child: Tooltip(
+        message: label,
+        excludeFromSemantics: true,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.circle, size: 8, color: color),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelMedium?.copyWith(color: color),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
