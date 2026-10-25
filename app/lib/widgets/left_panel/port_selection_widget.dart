@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/ui_state.dart';
 import '../../providers/ui_controller.dart';
+import '../../utils/connection_status.dart';
 
 class PortSelectionWidget extends ConsumerWidget {
   const PortSelectionWidget({super.key});
@@ -54,8 +55,9 @@ class PortSelectionWidget extends ConsumerWidget {
           ),
         ),
         const SizedBox(width: 8),
-        FilledButton(
+        FilledButton.icon(
           style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             backgroundColor: isConnected ? colors.error : colors.primary,
             foregroundColor: isConnected ? colors.onError : colors.onPrimary,
           ),
@@ -64,13 +66,23 @@ class PortSelectionWidget extends ConsumerWidget {
               ? null
               : () =>
                     disconnect ? controller.disconnect() : controller.connect(),
-          child: isBusy
+          icon: isBusy
               ? const SizedBox(
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : Text(disconnect ? l10n.close : l10n.open),
+              : Icon(
+                  disconnect ? Icons.link_off : Icons.link,
+                  size: 18,
+                ),
+          label: Text(
+            isBusy
+                ? connectionStatusLabel(connectionState, l10n)
+                : disconnect
+                ? l10n.disconnect
+                : l10n.connect,
+          ),
         ),
       ],
     );

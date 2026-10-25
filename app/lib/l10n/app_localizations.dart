@@ -176,11 +176,17 @@ abstract class AppLocalizations {
   /// **'No ports found'**
   String get noPortsFound;
 
-  /// No description provided for @open.
+  /// No description provided for @connect.
   ///
   /// In en, this message translates to:
-  /// **'Open'**
-  String get open;
+  /// **'Connect'**
+  String get connect;
+
+  /// No description provided for @disconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect'**
+  String get disconnect;
 
   /// No description provided for @close.
   ///

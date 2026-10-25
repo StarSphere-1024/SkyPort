@@ -48,7 +48,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noPortsFound => '未发现端口';
 
   @override
-  String get open => '打开';
+  String get connect => '连接';
+
+  @override
+  String get disconnect => '断开';
 
   @override
   String get close => '关闭';

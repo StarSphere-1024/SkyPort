@@ -67,7 +67,7 @@ class StatusBar extends ConsumerWidget {
       child: Row(
         children: [
           IconButton(
-            tooltip: '$status · ${disconnect ? l10n.close : l10n.open}',
+            tooltip: '$status · ${disconnect ? l10n.disconnect : l10n.connect}',
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints.tightFor(width: 32, height: 32),
             onPressed: !canToggle

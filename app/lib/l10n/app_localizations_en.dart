@@ -48,7 +48,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noPortsFound => 'No ports found';
 
   @override
-  String get open => 'Open';
+  String get connect => 'Connect';
+
+  @override
+  String get disconnect => 'Disconnect';
 
   @override
   String get close => 'Close';

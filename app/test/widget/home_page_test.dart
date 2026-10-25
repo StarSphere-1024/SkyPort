@@ -222,10 +222,10 @@ void main() {
         await tester.tap(portPage);
         await tester.pumpAndSettle();
         expect(find.byType(LeftPanel), findsOneWidget);
-        await tester.tap(find.widgetWithText(FilledButton, l10n.close));
+        await tester.tap(find.widgetWithText(FilledButton, l10n.disconnect));
         await tester.pumpAndSettle();
         expect(controller.connection, UiConnection.disconnected);
-        await tester.tap(find.widgetWithText(FilledButton, l10n.open));
+        await tester.tap(find.widgetWithText(FilledButton, l10n.connect));
         await tester.pumpAndSettle();
         expect(controller.connection, UiConnection.connected);
         expect(power.hitTestable(), findsOneWidget);
