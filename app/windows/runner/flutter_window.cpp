@@ -153,6 +153,10 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
   if (message == WM_CLOSE && host_channel_) {
+    if (close_approved_) {
+      DestroyWindow(hwnd);
+      return 0;
+    }
     if (!close_pending_) {
       close_pending_ = true;
       host_channel_->InvokeMethod(
@@ -163,7 +167,9 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                 const bool* approved = result == nullptr
                     ? nullptr : std::get_if<bool>(result);
                 if (approved != nullptr && *approved) {
-                  DestroyWindow(hwnd);
+                  // Let the engine's reply dispatch unwind before destroying it.
+                  close_approved_ = true;
+                  PostMessage(hwnd, WM_CLOSE, 0, 0);
                 }
               },
               [this](const std::string&, const std::string&,
