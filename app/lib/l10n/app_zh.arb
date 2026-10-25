@@ -1,6 +1,10 @@
 {
   "@@locale": "zh",
   "appTitle": "SkyPort",
+  "windowMinimize": "最小化",
+  "windowMaximize": "最大化",
+  "windowRestore": "还原",
+  "windowClose": "关闭窗口",
   "serialPageLabel": "串口",
   "settingsPageLabel": "设置",
   "expandConfiguration": "展开配置面板",

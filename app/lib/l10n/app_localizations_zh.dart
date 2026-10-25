@@ -12,6 +12,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appTitle => 'SkyPort';
 
   @override
+  String get windowMinimize => '最小化';
+
+  @override
+  String get windowMaximize => '最大化';
+
+  @override
+  String get windowRestore => '还原';
+
+  @override
+  String get windowClose => '关闭窗口';
+
+  @override
   String get serialPageLabel => '串口';
 
   @override

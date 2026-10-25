@@ -23,14 +23,18 @@ class FlutterWindow : public Win32Window {
   void OnDestroy() override;
   LRESULT MessageHandler(HWND window, UINT const message, WPARAM const wparam,
                          LPARAM const lparam) noexcept override;
+  void OnWindowStateChanged() override;
 
  private:
+  flutter::EncodableValue EncodeWindowState() const;
+
   // The project to run.
   flutter::DartProject project_;
 
   // The Flutter instance hosted by this window.
   std::unique_ptr<flutter::FlutterViewController> flutter_controller_;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> host_channel_;
+  std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> window_channel_;
   bool close_pending_ = false;
 };
 

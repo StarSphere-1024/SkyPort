@@ -12,6 +12,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appTitle => 'SkyPort';
 
   @override
+  String get windowMinimize => 'Minimize';
+
+  @override
+  String get windowMaximize => 'Maximize';
+
+  @override
+  String get windowRestore => 'Restore';
+
+  @override
+  String get windowClose => 'Close window';
+
+  @override
   String get serialPageLabel => 'Port';
 
   @override

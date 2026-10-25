@@ -1,6 +1,10 @@
 {
   "@@locale": "en",
   "appTitle": "SkyPort",
+  "windowMinimize": "Minimize",
+  "windowMaximize": "Maximize",
+  "windowRestore": "Restore",
+  "windowClose": "Close window",
   "serialPageLabel": "Port",
   "settingsPageLabel": "Settings",
   "expandConfiguration": "Expand configuration panel",

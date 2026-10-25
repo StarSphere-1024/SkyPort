@@ -18,6 +18,7 @@ import 'widgets/connection_rail.dart';
 import 'widgets/left_panel.dart';
 import 'widgets/right_panel.dart';
 import 'widgets/status_bar.dart';
+import 'widgets/desktop_window_frame.dart';
 import 'services/app_logger.dart';
 import 'l10n/app_localizations.dart';
 import 'utils/error_messages.dart';
@@ -95,9 +96,11 @@ class SerialDebuggerApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (startupFailure != null) {
       return MaterialApp(
+        debugShowCheckedModeBanner: false,
         onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
+        builder: (context, child) => DesktopWindowFrame(child: child!),
         home: StartupFailurePage(details: startupFailure!),
       );
     }
@@ -114,12 +117,14 @@ class SerialDebuggerApp extends ConsumerWidget {
     ).seed;
     return _DynamicAccentColorMonitor(
       child: MaterialApp(
+        debugShowCheckedModeBanner: false,
         onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
         theme: getLightTheme(seedFor(Brightness.light)),
         darkTheme: getDarkTheme(seedFor(Brightness.dark)),
         themeMode: themeMode,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
+        builder: (context, child) => DesktopWindowFrame(child: child!),
         home: const HomePage(),
       ),
     );
@@ -277,7 +282,6 @@ class _HomePageState extends ConsumerState<HomePage>
       },
     );
 
-    final l10n = AppLocalizations.of(context);
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.escape): () =>
@@ -289,7 +293,6 @@ class _HomePageState extends ConsumerState<HomePage>
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 800;
             return Scaffold(
-              appBar: AppBar(title: Text(l10n.appTitle)),
               body: SafeArea(
                 child: Row(
                   children: [

@@ -2,9 +2,8 @@
 #define RUNNER_WIN32_WINDOW_H_
 
 #include <windows.h>
+#include <commctrl.h>
 
-#include <functional>
-#include <memory>
 #include <string>
 
 // A class abstraction for a high DPI-aware Win32 Window. Intended to be
@@ -42,8 +41,8 @@ class Win32Window {
   // Release OS resources associated with window.
   void Destroy();
 
-  // Inserts |content| into the window tree.
-  void SetChildContent(HWND content);
+  // Inserts |content| into the window tree and installs native hit-test routing.
+  bool SetChildContent(HWND content);
 
   // Returns the backing Window handle to enable clients to set icon and other
   // window properties. Returns nullptr if the window has been destroyed.
@@ -71,6 +70,20 @@ class Win32Window {
   // Called when Destroy is called.
   virtual void OnDestroy();
 
+  struct WindowState {
+    bool maximized = false;
+    bool active = false;
+    bool maximize_hovered = false;
+  };
+
+  void ConfigureCustomFrame(bool dark);
+  const WindowState& GetWindowState() const;
+  virtual void OnWindowStateChanged();
+
+  // Must run before Flutter/plugin dispatch, which may consume frame messages.
+  bool HandleCustomFrameMessage(HWND window, UINT message, WPARAM wparam,
+                                LPARAM lparam, LRESULT* result) noexcept;
+
  private:
   friend class WindowClassRegistrar;
 
@@ -87,10 +100,22 @@ class Win32Window {
   // Retrieves a class instance pointer for |window|
   static Win32Window* GetThisFromHandle(HWND const window) noexcept;
 
-  // Update the window frame's theme to match the system theme.
-  static void UpdateTheme(HWND const window);
+  static LRESULT CALLBACK ChildSubclassProc(
+      HWND window, UINT message, WPARAM wparam, LPARAM lparam,
+      UINT_PTR subclass_id, DWORD_PTR reference_data) noexcept;
+  LRESULT HitTest(POINT screen_point) const noexcept;
+  void SetMaximizeHovered(bool hovered);
+  void CancelMaximizePress();
+  void FinishMaximizePress(POINT screen_point);
+  void DetachChildContent();
+  void UpdateTheme(HWND window);
 
   bool quit_on_close_ = false;
+  bool has_app_theme_ = false;
+  BOOL dark_ = FALSE;
+  bool tracking_nc_mouse_ = false;
+  bool maximize_pressed_ = false;
+  WindowState window_state_;
 
   // window handle for top level window.
   HWND window_handle_ = nullptr;
