@@ -6,6 +6,7 @@ import '../l10n/app_localizations.dart';
 import '../providers/ui_controller.dart';
 import '../providers/ui_settings_provider.dart';
 import '../providers/theme_provider.dart';
+import 'shared/settings_section.dart';
 import 'theme_color_setting.dart';
 
 class ApplicationSettings extends ConsumerWidget {
@@ -79,212 +80,182 @@ class ApplicationSettings extends ConsumerWidget {
             );
     }
 
-    Widget section(String title, List<Widget> rows) => Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 12, bottom: 8),
-            child: Semantics(
-              header: true,
-              child: Text(
-                title,
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: colors.primary,
-                ),
-              ),
-            ),
-          ),
-          Material(
-            color: colors.surfaceContainer,
-            borderRadius: BorderRadius.circular(16),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var i = 0; i < rows.length; i++) ...[
-                  if (i > 0)
-                    Divider(
-                      height: 1,
-                      indent: 12,
-                      endIndent: 12,
-                      color: colors.outlineVariant,
-                    ),
-                  rows[i],
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-
     return Form(
       key: formKey,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          section(localizations.settingsAppearance, [
-            settingRow(
-              icon: Icons.brightness_6_outlined,
-              title: localizations.theme,
-              control: DropdownButton<ThemeMode>(
-                value: ref.watch(themeModeProvider),
-                isExpanded: true,
-                borderRadius: BorderRadius.circular(12),
-                underline: const SizedBox.shrink(),
-                onChanged: (mode) {
-                  if (mode != null) {
-                    ref.read(themeModeProvider.notifier).setThemeMode(mode);
-                  }
-                },
-                items: [
-                  DropdownMenuItem(
-                    value: ThemeMode.system,
-                    child: Text(localizations.followSystem),
-                  ),
-                  DropdownMenuItem(
-                    value: ThemeMode.light,
-                    child: Text(localizations.light),
-                  ),
-                  DropdownMenuItem(
-                    value: ThemeMode.dark,
-                    child: Text(localizations.dark),
-                  ),
-                ],
-              ),
-            ),
-            if (theme.platform == TargetPlatform.windows ||
-                theme.platform == TargetPlatform.linux)
+          SettingsSection(
+            title: localizations.settingsAppearance,
+            children: [
               settingRow(
-                icon: Icons.color_lens_outlined,
-                title: localizations.dynamicColor,
-                trailing: Switch(
-                  key: const ValueKey('dynamic-color-switch'),
-                  value: dynamicColorEnabled,
-                  onChanged: (enabled) async {
-                    try {
-                      await ref
-                          .read(dynamicColorEnabledProvider.notifier)
-                          .setEnabled(enabled);
-                    } catch (error, stackTrace) {
-                      FlutterError.reportError(
-                        FlutterErrorDetails(
-                          exception: error,
-                          stack: stackTrace,
-                          library: 'SkyPort theme settings',
-                        ),
-                      );
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(localizations.themeColorSaveFailed),
+                icon: Icons.brightness_6_outlined,
+                title: localizations.theme,
+                control: DropdownButton<ThemeMode>(
+                  value: ref.watch(themeModeProvider),
+                  isExpanded: true,
+                  borderRadius: BorderRadius.circular(12),
+                  underline: const SizedBox.shrink(),
+                  onChanged: (mode) {
+                    if (mode != null) {
+                      ref.read(themeModeProvider.notifier).setThemeMode(mode);
+                    }
+                  },
+                  items: [
+                    DropdownMenuItem(
+                      value: ThemeMode.system,
+                      child: Text(localizations.followSystem),
+                    ),
+                    DropdownMenuItem(
+                      value: ThemeMode.light,
+                      child: Text(localizations.light),
+                    ),
+                    DropdownMenuItem(
+                      value: ThemeMode.dark,
+                      child: Text(localizations.dark),
+                    ),
+                  ],
+                ),
+              ),
+              if (theme.platform == TargetPlatform.windows ||
+                  theme.platform == TargetPlatform.linux)
+                settingRow(
+                  icon: Icons.color_lens_outlined,
+                  title: localizations.dynamicColor,
+                  trailing: Switch(
+                    key: const ValueKey('dynamic-color-switch'),
+                    value: dynamicColorEnabled,
+                    onChanged: (enabled) async {
+                      try {
+                        await ref
+                            .read(dynamicColorEnabledProvider.notifier)
+                            .setEnabled(enabled);
+                      } catch (error, stackTrace) {
+                        FlutterError.reportError(
+                          FlutterErrorDetails(
+                            exception: error,
+                            stack: stackTrace,
+                            library: 'SkyPort theme settings',
                           ),
                         );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(localizations.themeColorSaveFailed),
+                            ),
+                          );
+                        }
                       }
+                    },
+                  ),
+                ),
+              if (showManualColor) const ThemeColorSetting(),
+            ],
+          ),
+          SettingsSection(
+            title: localizations.settingsConnection,
+            children: [
+              settingRow(
+                icon: Icons.sync_rounded,
+                title: localizations.autoReconnect,
+                onTap: () =>
+                    controllerNotifier.setAutoReconnect(!autoReconnect),
+                trailing: Switch(
+                  key: const ValueKey('auto-reconnect-switch'),
+                  value: autoReconnect,
+                  onChanged: controllerNotifier.setAutoReconnect,
+                ),
+              ),
+            ],
+          ),
+          SettingsSection(
+            title: localizations.settingsLogs,
+            children: [
+              settingRow(
+                icon: Icons.terminal_rounded,
+                title: localizations.enableAnsi,
+                onTap: () => ref
+                    .read(uiSettingsProvider.notifier)
+                    .setEnableAnsi(!uiSettings.enableAnsi),
+                trailing: Switch(
+                  value: uiSettings.enableAnsi,
+                  onChanged: (value) => ref
+                      .read(uiSettingsProvider.notifier)
+                      .setEnableAnsi(value),
+                ),
+              ),
+              settingRow(
+                icon: Icons.storage_outlined,
+                title: localizations.logBufferSize,
+                control: TextFormField(
+                  controller: controller,
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.start,
+                  decoration: InputDecoration(
+                    labelText: localizations.logBufferSize,
+                    floatingLabelBehavior: FloatingLabelBehavior.never,
+                    suffixText: 'MB',
+                    isDense: true,
+                    helperText: localizations.logBufferSizeHint,
+                    helperMaxLines: 2,
+                  ),
+                  validator: (value) {
+                    final size = int.tryParse(value ?? '');
+                    if (size == null || size < 16 || size > 512) {
+                      return localizations.logBufferSizeError;
                     }
+                    return null;
+                  },
+                  onSaved: (value) {
+                    controllerNotifier.setLogCapacity(int.parse(value!));
+                  },
+                  onFieldSubmitted: (_) {
+                    final form = formKey.currentState;
+                    if (form?.validate() == true) form!.save();
                   },
                 ),
               ),
-            if (showManualColor) const ThemeColorSetting(),
-          ]),
-          section(localizations.settingsConnection, [
-            settingRow(
-              icon: Icons.sync_rounded,
-              title: localizations.autoReconnect,
-              onTap: () => controllerNotifier.setAutoReconnect(!autoReconnect),
-              trailing: Switch(
-                key: const ValueKey('auto-reconnect-switch'),
-                value: autoReconnect,
-                onChanged: controllerNotifier.setAutoReconnect,
-              ),
-            ),
-          ]),
-          section(localizations.settingsLogs, [
-            settingRow(
-              icon: Icons.terminal_rounded,
-              title: localizations.enableAnsi,
-              onTap: () => ref
-                  .read(uiSettingsProvider.notifier)
-                  .setEnableAnsi(!uiSettings.enableAnsi),
-              trailing: Switch(
-                value: uiSettings.enableAnsi,
-                onChanged: (value) =>
-                    ref.read(uiSettingsProvider.notifier).setEnableAnsi(value),
-              ),
-            ),
-            settingRow(
-              icon: Icons.storage_outlined,
-              title: localizations.logBufferSize,
-              control: TextFormField(
-                controller: controller,
-                keyboardType: TextInputType.number,
-                textAlign: TextAlign.start,
-                decoration: InputDecoration(
-                  labelText: localizations.logBufferSize,
-                  floatingLabelBehavior: FloatingLabelBehavior.never,
-                  suffixText: 'MB',
-                  isDense: true,
-                  helperText: localizations.logBufferSizeHint,
-                  helperMaxLines: 2,
-                ),
-                validator: (value) {
-                  final size = int.tryParse(value ?? '');
-                  if (size == null || size < 16 || size > 512) {
-                    return localizations.logBufferSizeError;
-                  }
-                  return null;
-                },
-                onSaved: (value) {
-                  controllerNotifier.setLogCapacity(int.parse(value!));
-                },
-                onFieldSubmitted: (_) {
-                  final form = formKey.currentState;
-                  if (form?.validate() == true) form!.save();
-                },
-              ),
-            ),
-            if (theme.platform == TargetPlatform.windows ||
-                theme.platform == TargetPlatform.macOS ||
-                theme.platform == TargetPlatform.linux)
-              settingRow(
-                icon: Icons.folder_outlined,
-                title: localizations.exportPath,
-                control: Tooltip(
-                  message: uiSettings.logExportPath.isEmpty
-                      ? localizations.exportPathHint
-                      : uiSettings.logExportPath,
-                  child: OutlinedButton(
-                    onPressed: chooseExportDirectory,
-                    style: OutlinedButton.styleFrom(
-                      alignment: AlignmentDirectional.centerStart,
+              if (theme.platform == TargetPlatform.windows ||
+                  theme.platform == TargetPlatform.macOS ||
+                  theme.platform == TargetPlatform.linux)
+                settingRow(
+                  icon: Icons.folder_outlined,
+                  title: localizations.exportPath,
+                  control: Tooltip(
+                    message: uiSettings.logExportPath.isEmpty
+                        ? localizations.exportPathHint
+                        : uiSettings.logExportPath,
+                    child: OutlinedButton(
+                      onPressed: chooseExportDirectory,
+                      style: OutlinedButton.styleFrom(
+                        alignment: AlignmentDirectional.centerStart,
 
-                      padding: const EdgeInsets.all(12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            uiSettings.logExportPath.isEmpty
-                                ? localizations.exportPathHint
-                                : uiSettings.logExportPath,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        padding: const EdgeInsets.all(12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.chevron_right_rounded, size: 20),
-                      ],
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              uiSettings.logExportPath.isEmpty
+                                  ? localizations.exportPathHint
+                                  : uiSettings.logExportPath,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.chevron_right_rounded, size: 20),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ]),
+            ],
+          ),
         ],
       ),
     );

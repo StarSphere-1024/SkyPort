@@ -5,6 +5,7 @@ import 'left_panel/port_selection_widget.dart';
 import 'left_panel/receive_settings_widget.dart';
 import 'left_panel/send_settings_widget.dart';
 import 'left_panel/serial_params_widget.dart';
+import 'shared/settings_section.dart';
 
 class LeftPanel extends StatelessWidget {
   const LeftPanel({super.key});
@@ -12,47 +13,45 @@ class LeftPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
+      // The card's 12 px inset preserves the original 16 px control margins.
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionTitle(
-            context,
-            AppLocalizations.of(context).serialPortSettings,
+          SettingsSection(
+            title: AppLocalizations.of(context).serialPortSettings,
+            icon: Icons.usb_rounded,
+            children: const [
+              Padding(
+                padding: EdgeInsets.all(12),
+                child: Column(
+                  children: [
+                    PortSelectionWidget(),
+                    SizedBox(height: 12),
+                    SerialParamsWidget(),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          const PortSelectionWidget(),
-          const SizedBox(height: 12),
-          const SerialParamsWidget(),
-          const SizedBox(height: 12),
-          const Divider(),
-          const SizedBox(height: 12),
-          _buildSectionTitle(
-            context,
-            AppLocalizations.of(context).receiveSettings,
+          SettingsSection(
+            title: AppLocalizations.of(context).receiveSettings,
+            icon: Icons.south_rounded,
+            children: const [
+              Padding(
+                padding: EdgeInsets.all(12),
+                child: ReceiveSettingsWidget(),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          const ReceiveSettingsWidget(),
-          const SizedBox(height: 12),
-          const Divider(),
-          const SizedBox(height: 12),
-          _buildSectionTitle(
-            context,
-            AppLocalizations.of(context).sendSettings,
+          SettingsSection(
+            title: AppLocalizations.of(context).sendSettings,
+            icon: Icons.north_rounded,
+            children: const [
+              Padding(padding: EdgeInsets.all(12), child: SendSettingsWidget()),
+            ],
           ),
-          const SizedBox(height: 8),
-          const SendSettingsWidget(),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(BuildContext context, String title) {
-    return Text(
-      title,
-      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-        fontWeight: FontWeight.bold,
-        color: Theme.of(context).colorScheme.primary,
       ),
     );
   }
