@@ -17,16 +17,19 @@ class ReceiveSettingsWidget extends ConsumerWidget {
       children: [
         CompactSwitch(
           label: AppLocalizations.of(context).hexDisplay,
+          icon: Icons.code_rounded,
           value: settings.hexDisplay,
           onChanged: (v) => notifier.setHexDisplay(v),
         ),
         CompactSwitch(
           label: AppLocalizations.of(context).showTimestamp,
+          icon: Icons.schedule_outlined,
           value: settings.showTimestamp,
           onChanged: (v) => notifier.setShowTimestamp(v),
         ),
         CompactSwitch(
           label: AppLocalizations.of(context).showSent,
+          icon: Icons.north_east_rounded,
           value: settings.showSent,
           onChanged: (v) => notifier.setShowSent(v),
         ),

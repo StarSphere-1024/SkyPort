@@ -32,6 +32,7 @@ class SendSettingsWidget extends ConsumerWidget {
       children: [
         CompactSwitch(
           label: l10n.hexSend,
+          icon: Icons.code_rounded,
           value: settings.hexSend,
           onChanged: (value) => controller.setSendSettings(
             hex: value,
@@ -42,6 +43,12 @@ class SendSettingsWidget extends ConsumerWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            Icon(
+              Icons.autorenew_rounded,
+              size: 18,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: Text(
                 l10n.autoSend,
@@ -123,6 +130,12 @@ class SendSettingsWidget extends ConsumerWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            Icon(
+              Icons.keyboard_return_rounded,
+              size: 18,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: Text(
                 l10n.newlineMode,
