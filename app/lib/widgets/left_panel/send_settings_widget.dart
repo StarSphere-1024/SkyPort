@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/ui_state.dart';
 import '../../providers/ui_controller.dart';
-import '../../utils/constants.dart';
 import '../shared/compact_switch.dart';
 import '../../utils/error_messages.dart';
 import '../shared/error_notice.dart';
@@ -126,51 +125,45 @@ class SendSettingsWidget extends ConsumerWidget {
           children: [
             Expanded(
               child: Text(
-                l10n.appendNewline,
+                l10n.newlineMode,
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
-            Row(
-              children: [
-                SizedBox(
-                  width: SkyPortConstants.intervalInputWidth.toDouble(),
-                  child: DropdownMenu<UiNewline>(
-                    enabled: settings.appendNewline && !settings.hexSend,
-                    expandedInsets: EdgeInsets.zero,
-                    initialSelection: settings.newline,
-                    dropdownMenuEntries: const [
-                      DropdownMenuEntry<UiNewline>(
-                        value: UiNewline.lf,
-                        label: r"\n",
-                      ),
-                      DropdownMenuEntry<UiNewline>(
-                        value: UiNewline.cr,
-                        label: r"\r",
-                      ),
-                      DropdownMenuEntry<UiNewline>(
-                        value: UiNewline.crlf,
-                        label: r"\r\n",
-                      ),
-                    ],
-                    onSelected: settings.hexSend
-                        ? null
-                        : (value) {
-                            if (value != null) {
-                              controller.setSendSettings(newline: value);
-                            }
-                          },
-                    label: Text(l10n.newlineMode),
+            SizedBox(
+              width: 145,
+              child: DropdownMenu<UiNewline>(
+                enabled: !settings.hexSend,
+                expandedInsets: EdgeInsets.zero,
+                initialSelection: settings.appendNewline
+                    ? settings.newline
+                    : UiNewline.none,
+                textStyle: Theme.of(context).textTheme.bodyMedium,
+                inputDecorationTheme: const InputDecorationTheme(
+                  isDense: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12)),
                   ),
                 ),
-                const SizedBox(width: 5),
-                Switch(
-                  value: settings.appendNewline,
-                  onChanged: settings.hexSend
-                      ? null
-                      : (value) =>
-                            controller.setSendSettings(appendNewline: value),
-                ),
-              ],
+                dropdownMenuEntries: const [
+                  DropdownMenuEntry(value: UiNewline.none, label: 'None'),
+                  DropdownMenuEntry(value: UiNewline.lf, label: r'LF (\n)'),
+                  DropdownMenuEntry(value: UiNewline.cr, label: r'CR (\r)'),
+                  DropdownMenuEntry(
+                    value: UiNewline.crlf,
+                    label: r'CRLF (\r\n)',
+                  ),
+                ],
+                onSelected: settings.hexSend
+                    ? null
+                    : (value) {
+                        if (value != null) {
+                          controller.setSendSettings(
+                            appendNewline: value != UiNewline.none,
+                            newline: value == UiNewline.none ? null : value,
+                          );
+                        }
+                      },
+              ),
             ),
           ],
         ),
