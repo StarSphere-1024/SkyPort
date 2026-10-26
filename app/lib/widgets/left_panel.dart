@@ -16,7 +16,7 @@ class LeftPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      // The card's 12 px inset preserves the original 16 px control margins.
+      // The section's 12 px inset preserves the original 16 px control margins.
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

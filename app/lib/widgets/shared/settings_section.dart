@@ -58,25 +58,20 @@ class SettingsSection extends StatelessWidget {
               ),
             ),
           ),
-          Material(
-            color: colors.surfaceContainer,
-            borderRadius: BorderRadius.circular(16),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var i = 0; i < children.length; i++) ...[
-                  if (i > 0)
-                    Divider(
-                      height: 1,
-                      indent: 12,
-                      endIndent: 12,
-                      color: colors.outlineVariant,
-                    ),
-                  children[i],
-                ],
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < children.length; i++) ...[
+                if (i > 0)
+                  Divider(
+                    height: 1,
+                    indent: 12,
+                    endIndent: 12,
+                    color: colors.outlineVariant,
+                  ),
+                children[i],
               ],
-            ),
+            ],
           ),
         ],
       ),

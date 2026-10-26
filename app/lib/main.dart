@@ -428,10 +428,7 @@ class _HomePageState extends ConsumerState<HomePage>
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Material(
           color: colors.surfaceContainerLow,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: colors.outlineVariant),
-          ),
+          borderRadius: BorderRadius.circular(16),
           clipBehavior: Clip.antiAlias,
           child: IndexedStack(
             index: _settingsSelected ? 1 : 0,
