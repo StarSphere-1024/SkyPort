@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../l10n/app_localizations.dart';
 import '../services/app_logger.dart';
@@ -130,8 +131,8 @@ class _DesktopWindowFrameState extends State<DesktopWindowFrame> {
                     const SizedBox(width: 16),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(5),
-                      child: Image.asset(
-                        'assets/icon.png',
+                      child: SvgPicture.asset(
+                        'assets/icon.svg',
                         width: 24,
                         height: 24,
                         excludeFromSemantics: true,

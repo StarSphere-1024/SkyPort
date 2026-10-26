@@ -19,6 +19,7 @@ dependencies:
   path_provider: ^2.1.5
   ansi_escape_codes: ^4.0.1
   file_selector: ^1.0.3
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -36,7 +37,7 @@ flutter:
   uses-material-design: true
   generate: true
   assets:
-    - assets/icon.png
+    - assets/icon.svg
 
 flutter_launcher_icons:
   android: false
