@@ -30,10 +30,12 @@ class StatusBar extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
 
-    final statsText =
+    final secondaryStyle = TextStyle(color: colorScheme.onSurfaceVariant);
+    final totalsText =
         'RX ${_formatIecBytes(state.rxBytes)} · '
-        'TX ${_formatIecBytes(state.txBytes)} · '
-        '${_formatIecBytes(state.rxBytesPerSecond)}/s';
+        'TX ${_formatIecBytes(state.txBytes)}';
+    final rateText = '${_formatIecBytes(state.rxBytesPerSecond)}/s';
+    final statsText = '$totalsText · $rateText';
     final disconnect =
         state.connection == UiConnection.connected ||
         state.connection == UiConnection.reconnecting;
@@ -81,9 +83,17 @@ class StatusBar extends ConsumerWidget {
           Expanded(
             child: Tooltip(
               message: '$status\n${state.portName} · $serialSettings',
-              child: Text(
-                '${portText.isEmpty ? l10n.noPortSelected : portText}'
-                '${portText.isEmpty ? '' : ' · $serialSettings'}',
+              child: Text.rich(
+                TextSpan(
+                  text: portText.isEmpty ? l10n.noPortSelected : portText,
+                  children: [
+                    if (portText.isNotEmpty)
+                      TextSpan(
+                        text: ' · $serialSettings',
+                        style: secondaryStyle,
+                      ),
+                  ],
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodySmall,
@@ -96,8 +106,13 @@ class StatusBar extends ConsumerWidget {
               message:
                   '$statsText\n${l10n.trafficStats(state.rxBytes, state.txBytes)}'
                   '\n${l10n.trafficStatsTooltip}',
-              child: Text(
-                statsText,
+              child: Text.rich(
+                TextSpan(
+                  text: totalsText,
+                  children: [
+                    TextSpan(text: ' · $rateText', style: secondaryStyle),
+                  ],
+                ),
                 maxLines: 1,
                 textAlign: TextAlign.end,
                 overflow: TextOverflow.ellipsis,
