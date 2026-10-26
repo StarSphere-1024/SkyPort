@@ -229,8 +229,12 @@ void main() {
         await tester.pumpAndSettle();
         expect(controller.connection, UiConnection.connected);
         expect(power.hitTestable(), findsOneWidget);
+        final baudMenu = find.byWidgetPredicate(
+          (widget) =>
+              widget is DropdownMenu<int> && widget.initialSelection == 115200,
+        );
         final baudInput = find.descendant(
-          of: find.widgetWithText(DropdownMenu<int>, l10n.baudRate),
+          of: baudMenu,
           matching: find.byType(EditableText),
         );
         final baudText = tester
@@ -245,9 +249,7 @@ void main() {
         expect(textLayout.width, lessThanOrEqualTo(baudText.size.width));
         textLayout.dispose();
         final panelRect = tester.getRect(find.byType(LeftPanel));
-        final baudRect = tester.getRect(
-          find.widgetWithText(DropdownMenu<int>, l10n.baudRate),
-        );
+        final baudRect = tester.getRect(baudMenu);
         final flowRect = tester.getRect(
           find.byType(DropdownMenu<UiFlowControl>),
         );

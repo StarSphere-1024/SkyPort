@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/ui_state.dart';
 import '../../providers/ui_controller.dart';
 import '../../utils/connection_status.dart';
+import '../shared/dropdown_builders.dart';
 
 class PortSelectionWidget extends ConsumerWidget {
   const PortSelectionWidget({super.key});
@@ -40,6 +41,7 @@ class PortSelectionWidget extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final colors = Theme.of(context).colorScheme;
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           child: _buildPortDropdown(
@@ -55,33 +57,35 @@ class PortSelectionWidget extends ConsumerWidget {
           ),
         ),
         const SizedBox(width: 8),
-        FilledButton.icon(
-          style: FilledButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            backgroundColor: isConnected ? colors.error : colors.primary,
-            foregroundColor: isConnected ? colors.onError : colors.onPrimary,
-          ),
-          onPressed:
-              isBusy || (!disconnect && (selectedPort == null || isUnavailable))
-              ? null
-              : () =>
-                    disconnect ? controller.disconnect() : controller.connect(),
-          icon: isBusy
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Icon(
-                  disconnect ? Icons.link_off : Icons.link,
-                  size: 18,
-                ),
-          label: Text(
-            isBusy
-                ? connectionStatusLabel(connectionState, l10n)
-                : disconnect
-                ? l10n.disconnect
-                : l10n.connect,
+        Padding(
+          padding: const EdgeInsets.only(top: 22),
+          child: FilledButton.icon(
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              backgroundColor: isConnected ? colors.error : colors.primary,
+              foregroundColor: isConnected ? colors.onError : colors.onPrimary,
+            ),
+            onPressed:
+                isBusy ||
+                    (!disconnect && (selectedPort == null || isUnavailable))
+                ? null
+                : () => disconnect
+                      ? controller.disconnect()
+                      : controller.connect(),
+            icon: isBusy
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(disconnect ? Icons.link_off : Icons.link, size: 18),
+            label: Text(
+              isBusy
+                  ? connectionStatusLabel(connectionState, l10n)
+                  : disconnect
+                  ? l10n.disconnect
+                  : l10n.connect,
+            ),
           ),
         ),
       ],
@@ -98,28 +102,6 @@ class PortSelectionWidget extends ConsumerWidget {
     required ValueChanged<String?> onSelected,
   }) {
     final l10n = AppLocalizations.of(context);
-    if (ports.isEmpty) {
-      return InputDecorator(
-        decoration: _denseInputDecoration(context, l10n.portName),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(l10n.noPortsFound),
-            if (isReconnecting && selectedPort != null)
-              Text(
-                '${l10n.reconnecting}: $selectedPort',
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              )
-            else if (isUnavailable)
-              Text(
-                '${l10n.unavailable}: $selectedPort',
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-          ],
-        ),
-      );
-    }
 
     final entries = <DropdownMenuEntry<String>>[
       ...ports.map(
@@ -127,31 +109,20 @@ class PortSelectionWidget extends ConsumerWidget {
       ),
     ];
 
-    return DropdownMenu<String>(
-      key: ValueKey('${ports.join('\u0000')}\u0001$selectedPort'),
-      expandedInsets: EdgeInsets.zero,
+    return DropdownBuilders.buildDropdown<String>(
+      context: context,
+      menuKey: ValueKey('${ports.join('\u0000')}\u0001$selectedPort'),
       initialSelection: selectedPort,
-      dropdownMenuEntries: entries,
+      entries: entries,
       onSelected: isDisabled ? null : onSelected,
+      hintText: ports.isEmpty ? l10n.noPortsFound : null,
       errorText: isReconnecting && selectedPort != null
           ? '${l10n.reconnecting}: $selectedPort'
           : isUnavailable
           ? '${l10n.unavailable}: $selectedPort'
           : null,
-      label: Text(AppLocalizations.of(context).portName),
+      label: l10n.portName,
       enabled: !isDisabled && entries.isNotEmpty,
-    );
-  }
-
-  InputDecoration _denseInputDecoration(BuildContext context, String label) {
-    return InputDecoration(
-      labelText: label,
-      isDense: true,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 12.0,
-        vertical: 14.0,
-      ),
     );
   }
 }

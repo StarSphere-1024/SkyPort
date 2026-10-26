@@ -323,7 +323,7 @@ void main() {
           UiFlowControl.hardware => currentLocalizations.flowControlHardware,
           UiFlowControl.software => currentLocalizations.flowControlSoftware,
         };
-        await tester.tap(find.text(label).last);
+        await tester.tap(find.widgetWithText(MenuItemButton, label));
         await _until(
           tester,
           () =>
@@ -514,7 +514,7 @@ void main() {
             UiFlowControl.hardware => strings.flowControlHardware,
             UiFlowControl.software => strings.flowControlSoftware,
           };
-          await tester.tap(find.text(selection).last);
+          await tester.tap(find.widgetWithText(MenuItemButton, selection));
           await _until(
             tester,
             () => container!.read(uiControllerProvider).flowControl == uiMode,

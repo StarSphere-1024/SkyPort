@@ -42,32 +42,15 @@ class SerialParamsWidget extends ConsumerWidget {
         LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 250;
-            final style = Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(fontSize: compact ? 12 : 14);
-            final decoration = InputDecorationThemeData(
-              contentPadding: EdgeInsets.symmetric(horizontal: compact ? 4 : 8),
-              suffixIconConstraints: BoxConstraints(
-                minWidth: compact ? 20 : 24,
-                maxWidth: compact ? 20 : 24,
-                minHeight: 48,
-              ),
-            );
-            final arrow = Icon(Icons.arrow_drop_down, size: compact ? 16 : 20);
             return Row(
               children: [
                 Expanded(
-                  flex: 5,
-                  child: DropdownMenu<int>(
-                    expandedInsets: EdgeInsets.zero,
+                  flex: compact ? 5 : 1,
+                  child: DropdownBuilders.buildDropdown<int>(
+                    context: context,
                     initialSelection: state.baudRate,
-                    textStyle: style,
-                    inputDecorationTheme: decoration,
-                    decorationBuilder: (context, _) => InputDecoration(
-                      labelText: AppLocalizations.of(context).baudRate,
-                      suffixIcon: Center(child: arrow),
-                    ),
-                    dropdownMenuEntries: DropdownBuilders.createEntries([
+                    label: AppLocalizations.of(context).baudRate,
+                    entries: DropdownBuilders.createEntries([
                       1200,
                       2400,
                       4800,
@@ -86,25 +69,19 @@ class SerialParamsWidget extends ConsumerWidget {
                 ),
                 SizedBox(width: compact ? 8 : 12),
                 Expanded(
-                  flex: 4,
+                  flex: compact ? 4 : 1,
                   child: Tooltip(
                     message: state.flowControl == UiFlowControl.software
                         ? AppLocalizations.of(
                             context,
                           ).flowControlSoftwareWarning
                         : '',
-                    child: DropdownMenu<UiFlowControl>(
-                      key: ValueKey(Localizations.localeOf(context)),
-                      expandedInsets: EdgeInsets.zero,
+                    child: DropdownBuilders.buildDropdown<UiFlowControl>(
+                      context: context,
+                      menuKey: ValueKey(Localizations.localeOf(context)),
                       initialSelection: state.flowControl,
-                      textStyle: style,
-                      inputDecorationTheme: decoration,
-                      decorationBuilder: (context, _) => InputDecoration(
-                        labelText: AppLocalizations.of(context).flowControl,
-                        suffixIcon: Center(child: arrow),
-                      ),
-                      requestFocusOnTap: false,
-                      dropdownMenuEntries: [
+                      label: AppLocalizations.of(context).flowControl,
+                      entries: [
                         DropdownMenuEntry(
                           value: UiFlowControl.none,
                           label: AppLocalizations.of(context).flowControlNone,
@@ -153,7 +130,8 @@ class SerialParamsWidget extends ConsumerWidget {
         Row(
           children: [
             Expanded(
-              child: DropdownBuilders.buildNumericDropdown<int>(
+              child: DropdownBuilders.buildDropdown<int>(
+                context: context,
                 initialSelection: state.dataBits,
                 entries: DropdownBuilders.createEntries([
                   8,
@@ -167,7 +145,8 @@ class SerialParamsWidget extends ConsumerWidget {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: DropdownBuilders.buildNumericDropdown<int>(
+              child: DropdownBuilders.buildDropdown<int>(
+                context: context,
                 initialSelection: state.stopBits,
                 entries: DropdownBuilders.createEntries([
                   1,
@@ -179,11 +158,11 @@ class SerialParamsWidget extends ConsumerWidget {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: DropdownMenu<UiParity>(
-                key: ValueKey(Localizations.localeOf(context)),
-                expandedInsets: EdgeInsets.zero,
+              child: DropdownBuilders.buildDropdown<UiParity>(
+                context: context,
+                menuKey: ValueKey(Localizations.localeOf(context)),
                 initialSelection: state.parity,
-                dropdownMenuEntries: [
+                entries: [
                   DropdownMenuEntry<UiParity>(
                     value: UiParity.none,
                     label: AppLocalizations.of(context).parityNone,
@@ -200,7 +179,7 @@ class SerialParamsWidget extends ConsumerWidget {
                 onSelected: (value) {
                   if (value != null) controller.setParity(value);
                 },
-                label: Text(AppLocalizations.of(context).parity),
+                label: AppLocalizations.of(context).parity,
               ),
             ),
           ],

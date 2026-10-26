@@ -90,7 +90,7 @@ void main() {
       expect(selector().dropdownMenuEntries.map((entry) => entry.value), [
         '/dev/ttyS0',
       ]);
-      expect(selector().errorText, contains('/dev/ttyUSB0'));
+      expect(find.text('${l10n.unavailable}: /dev/ttyUSB0'), findsOneWidget);
       expect(action().onPressed, isNull);
 
       final controller =
@@ -102,7 +102,7 @@ void main() {
         '/dev/ttyS0',
         '/dev/ttyUSB0',
       ]);
-      expect(selector().errorText, isNull);
+      expect(find.text('${l10n.unavailable}: /dev/ttyUSB0'), findsNothing);
       final selectorText = tester.widget<EditableText>(
         find.descendant(
           of: find.byType(DropdownMenu<String>),
@@ -110,6 +110,14 @@ void main() {
         ),
       );
       expect(selectorText.controller.text, '/dev/ttyUSB0');
+      await tester.tap(find.byIcon(Icons.keyboard_arrow_down));
+      await tester.pumpAndSettle();
+      expect(
+        find.widgetWithText(MenuItemButton, '/dev/ttyS0').hitTestable(),
+        findsOneWidget,
+      );
+      await tester.tapAt(const Offset(0, 400));
+      await tester.pumpAndSettle();
       await tester.tap(find.byType(FilledButton));
       expect(controller.connects, 1);
       controller.updatePorts(['/dev/ttyS0']);
