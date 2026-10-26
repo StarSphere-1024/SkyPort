@@ -30,6 +30,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsPageLabel => '设置';
 
   @override
+  String get aboutPageLabel => '关于';
+
+  @override
+  String get aboutDescription => '基于 Rust 与 Flutter 的桌面串口调试助手。';
+
+  @override
+  String get aboutMore => '更多';
+
+  @override
+  String get projectLink => '项目';
+
+  @override
+  String get projectLinkOpenFailed => '无法打开项目链接，可复制链接后在浏览器中打开。';
+
+  @override
   String get expandConfiguration => '展开配置面板';
 
   @override

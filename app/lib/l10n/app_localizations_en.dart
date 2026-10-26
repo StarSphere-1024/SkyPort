@@ -30,6 +30,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsPageLabel => 'Settings';
 
   @override
+  String get aboutPageLabel => 'About';
+
+  @override
+  String get aboutDescription =>
+      'A desktop serial port debugging assistant built with Rust and Flutter.';
+
+  @override
+  String get aboutMore => 'More';
+
+  @override
+  String get projectLink => 'Project';
+
+  @override
+  String get projectLinkOpenFailed =>
+      'Could not open the project link. You can copy it and open it in your browser.';
+
+  @override
   String get expandConfiguration => 'Expand configuration panel';
 
   @override

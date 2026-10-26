@@ -19,6 +19,8 @@ dependencies:
   path_provider: ^2.1.5
   ansi_escape_codes: ^4.0.1
   file_selector: ^1.0.3
+  package_info_plus: ^10.2.2
+  url_launcher: ^6.3.2
   flutter_svg: ^2.3.0
 
 dev_dependencies:

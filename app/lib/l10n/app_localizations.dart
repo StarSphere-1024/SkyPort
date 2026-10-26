@@ -140,6 +140,36 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get settingsPageLabel;
 
+  /// No description provided for @aboutPageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get aboutPageLabel;
+
+  /// No description provided for @aboutDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'A desktop serial port debugging assistant built with Rust and Flutter.'**
+  String get aboutDescription;
+
+  /// No description provided for @aboutMore.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get aboutMore;
+
+  /// No description provided for @projectLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Project'**
+  String get projectLink;
+
+  /// No description provided for @projectLinkOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the project link. You can copy it and open it in your browser.'**
+  String get projectLinkOpenFailed;
+
   /// No description provided for @expandConfiguration.
   ///
   /// In en, this message translates to:

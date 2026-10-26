@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:skyport/l10n/app_localizations.dart';
 import 'package:skyport/main.dart';
 import 'package:skyport/models/log_model.dart';
@@ -13,6 +14,7 @@ import 'package:skyport/widgets/left_panel.dart';
 import 'package:skyport/widgets/application_settings.dart';
 import 'package:skyport/widgets/connection_rail.dart';
 import 'package:skyport/widgets/status_bar.dart';
+import 'package:skyport/widgets/about_panel.dart';
 import 'package:skyport/widgets/right_panel/send_input_widget.dart';
 
 class LayoutController extends UiController {
@@ -197,6 +199,53 @@ void main() {
       expect(find.byType(ApplicationSettings), findsOneWidget);
       expect(tester.widget<TextFormField>(buffer).controller!.text, '25');
 
+      PackageInfo.setMockInitialValues(
+        appName: 'SkyPort',
+        packageName: 'skyport',
+        version: '2.0.5',
+        buildNumber: '0',
+        buildSignature: '',
+      );
+      final workspaceRect = tester.getRect(find.byType(SendInputWidget));
+      await tester.tap(find.byTooltip(l10n.aboutPageLabel));
+      await tester.pumpAndSettle();
+      expect(input.hitTestable(), findsOneWidget);
+      expect(send.hitTestable(), findsOneWidget);
+      expect(tester.getRect(find.byType(SendInputWidget)), workspaceRect);
+      expect(textController.text, 'unsent draft');
+      await tester.tap(input);
+      await tester.enterText(input, 'draft edited from about');
+      textController.selection = const TextSelection.collapsed(offset: 3);
+      await tester.pumpAndSettle();
+      for (final size in [const Size(320, 480), const Size(1000, 700)]) {
+        tester.view.physicalSize = size;
+        await tester.pumpAndSettle();
+        expect(
+          input.hitTestable(),
+          size.width < 800 ? findsNothing : findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+      }
+      await tester.tap(find.byTooltip(l10n.aboutPageLabel));
+      await tester.pumpAndSettle();
+      expect(tester.widget<ConnectionRail>(rail).panelOpen, isFalse);
+      expect(find.byType(AboutPanel).hitTestable(), findsNothing);
+      await tester.tap(find.byTooltip(l10n.aboutPageLabel));
+      await tester.pumpAndSettle();
+      expect(find.byType(AboutPanel).hitTestable(), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.byType(AboutPanel).hitTestable(), findsNothing);
+      expect(input.hitTestable(), findsOneWidget);
+      await tester.tap(settingsPage);
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextFormField>(buffer).controller!.text, '25');
+      expect(textController.text, 'draft edited from about');
+      expect(
+        textController.selection,
+        const TextSelection.collapsed(offset: 3),
+      );
+
       tester
           .widget<TextField>(
             find.descendant(of: input, matching: find.byType(TextField)),
@@ -285,7 +334,7 @@ void main() {
           tester.widget<TextFormField>(input).controller,
           same(textController),
         );
-        expect(textController.text, 'unsent draft');
+        expect(textController.text, 'draft edited from about');
         expect(textController.selection.baseOffset, 3);
         await tester.tap(settingsPage);
         await tester.pumpAndSettle();

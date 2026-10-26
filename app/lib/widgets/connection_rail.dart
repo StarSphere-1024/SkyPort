@@ -2,21 +2,21 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 
+enum ConfigurationPage { serial, settings, about }
+
 class ConnectionRail extends StatelessWidget {
   const ConnectionRail({
     super.key,
     required this.panelOpen,
-    required this.settingsSelected,
-    required this.onSerial,
-    required this.onSettings,
+    required this.selectedPage,
+    required this.onSelected,
   });
 
   static const double width = 80;
 
   final bool panelOpen;
-  final bool settingsSelected;
-  final VoidCallback onSerial;
-  final VoidCallback onSettings;
+  final ConfigurationPage selectedPage;
+  final ValueChanged<ConfigurationPage> onSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -30,16 +30,24 @@ class ConnectionRail extends StatelessWidget {
           _RailEntry(
             icon: Icons.cable,
             label: l10n.serialPageLabel,
-            selected: panelOpen && !settingsSelected,
-            onPressed: onSerial,
+            selected: panelOpen && selectedPage == ConfigurationPage.serial,
+            onPressed: () => onSelected(ConfigurationPage.serial),
           ),
           const SizedBox(height: 8),
           _RailEntry(
             icon: Icons.settings_outlined,
             label: l10n.settingsPageLabel,
-            selected: panelOpen && settingsSelected,
-            onPressed: onSettings,
+            selected: panelOpen && selectedPage == ConfigurationPage.settings,
+            onPressed: () => onSelected(ConfigurationPage.settings),
           ),
+          const SizedBox(height: 8),
+          _RailEntry(
+            icon: Icons.info_outline_rounded,
+            label: l10n.aboutPageLabel,
+            selected: panelOpen && selectedPage == ConfigurationPage.about,
+            onPressed: () => onSelected(ConfigurationPage.about),
+          ),
+          const SizedBox(height: 12),
         ],
       ),
     );

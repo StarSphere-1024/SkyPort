@@ -14,6 +14,7 @@ import 'providers/ui_controller.dart';
 import 'providers/theme_provider.dart';
 import 'theme.dart';
 import 'widgets/application_settings.dart';
+import 'widgets/about_panel.dart';
 import 'widgets/connection_rail.dart';
 import 'widgets/left_panel.dart';
 import 'widgets/right_panel.dart';
@@ -239,7 +240,7 @@ class _HomePageState extends ConsumerState<HomePage>
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   late final AnimationController _panelAnimation;
   late bool _panelOpen;
-  bool _settingsSelected = false;
+  ConfigurationPage _selectedPage = ConfigurationPage.serial;
 
   @override
   void initState() {
@@ -309,76 +310,69 @@ class _HomePageState extends ConsumerState<HomePage>
                   children: [
                     ConnectionRail(
                       panelOpen: _panelOpen,
-                      settingsSelected: _settingsSelected,
-                      onSerial: () => _openPage(false),
-                      onSettings: () => _openPage(true),
+                      selectedPage: _selectedPage,
+                      onSelected: _openPage,
                     ),
                     Expanded(
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: LayoutBuilder(
-                              builder: (context, constraints) {
-                                final panelWidth = constraints.maxWidth
-                                    .clamp(0, 310)
-                                    .toDouble();
-                                return AnimatedBuilder(
-                                  animation: _panelAnimation,
-                                  child: _configurationPanel(context),
-                                  builder: (context, panel) {
-                                    final visibleWidth =
-                                        panelWidth * _panelAnimation.value;
-                                    return Stack(
-                                      clipBehavior: Clip.hardEdge,
-                                      children: [
-                                        Positioned.fill(
-                                          child: Padding(
-                                            padding: EdgeInsetsDirectional.only(
-                                              start: compact ? 0 : visibleWidth,
-                                            ),
-                                            child: ExcludeFocus(
-                                              excluding: compact && _panelOpen,
-                                              child: IgnorePointer(
-                                                ignoring: compact && _panelOpen,
-                                                child: const RightPanel(),
-                                              ),
-                                            ),
-                                          ),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final panelWidth = constraints.maxWidth
+                              .clamp(0, 310)
+                              .toDouble();
+                          return AnimatedBuilder(
+                            animation: _panelAnimation,
+                            child: _configurationPanel(context),
+                            builder: (context, panel) {
+                              final visibleWidth =
+                                  panelWidth * _panelAnimation.value;
+                              return Stack(
+                                clipBehavior: Clip.hardEdge,
+                                children: [
+                                  Positioned.fill(
+                                    child: Padding(
+                                      padding: EdgeInsetsDirectional.only(
+                                        start: compact ? 0 : visibleWidth,
+                                      ),
+                                      child: ExcludeFocus(
+                                        excluding: compact && _panelOpen,
+                                        child: IgnorePointer(
+                                          ignoring: compact && _panelOpen,
+                                          child: const RightPanel(),
                                         ),
-                                        if (compact && _panelOpen)
-                                          Positioned.fill(
-                                            child: ModalBarrier(
-                                              dismissible: false,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .scrim
-                                                  .withValues(alpha: 0.32),
-                                            ),
-                                          ),
-                                        PositionedDirectional(
-                                          start: visibleWidth - panelWidth,
-                                          top: 0,
-                                          bottom: 0,
-                                          width: panelWidth,
-                                          child: ExcludeFocus(
-                                            excluding: !_panelOpen,
-                                            child: ExcludeSemantics(
-                                              excluding: !_panelOpen,
-                                              child: IgnorePointer(
-                                                ignoring: !_panelOpen,
-                                                child: panel,
-                                              ),
-                                            ),
-                                          ),
+                                      ),
+                                    ),
+                                  ),
+                                  if (compact && _panelOpen)
+                                    Positioned.fill(
+                                      child: ModalBarrier(
+                                        dismissible: false,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .scrim
+                                            .withValues(alpha: 0.32),
+                                      ),
+                                    ),
+                                  PositionedDirectional(
+                                    start: visibleWidth - panelWidth,
+                                    top: 0,
+                                    bottom: 0,
+                                    width: panelWidth,
+                                    child: ExcludeFocus(
+                                      excluding: !_panelOpen,
+                                      child: ExcludeSemantics(
+                                        excluding: !_panelOpen,
+                                        child: IgnorePointer(
+                                          ignoring: !_panelOpen,
+                                          child: panel,
                                         ),
-                                      ],
-                                    );
-                                  },
-                                );
-                              },
-                            ),
-                          ),
-                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -405,9 +399,9 @@ class _HomePageState extends ConsumerState<HomePage>
     );
   }
 
-  void _openPage(bool settings) {
-    final open = !_panelOpen || _settingsSelected != settings;
-    setState(() => _settingsSelected = settings);
+  void _openPage(ConfigurationPage page) {
+    final open = !_panelOpen || _selectedPage != page;
+    setState(() => _selectedPage = page);
     _setPanelOpen(open);
   }
 
@@ -442,7 +436,7 @@ class _HomePageState extends ConsumerState<HomePage>
           borderRadius: BorderRadius.circular(16),
           clipBehavior: Clip.antiAlias,
           child: IndexedStack(
-            index: _settingsSelected ? 1 : 0,
+            index: _selectedPage.index,
             children: [
               const LeftPanel(),
               SingleChildScrollView(
@@ -452,6 +446,10 @@ class _HomePageState extends ConsumerState<HomePage>
                   formKey: _formKey,
                 ),
               ),
+              if (_selectedPage == ConfigurationPage.about)
+                const AboutPanel()
+              else
+                const SizedBox.shrink(),
             ],
           ),
         ),
