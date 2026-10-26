@@ -156,9 +156,8 @@ fn port_error(
     fallback: ErrorKind,
 ) -> CoreError {
     let kind = match error.kind {
-        // On Unix serialport maps EBUSY to NoDevice, not a missing path.
-        serialport::ErrorKind::NoDevice if operation == "open" && cfg!(unix) => fallback,
-        serialport::ErrorKind::NoDevice if operation == "open" => ErrorKind::PortNotFound,
+        // NoDevice also represents Unix EBUSY and Windows ERROR_ACCESS_DENIED.
+        serialport::ErrorKind::NoDevice if operation == "open" => fallback,
         serialport::ErrorKind::Io(std::io::ErrorKind::NotFound) if operation == "open" => {
             ErrorKind::PortNotFound
         }
@@ -370,6 +369,40 @@ pub(crate) fn write_all_accounted(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn ambiguous_open_errors_do_not_claim_the_port_is_missing() {
+        for (source, operation, expected) in [
+            (
+                serialport::ErrorKind::NoDevice,
+                "open",
+                crate::ErrorKind::OpenFailed,
+            ),
+            (
+                serialport::ErrorKind::Io(std::io::ErrorKind::NotFound),
+                "open",
+                crate::ErrorKind::PortNotFound,
+            ),
+            (
+                serialport::ErrorKind::Io(std::io::ErrorKind::PermissionDenied),
+                "open",
+                crate::ErrorKind::PermissionDenied,
+            ),
+            (
+                serialport::ErrorKind::NoDevice,
+                "set read timeout on",
+                crate::ErrorKind::Disconnected,
+            ),
+        ] {
+            let error = super::port_error(
+                serialport::Error::new(source, "native serial failure"),
+                operation,
+                "port",
+                crate::ErrorKind::OpenFailed,
+            );
+            assert_eq!(error.kind, expected);
+        }
+    }
+
     #[test]
     fn port_listing_is_usb_only_on_linux() {
         for (name, linux_visible) in [

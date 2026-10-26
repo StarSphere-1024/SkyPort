@@ -6,6 +6,67 @@ use std::{fs, time::Duration};
 use tempfile::tempdir;
 
 #[test]
+fn input_capacity_errors_are_distinct_from_payload_capacity_errors() {
+    use skyport_core::{ErrorCode, Newline};
+
+    let dir = tempdir().unwrap();
+    let core = AppCore::create(AppOptions {
+        data_directory: dir.path().into(),
+        ..AppOptions::default()
+    })
+    .unwrap();
+    // 700,000 decoded bytes fit the payload limit; spaces exceed the input limit.
+    let input = "AA ".repeat(700_000);
+    for command in [
+        Command::SendHex {
+            input: input.clone(),
+        },
+        Command::SendInput {
+            input: input.clone(),
+        },
+        Command::SetAutoSend {
+            enabled: true,
+            interval_ms: 100,
+            input: input.clone(),
+            hex: true,
+            newline: Newline::None,
+        },
+        Command::UpdateConfig(ConfigPatch {
+            hex_send: Some(true),
+            auto_send_input: Some(input),
+            ..ConfigPatch::default()
+        }),
+    ] {
+        let error = core.dispatch(command).unwrap_err();
+        assert_eq!(error.kind, ErrorKind::InvalidArgument);
+        assert_eq!(error.code, Some(ErrorCode::SendInputTooLarge));
+    }
+    let text = "a".repeat(1_048_577);
+    for (command, expected) in [
+        (
+            Command::SendText {
+                text: text.clone(),
+                newline: Newline::None,
+            },
+            ErrorCode::SendTooLarge,
+        ),
+        (
+            Command::SetAutoSend {
+                enabled: true,
+                interval_ms: 100,
+                input: text,
+                hex: false,
+                newline: Newline::None,
+            },
+            ErrorCode::AutoSendTooLarge,
+        ),
+    ] {
+        assert_eq!(core.dispatch(command).unwrap_err().code, Some(expected));
+    }
+    core.close().unwrap();
+}
+
+#[test]
 fn legacy_config_is_saved_before_load_acknowledges_it() {
     let dir = tempdir().unwrap();
     let legacy = LegacyConfig {

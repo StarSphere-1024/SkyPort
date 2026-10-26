@@ -302,7 +302,7 @@ Flutter 下拉选项、CLI 参数检查和 GUI 输入限制都不是信任边界
 错误类型至少区分：
 
 - invalid argument；
-- port not found / open failed；
+- port not found / open failed：仅明确的路径不存在错误返回前者；`serialport::NoDevice` 还包含 Unix 占用、Windows 拒绝访问，因此打开时返回后者，不通过系统错误文案猜测原因；
 - permission denied；
 - unsupported configuration；
 - read failed / disconnected；
@@ -558,7 +558,7 @@ Linux 优先使用 pseudo-terminal 验证端到端打开、配置、收发、拔
 - Dart 利用记录 ID 的有序性二分定位，不保留或复制整表 ID 索引。每批日志增量按事件顺序合并 upsert、删除及最终保留边界，只复制和裁剪一次留存列表；清空、pending 重建及裁剪不能恢复已删除的旧行。
 - 日志容量为 16–512 MiB，默认 128 MiB；最多 65,536 条记录，pending 超过 256 KiB 强制固化。裁剪计数可观察；清空同时清空日志、裁剪事实和收发统计。
 - 已接受的发送（含文件发送）使用相同的 `DataSent`/`WriteFailed` 最终结果；文件读取或 Hex 解析失败也返回关联的 `WriteFailed`，已写入计数为 0，不让调用方等待另一种完成事件。
-- 文本使用 UTF-8，换行由核心追加；Hex 只接受完整字节对和空白，不接受 `_` 或隐式修复。发送最多 1 MiB；成功表示全部字节写入驱动，失败携带已写入字节数。自动发送事件的 request ID 为保留值 0；用户请求 ID 从 1 开始。
+- 文本使用 UTF-8，换行由核心追加；Hex 只接受完整字节对和空白，不接受 `_` 或隐式修复。发送数据最多 1 MiB；Hex 原始输入（含空白）及自动发送草稿另有 2 MiB 输入上限，超限返回 `SendInputTooLarge`，与数据超限区分。成功表示全部字节写入驱动，失败携带已写入字节数。自动发送事件的 request ID 为保留值 0；用户请求 ID 从 1 开始。
 - 配置为数据目录内 `config.json`，显式版本 1，原子替换；旧偏好作为原始可选 `LegacyConfig` 字段交给 Rust。只对缺失字段补默认值，非法值拒绝；已存在的新配置优先于旧偏好。历史最多 100 项且合计不超过 1 MiB。
 - 前端通过字段级 `ConfigPatch` 提交设置，不用可能过期的 UI snapshot 覆盖整个配置或历史；手动 `SendInput` 使用 worker 当前设置。换行类型与 `append_newline` 分开保存，关闭再启用追加不会丢失用户选择。
 - 自动发送内容只在输入或编码变化时重新编码，周期内复用缓存；提交非法 Hex 后暂停并报告 `auto_send_error`，不继续发送旧内容；后续输入更新不能意外重新启用已经关闭的任务。

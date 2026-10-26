@@ -861,8 +861,8 @@ fn validate_auto_input(config: &AppConfig, input: &str) -> Option<CoreError> {
     if config.send.hex {
         if input.len() > 2_097_152 {
             return Some(
-                CoreError::new(ErrorKind::InvalidArgument, "auto-send input exceeds 1 MiB")
-                    .with_code(ErrorCode::AutoSendTooLarge),
+                CoreError::new(ErrorKind::InvalidArgument, "send input exceeds 2 MiB")
+                    .with_code(ErrorCode::SendInputTooLarge),
             );
         }
         serial::validate_hex(input).err()
@@ -904,17 +904,13 @@ fn validate_command(command: &Command) -> Result<(), CoreError> {
                     .with_code(ErrorCode::SendTooLarge),
             )
         }
-        Command::SendHex { input } if input.len() > 2_097_152 => Err(CoreError::new(
-            ErrorKind::InvalidArgument,
-            "send exceeds 1 MiB",
-        )
-        .with_code(ErrorCode::SendTooLarge)),
+        Command::SendHex { input } | Command::SendInput { input } if input.len() > 2_097_152 => {
+            Err(
+                CoreError::new(ErrorKind::InvalidArgument, "send input exceeds 2 MiB")
+                    .with_code(ErrorCode::SendInputTooLarge),
+            )
+        }
         Command::SendHex { input } => serial::validate_hex(input),
-        Command::SendInput { input } if input.len() > 2_097_152 => Err(CoreError::new(
-            ErrorKind::InvalidArgument,
-            "send input exceeds its bounded capacity",
-        )
-        .with_code(ErrorCode::SendInputTooLarge)),
         Command::SetAutoSend { interval_ms, .. } if !(10..=60_000).contains(interval_ms) => {
             Err(CoreError::new(
                 ErrorKind::InvalidArgument,
@@ -926,9 +922,9 @@ fn validate_command(command: &Command) -> Result<(), CoreError> {
             input, hex: true, ..
         } if input.len() > 2_097_152 => Err(CoreError::new(
             ErrorKind::InvalidArgument,
-            "auto-send input exceeds 1 MiB",
+            "send input exceeds 2 MiB",
         )
-        .with_code(ErrorCode::AutoSendTooLarge)),
+        .with_code(ErrorCode::SendInputTooLarge)),
         Command::SetAutoSend {
             input,
             hex: false,
@@ -949,8 +945,8 @@ fn validate_command(command: &Command) -> Result<(), CoreError> {
                 .is_some_and(|input| input.len() > 2_097_152) =>
         {
             Err(
-                CoreError::new(ErrorKind::InvalidArgument, "auto-send input exceeds 1 MiB")
-                    .with_code(ErrorCode::AutoSendTooLarge),
+                CoreError::new(ErrorKind::InvalidArgument, "send input exceeds 2 MiB")
+                    .with_code(ErrorCode::SendInputTooLarge),
             )
         }
         _ => Ok(()),
