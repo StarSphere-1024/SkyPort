@@ -108,6 +108,47 @@ fn options(dir: PathBuf, port: String) -> AppOptions {
 }
 
 #[test]
+fn occupied_port_reports_open_failure_and_connects_after_release() {
+    let dir = tempfile::tempdir().unwrap();
+    let pty = Pty::new();
+    let owner = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(&pty.slave)
+        .unwrap();
+    assert_eq!(unsafe { libc::ioctl(owner.as_raw_fd(), libc::TIOCEXCL) }, 0);
+    let core = AppCore::create(options(
+        dir.path().into(),
+        pty.slave.to_string_lossy().into_owned(),
+    ))
+    .unwrap();
+    let (_, events) = core.subscribe().unwrap();
+    let request = core.dispatch(Command::Connect).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(4);
+    let error = loop {
+        assert!(Instant::now() < deadline, "connect did not fail");
+        if let Some(event) = events.recv_timeout(Duration::from_millis(50)).unwrap() {
+            match event.kind {
+                EventKind::CommandFailed { request_id, error } if request_id == request => {
+                    break error;
+                }
+                EventKind::CommandCompleted { request_id } if request_id == request => {
+                    panic!("occupied port unexpectedly connected");
+                }
+                _ => {}
+            }
+        }
+    };
+    assert_eq!(error.kind, ErrorKind::OpenFailed, "{error:?}");
+    assert_eq!(core.snapshot().unwrap().error.unwrap().kind, error.kind);
+    assert_eq!(unsafe { libc::ioctl(owner.as_raw_fd(), libc::TIOCNXCL) }, 0);
+    drop(owner);
+    core.dispatch(Command::Connect).unwrap();
+    wait_for(|| core.snapshot().unwrap().connection == ConnectionState::Connected);
+    core.close().unwrap();
+}
+
+#[test]
 fn clearing_a_configured_target_disconnects_and_cancels_reconnection() {
     let dir = tempfile::tempdir().unwrap();
     let mut pty = Pty::new();
@@ -539,6 +580,10 @@ fn manual_connect_failure_does_not_start_configured_retries() {
             snapshot.connection == ConnectionState::Disconnected && snapshot.error.is_some()
         })
     });
+    assert_eq!(
+        core.snapshot().unwrap().error.unwrap().kind,
+        ErrorKind::PortNotFound
+    );
     thread::sleep(Duration::from_millis(100));
     let sequence = core.snapshot().unwrap().sequence;
     thread::sleep(Duration::from_millis(1_100));

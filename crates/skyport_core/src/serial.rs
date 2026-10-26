@@ -156,7 +156,12 @@ fn port_error(
     fallback: ErrorKind,
 ) -> CoreError {
     let kind = match error.kind {
+        // On Unix serialport maps EBUSY to NoDevice, not a missing path.
+        serialport::ErrorKind::NoDevice if operation == "open" && cfg!(unix) => fallback,
         serialport::ErrorKind::NoDevice if operation == "open" => ErrorKind::PortNotFound,
+        serialport::ErrorKind::Io(std::io::ErrorKind::NotFound) if operation == "open" => {
+            ErrorKind::PortNotFound
+        }
         serialport::ErrorKind::NoDevice => ErrorKind::Disconnected,
         serialport::ErrorKind::Io(std::io::ErrorKind::PermissionDenied) => {
             ErrorKind::PermissionDenied
