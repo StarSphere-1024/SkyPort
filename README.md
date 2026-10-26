@@ -19,7 +19,7 @@ Connect devices, send and receive text or Hex data, inspect ANSI-colored logs, a
 </div>
 
 <p align="center">
-  <img src="static/images/main_interface.png" alt="SkyPort dark theme with a Chinese interface: serial settings, text transmission, and ANSI-colored logs" width="100%">
+  <img src="static/images/main_interface.png" alt="SkyPort dark theme with a Chinese interface and deterministic demo data: serial settings, text transmission, and ANSI-colored logs" width="100%">
 </p>
 
 ## Features

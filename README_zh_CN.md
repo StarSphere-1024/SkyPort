@@ -19,7 +19,7 @@
 </div>
 
 <p align="center">
-  <img src="static/images/main_interface.png" alt="SkyPort 深色界面：串口参数、文本发送与 ANSI 彩色日志" width="100%">
+  <img src="static/images/main_interface.png" alt="SkyPort 深色界面与固定演示数据：串口参数、文本发送与 ANSI 彩色日志" width="100%">
 </p>
 
 ## 功能亮点
