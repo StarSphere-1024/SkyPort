@@ -940,8 +940,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSnapshot dco_decode_app_snapshot(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 13)
-      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
+    if (arr.length != 14)
+      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
     return AppSnapshot(
       sequence: dco_decode_CastedPrimitive_u_64(arr[0]),
       config: dco_decode_app_config(arr[1]),
@@ -952,10 +952,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       rxBytes: dco_decode_CastedPrimitive_u_64(arr[6]),
       txBytes: dco_decode_CastedPrimitive_u_64(arr[7]),
       lastRxBytes: dco_decode_CastedPrimitive_u_64(arr[8]),
-      error: dco_decode_opt_box_autoadd_core_error(arr[9]),
-      autoSendError: dco_decode_opt_box_autoadd_core_error(arr[10]),
-      log: dco_decode_log_snapshot(arr[11]),
-      autoSendInput: dco_decode_String(arr[12]),
+      rxBytesPerSecond: dco_decode_f_64(arr[9]),
+      error: dco_decode_opt_box_autoadd_core_error(arr[10]),
+      autoSendError: dco_decode_opt_box_autoadd_core_error(arr[11]),
+      log: dco_decode_log_snapshot(arr[12]),
+      autoSendInput: dco_decode_String(arr[13]),
     );
   }
 
@@ -963,8 +964,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppState dco_decode_app_state(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 12)
-      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
+    if (arr.length != 13)
+      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
     return AppState(
       sequence: dco_decode_CastedPrimitive_u_64(arr[0]),
       config: dco_decode_app_config(arr[1]),
@@ -975,9 +976,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       rxBytes: dco_decode_CastedPrimitive_u_64(arr[6]),
       txBytes: dco_decode_CastedPrimitive_u_64(arr[7]),
       lastRxBytes: dco_decode_CastedPrimitive_u_64(arr[8]),
-      error: dco_decode_opt_box_autoadd_core_error(arr[9]),
-      autoSendError: dco_decode_opt_box_autoadd_core_error(arr[10]),
-      autoSendInput: dco_decode_String(arr[11]),
+      rxBytesPerSecond: dco_decode_f_64(arr[9]),
+      error: dco_decode_opt_box_autoadd_core_error(arr[10]),
+      autoSendError: dco_decode_opt_box_autoadd_core_error(arr[11]),
+      autoSendInput: dco_decode_String(arr[12]),
     );
   }
 
@@ -1254,6 +1256,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       timestamps: dco_decode_bool(arr[2]),
       stripAnsi: dco_decode_bool(arr[3]),
     );
+  }
+
+  @protected
+  double dco_decode_f_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as double;
   }
 
   @protected
@@ -1734,6 +1742,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_rxBytes = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_txBytes = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_lastRxBytes = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_rxBytesPerSecond = sse_decode_f_64(deserializer);
     var var_error = sse_decode_opt_box_autoadd_core_error(deserializer);
     var var_autoSendError = sse_decode_opt_box_autoadd_core_error(deserializer);
     var var_log = sse_decode_log_snapshot(deserializer);
@@ -1748,6 +1757,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       rxBytes: var_rxBytes,
       txBytes: var_txBytes,
       lastRxBytes: var_lastRxBytes,
+      rxBytesPerSecond: var_rxBytesPerSecond,
       error: var_error,
       autoSendError: var_autoSendError,
       log: var_log,
@@ -1769,6 +1779,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_rxBytes = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_txBytes = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_lastRxBytes = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_rxBytesPerSecond = sse_decode_f_64(deserializer);
     var var_error = sse_decode_opt_box_autoadd_core_error(deserializer);
     var var_autoSendError = sse_decode_opt_box_autoadd_core_error(deserializer);
     var var_autoSendInput = sse_decode_String(deserializer);
@@ -1782,6 +1793,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       rxBytes: var_rxBytes,
       txBytes: var_txBytes,
       lastRxBytes: var_lastRxBytes,
+      rxBytesPerSecond: var_rxBytesPerSecond,
       error: var_error,
       autoSendError: var_autoSendError,
       autoSendInput: var_autoSendInput,
@@ -2087,6 +2099,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       timestamps: var_timestamps,
       stripAnsi: var_stripAnsi,
     );
+  }
+
+  @protected
+  double sse_decode_f_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getFloat64();
   }
 
   @protected
@@ -2720,6 +2738,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_CastedPrimitive_u_64(self.rxBytes, serializer);
     sse_encode_CastedPrimitive_u_64(self.txBytes, serializer);
     sse_encode_CastedPrimitive_u_64(self.lastRxBytes, serializer);
+    sse_encode_f_64(self.rxBytesPerSecond, serializer);
     sse_encode_opt_box_autoadd_core_error(self.error, serializer);
     sse_encode_opt_box_autoadd_core_error(self.autoSendError, serializer);
     sse_encode_log_snapshot(self.log, serializer);
@@ -2738,6 +2757,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_CastedPrimitive_u_64(self.rxBytes, serializer);
     sse_encode_CastedPrimitive_u_64(self.txBytes, serializer);
     sse_encode_CastedPrimitive_u_64(self.lastRxBytes, serializer);
+    sse_encode_f_64(self.rxBytesPerSecond, serializer);
     sse_encode_opt_box_autoadd_core_error(self.error, serializer);
     sse_encode_opt_box_autoadd_core_error(self.autoSendError, serializer);
     sse_encode_String(self.autoSendInput, serializer);
@@ -3021,6 +3041,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.hex, serializer);
     sse_encode_bool(self.timestamps, serializer);
     sse_encode_bool(self.stripAnsi, serializer);
+  }
+
+  @protected
+  void sse_encode_f_64(double self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putFloat64(self);
   }
 
   @protected

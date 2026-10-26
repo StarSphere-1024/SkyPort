@@ -157,12 +157,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get unavailable => '不可用';
 
   @override
-  String trafficStats(int rx, int tx, int lastRx) {
-    return '接收: $rx - $lastRx | 发送: $tx';
+  String trafficStats(int rx, int tx) {
+    return '接收: $rx 字节 | 发送: $tx 字节';
   }
 
   @override
-  String get trafficStatsTooltip => '累计接收字节数 - 上次包大小 | 累计发送字节数';
+  String get trafficStatsTooltip => '累计接收字节数 · 累计发送字节数 · 接收速率';
 
   @override
   String get settingsAppearance => '外观';

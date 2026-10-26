@@ -301,6 +301,7 @@ void main() {
           rxBytes: 2,
           txBytes: 1,
           lastRxBytes: 2,
+          rxBytesPerSecond: 0,
           log: rust.LogSnapshot(
             records: [
               row(1, [0, 255]),
@@ -326,6 +327,7 @@ void main() {
             rxBytes: 2,
             txBytes: 1,
             lastRxBytes: 2,
+            rxBytesPerSecond: 0,
             autoSendInput: '41',
           ),
         ),

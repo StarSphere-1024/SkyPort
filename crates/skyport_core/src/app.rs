@@ -81,6 +81,7 @@ impl AppCore {
             rx_bytes: 0,
             tx_bytes: 0,
             last_rx_bytes: 0,
+            rx_bytes_per_second: 0.0,
             error: None,
             auto_send_error: None,
             log: LogStore::new(config.log_capacity_bytes).snapshot(),
@@ -387,6 +388,9 @@ fn run_worker(
     let mut port: Option<Box<dyn serialport::SerialPort>> = None;
     let mut reconnect_at: Option<Instant> = None;
     let mut link_lost = false;
+    let mut rate_sample_at = Instant::now();
+    let mut rate_sample_bytes = 0;
+    let mut rate_connection = ConnectionState::Disconnected;
     let mut next_auto = Instant::now();
     let mut next_ports = Instant::now();
     let mut buf = [0u8; 8192];
@@ -418,6 +422,12 @@ fn run_worker(
             Err(RecvTimeoutError::Disconnected) => break,
             Err(RecvTimeoutError::Timeout) => {}
         }
+        update_rx_rate(
+            &shared,
+            &mut rate_sample_at,
+            &mut rate_sample_bytes,
+            &mut rate_connection,
+        );
         if stop.load(Ordering::Acquire) {
             continue;
         }
@@ -675,6 +685,7 @@ fn handle_command(
                     state.snapshot.rx_bytes = 0;
                     state.snapshot.tx_bytes = 0;
                     state.snapshot.last_rx_bytes = 0;
+                    state.snapshot.rx_bytes_per_second = 0.0;
                     let delta = state.log.clear();
                     publish_simple_locked(&mut state, EventKind::LogChanged(delta));
                     publish_state_event_locked(&mut state);
@@ -1311,9 +1322,48 @@ fn app_state(snapshot: &AppSnapshot) -> AppState {
         rx_bytes: snapshot.rx_bytes,
         tx_bytes: snapshot.tx_bytes,
         last_rx_bytes: snapshot.last_rx_bytes,
+        rx_bytes_per_second: snapshot.rx_bytes_per_second,
         error: snapshot.error.clone(),
         auto_send_error: snapshot.auto_send_error.clone(),
         auto_send_input: snapshot.auto_send_input.clone(),
+    }
+}
+fn update_rx_rate(
+    shared: &Shared,
+    sampled_at: &mut Instant,
+    sampled_bytes: &mut u64,
+    sampled_connection: &mut ConnectionState,
+) {
+    let now = Instant::now();
+    let Ok(mut state) = shared.state.lock() else {
+        return;
+    };
+    let connection = state.snapshot.connection;
+    let bytes = state.snapshot.rx_bytes;
+    if connection != *sampled_connection || bytes < *sampled_bytes {
+        *sampled_connection = connection;
+        *sampled_bytes = bytes;
+        *sampled_at = now;
+        if state.snapshot.rx_bytes_per_second != 0.0 {
+            state.snapshot.rx_bytes_per_second = 0.0;
+            publish_state_event_locked(&mut state);
+        }
+        return;
+    }
+    let elapsed = now.duration_since(*sampled_at);
+    if elapsed < Duration::from_secs(1) {
+        return;
+    }
+    let rate = if connection == ConnectionState::Connected {
+        bytes.saturating_sub(*sampled_bytes) as f64 / elapsed.as_secs_f64()
+    } else {
+        0.0
+    };
+    *sampled_at = now;
+    *sampled_bytes = bytes;
+    if state.snapshot.rx_bytes_per_second != rate {
+        state.snapshot.rx_bytes_per_second = rate;
+        publish_state_event_locked(&mut state);
     }
 }
 fn publish_state_event_locked(state: &mut State) {

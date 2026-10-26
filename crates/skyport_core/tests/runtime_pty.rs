@@ -320,6 +320,34 @@ fn pty_software_flow_control_pauses_and_resumes_output() {
 }
 
 #[test]
+fn pty_receive_rate_samples_idle_and_clear_reset() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut pty = Pty::new();
+    let mut app_options = options(dir.path().into(), pty.slave.to_string_lossy().into_owned());
+    app_options.legacy_config.as_mut().unwrap().auto_reconnect = Some(false);
+    let core = AppCore::create(app_options).unwrap();
+    core.dispatch(Command::Connect).unwrap();
+    wait_for(|| core.snapshot().unwrap().connection == ConnectionState::Connected);
+
+    pty.write(&[0x55; 100]);
+    wait_for(|| core.snapshot().unwrap().rx_bytes == 100);
+    wait_for(|| core.snapshot().unwrap().rx_bytes_per_second > 0.0);
+    wait_for(|| core.snapshot().unwrap().rx_bytes_per_second == 0.0);
+
+    pty.write(&[0x33; 100]);
+    wait_for(|| core.snapshot().unwrap().rx_bytes == 200);
+    wait_for(|| core.snapshot().unwrap().rx_bytes_per_second > 0.0);
+    core.dispatch(Command::ClearLog).unwrap();
+    wait_for(|| {
+        let snapshot = core.snapshot().unwrap();
+        snapshot.rx_bytes == 0 && snapshot.rx_bytes_per_second == 0.0
+    });
+    pty.close();
+    wait_for(|| core.snapshot().unwrap().connection == ConnectionState::Disconnected);
+    core.close().unwrap();
+}
+
+#[test]
 fn pty_binary_roundtrip_timeout_disconnect_and_close() {
     let dir = tempfile::tempdir().unwrap();
     let mut pty = Pty::new();

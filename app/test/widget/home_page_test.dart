@@ -37,6 +37,7 @@ class LayoutController extends UiController {
     ports: [if (portName.isNotEmpty) portName],
     rxBytes: 123456789,
     txBytes: 987654321,
+    rxBytesPerSecond: 1536.5,
     lastRxBytes: 123456,
     error: null,
     logs: const LogState(),
@@ -170,7 +171,6 @@ void main() {
                 tester.element(find.byType(HomePage)),
               ).read(uiControllerProvider.notifier)
               as LayoutController;
-      expect(find.text('${controller.portName} (115200)'), findsOneWidget);
       await tester.tap(power);
       await tester.pumpAndSettle();
       expect(controller.connection, UiConnection.disconnected);
@@ -329,6 +329,8 @@ void main() {
       return (a > b ? a + 0.05 : b + 0.05) / (a > b ? b + 0.05 : a + 0.05);
     }
 
+    tester.view.physicalSize = const Size(320, 600);
+    addTearDown(tester.view.resetPhysicalSize);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [uiControllerProvider.overrideWith(LayoutController.new)],
@@ -340,6 +342,25 @@ void main() {
         ),
       ),
     );
+    expect(find.textContaining('115200 · 8N1'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Tooltip &&
+            (widget.message?.contains('RX: 123456789 B | TX: 987654321 B') ??
+                false),
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('1.5 KiB/s'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    final statusText = tester.widget<Text>(
+      find
+          .descendant(of: find.byType(StatusBar), matching: find.byType(Text))
+          .first,
+    );
+    expect(statusText.maxLines, 1);
+    expect(statusText.overflow, TextOverflow.ellipsis);
     var theme = Theme.of(tester.element(find.byType(StatusBar)));
     var status = tester.widget<Icon>(find.byIcon(Icons.circle)).color!;
     expect(

@@ -43,6 +43,7 @@ class UiState {
   final int rxBytes;
   final int txBytes;
   final int lastRxBytes;
+  final double rxBytesPerSecond;
   final rust.CoreError? error;
   final rust.CoreError? autoSendError;
   final LogState logs;
@@ -73,6 +74,7 @@ class UiState {
     required this.rxBytes,
     required this.txBytes,
     required this.lastRxBytes,
+    this.rxBytesPerSecond = 0,
     required this.error,
     this.autoSendError,
     required this.logs,
@@ -112,6 +114,7 @@ class UiState {
       rxBytes: snapshot.rxBytes,
       txBytes: snapshot.txBytes,
       lastRxBytes: snapshot.lastRxBytes,
+      rxBytesPerSecond: snapshot.rxBytesPerSecond,
       error: snapshot.error,
       autoSendError: snapshot.autoSendError,
       logs: LogState(chunks: chunks, totalBytes: snapshot.log.totalBytes),
@@ -143,6 +146,7 @@ class UiState {
     ports: update.ports,
     rxBytes: update.rxBytes,
     txBytes: update.txBytes,
+    rxBytesPerSecond: update.rxBytesPerSecond,
     lastRxBytes: update.lastRxBytes,
     error: update.error,
     autoSendError: update.autoSendError,
@@ -304,6 +308,7 @@ class UiState {
     rxBytes: rxBytes ?? this.rxBytes,
     txBytes: txBytes ?? this.txBytes,
     lastRxBytes: lastRxBytes ?? this.lastRxBytes,
+    rxBytesPerSecond: rxBytesPerSecond,
     error: replaceError ? error : this.error,
     autoSendError: autoSendError,
     logs: logs ?? this.logs,

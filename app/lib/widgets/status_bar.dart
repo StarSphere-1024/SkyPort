@@ -16,10 +16,13 @@ class StatusBar extends ConsumerWidget {
         (state) => (
           rxBytes: state.rxBytes,
           txBytes: state.txBytes,
-          lastRxBytes: state.lastRxBytes,
+          rxBytesPerSecond: state.rxBytesPerSecond,
           connection: state.connection,
           portName: state.portName,
           baudRate: state.baudRate,
+          dataBits: state.dataBits,
+          parity: state.parity,
+          stopBits: state.stopBits,
         ),
       ),
     );
@@ -27,11 +30,10 @@ class StatusBar extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
 
-    final statsText = l10n.trafficStats(
-      state.rxBytes,
-      state.txBytes,
-      state.lastRxBytes,
-    );
+    final statsText =
+        'RX ${_formatIecBytes(state.rxBytes)} · '
+        'TX ${_formatIecBytes(state.txBytes)} · '
+        '${_formatIecBytes(state.rxBytesPerSecond)}/s';
     final disconnect =
         state.connection == UiConnection.connected ||
         state.connection == UiConnection.reconnecting;
@@ -41,9 +43,14 @@ class StatusBar extends ConsumerWidget {
             state.portName.isNotEmpty);
     final statusColor = connectionStatusColor(state.connection, theme);
     final status = connectionStatusLabel(state.connection, l10n);
-    final portText = state.portName.isEmpty
-        ? l10n.noPortSelected
-        : '${state.portName} (${state.baudRate})';
+    final portText = state.portName.isEmpty ? '' : state.portName;
+    final serialSettings =
+        '${state.baudRate} · ${state.dataBits}'
+        '${switch (state.parity) {
+          UiParity.none => 'N',
+          UiParity.odd => 'O',
+          UiParity.even => 'E',
+        }}${state.stopBits}';
 
     return Container(
       height: 32,
@@ -73,9 +80,10 @@ class StatusBar extends ConsumerWidget {
           ),
           Expanded(
             child: Tooltip(
-              message: '$status\n$portText',
+              message: '$status\n${state.portName} · $serialSettings',
               child: Text(
-                portText,
+                '${portText.isEmpty ? l10n.noPortSelected : portText}'
+                '${portText.isEmpty ? '' : ' · $serialSettings'}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodySmall,
@@ -85,7 +93,9 @@ class StatusBar extends ConsumerWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Tooltip(
-              message: '$statsText\n${l10n.trafficStatsTooltip}',
+              message:
+                  '$statsText\n${l10n.trafficStats(state.rxBytes, state.txBytes)}'
+                  '\n${l10n.trafficStatsTooltip}',
               child: Text(
                 statsText,
                 maxLines: 1,
@@ -99,4 +109,17 @@ class StatusBar extends ConsumerWidget {
       ),
     );
   }
+}
+
+String _formatIecBytes(num bytes) {
+  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
+  var value = bytes.toDouble();
+  var unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  return unit == 0
+      ? '${value.round()} ${units[unit]}'
+      : '${value.toStringAsFixed(1)} ${units[unit]}';
 }

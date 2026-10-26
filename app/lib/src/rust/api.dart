@@ -159,6 +159,7 @@ class AppSnapshot {
   final int rxBytes;
   final int txBytes;
   final int lastRxBytes;
+  final double rxBytesPerSecond;
   final CoreError? error;
   final CoreError? autoSendError;
   final LogSnapshot log;
@@ -174,6 +175,7 @@ class AppSnapshot {
     required this.rxBytes,
     required this.txBytes,
     required this.lastRxBytes,
+    required this.rxBytesPerSecond,
     this.error,
     this.autoSendError,
     required this.log,
@@ -191,6 +193,7 @@ class AppSnapshot {
       rxBytes.hashCode ^
       txBytes.hashCode ^
       lastRxBytes.hashCode ^
+      rxBytesPerSecond.hashCode ^
       error.hashCode ^
       autoSendError.hashCode ^
       log.hashCode ^
@@ -210,6 +213,7 @@ class AppSnapshot {
           rxBytes == other.rxBytes &&
           txBytes == other.txBytes &&
           lastRxBytes == other.lastRxBytes &&
+          rxBytesPerSecond == other.rxBytesPerSecond &&
           error == other.error &&
           autoSendError == other.autoSendError &&
           log == other.log &&
@@ -226,6 +230,7 @@ class AppState {
   final int rxBytes;
   final int txBytes;
   final int lastRxBytes;
+  final double rxBytesPerSecond;
   final CoreError? error;
   final CoreError? autoSendError;
   final String autoSendInput;
@@ -240,6 +245,7 @@ class AppState {
     required this.rxBytes,
     required this.txBytes,
     required this.lastRxBytes,
+    required this.rxBytesPerSecond,
     this.error,
     this.autoSendError,
     required this.autoSendInput,
@@ -256,6 +262,7 @@ class AppState {
       rxBytes.hashCode ^
       txBytes.hashCode ^
       lastRxBytes.hashCode ^
+      rxBytesPerSecond.hashCode ^
       error.hashCode ^
       autoSendError.hashCode ^
       autoSendInput.hashCode;
@@ -274,6 +281,7 @@ class AppState {
           rxBytes == other.rxBytes &&
           txBytes == other.txBytes &&
           lastRxBytes == other.lastRxBytes &&
+          rxBytesPerSecond == other.rxBytesPerSecond &&
           error == other.error &&
           autoSendError == other.autoSendError &&
           autoSendInput == other.autoSendInput;

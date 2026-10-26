@@ -249,6 +249,8 @@ CLI、GPUI 直接调用该 API；实际生成到 Dart 的 API 名称由 bridge �
 
 AppCore 为状态变化和事件分配单调递增的 sequence，snapshot 标明其覆盖的 sequence。`subscribe` 必须在同一一致性边界内建立订阅并取得初始 snapshot：snapshot 包含该边界的状态和保留日志，订阅从其后的事件开始。禁止先调用 `snapshot` 再单独注册监听，否则中间发生的事件可能遗漏。
 
+`AppSnapshot` / `AppState` 暴露累计 `rx_bytes`、累计 `tx_bytes`、最近一次接收批次的 `last_rx_bytes`，以及仅接收方向吞吐率 `rx_bytes_per_second`。核心约每秒采样累计 RX，并按单调时钟实际经过时间计算；仅在速率变化时发布 `state_changed`。空闲速率为零。连接状态变化或计数器重置时速率归零并建立新基线；首次采样从该基线计算，不计入历史字节。
+
 高吞吐数据必须使用批量事件和容量上限，snapshot 不复制无界历史。命令、接收和订阅队列的满载行为须分别定义；溢出通知或订阅终止原因不能依赖向已经满载的数据队列再塞入普通事件。消费者必须获知数据缺口，不能把不完整记录当作完整日志。FRB stream 不替代背压设计。
 
 ### 5.4 写入和数据语义

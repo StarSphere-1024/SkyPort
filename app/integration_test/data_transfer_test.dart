@@ -148,6 +148,22 @@ void main() {
             .data,
         [0, 0xff, 0xfe],
       );
+      await _until(
+        tester,
+        () => container!.read(uiControllerProvider).rxBytesPerSecond > 0,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(StatusBar),
+          matching: find.textContaining('B/s'),
+        ),
+        findsOneWidget,
+      );
+      await _until(
+        tester,
+        () => container!.read(uiControllerProvider).rxBytesPerSecond == 0,
+      );
+      expect(find.textContaining('0 B/s'), findsOneWidget);
       final retainedLogBytes = state.logs.chunks
           .expand((chunk) => chunk.entries)
           .map((row) => row.data)

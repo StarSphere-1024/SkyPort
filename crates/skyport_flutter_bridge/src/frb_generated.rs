@@ -1119,6 +1119,7 @@ impl SseDecode for crate::api::AppSnapshot {
         let mut var_rxBytes = <u64>::sse_decode(deserializer);
         let mut var_txBytes = <u64>::sse_decode(deserializer);
         let mut var_lastRxBytes = <u64>::sse_decode(deserializer);
+        let mut var_rxBytesPerSecond = <f64>::sse_decode(deserializer);
         let mut var_error = <Option<crate::api::CoreError>>::sse_decode(deserializer);
         let mut var_autoSendError = <Option<crate::api::CoreError>>::sse_decode(deserializer);
         let mut var_log = <crate::api::LogSnapshot>::sse_decode(deserializer);
@@ -1133,6 +1134,7 @@ impl SseDecode for crate::api::AppSnapshot {
             rx_bytes: var_rxBytes,
             tx_bytes: var_txBytes,
             last_rx_bytes: var_lastRxBytes,
+            rx_bytes_per_second: var_rxBytesPerSecond,
             error: var_error,
             auto_send_error: var_autoSendError,
             log: var_log,
@@ -1153,6 +1155,7 @@ impl SseDecode for crate::api::AppState {
         let mut var_rxBytes = <u64>::sse_decode(deserializer);
         let mut var_txBytes = <u64>::sse_decode(deserializer);
         let mut var_lastRxBytes = <u64>::sse_decode(deserializer);
+        let mut var_rxBytesPerSecond = <f64>::sse_decode(deserializer);
         let mut var_error = <Option<crate::api::CoreError>>::sse_decode(deserializer);
         let mut var_autoSendError = <Option<crate::api::CoreError>>::sse_decode(deserializer);
         let mut var_autoSendInput = <String>::sse_decode(deserializer);
@@ -1166,6 +1169,7 @@ impl SseDecode for crate::api::AppState {
             rx_bytes: var_rxBytes,
             tx_bytes: var_txBytes,
             last_rx_bytes: var_lastRxBytes,
+            rx_bytes_per_second: var_rxBytesPerSecond,
             error: var_error,
             auto_send_error: var_autoSendError,
             auto_send_input: var_autoSendInput,
@@ -1430,6 +1434,13 @@ impl SseDecode for crate::api::ExportOptions {
             timestamps: var_timestamps,
             strip_ansi: var_stripAnsi,
         };
+    }
+}
+
+impl SseDecode for f64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_f64::<NativeEndian>().unwrap()
     }
 }
 
@@ -2069,6 +2080,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::AppSnapshot {
             self.rx_bytes.into_into_dart().into_dart(),
             self.tx_bytes.into_into_dart().into_dart(),
             self.last_rx_bytes.into_into_dart().into_dart(),
+            self.rx_bytes_per_second.into_into_dart().into_dart(),
             self.error.into_into_dart().into_dart(),
             self.auto_send_error.into_into_dart().into_dart(),
             self.log.into_into_dart().into_dart(),
@@ -2096,6 +2108,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::AppState {
             self.rx_bytes.into_into_dart().into_dart(),
             self.tx_bytes.into_into_dart().into_dart(),
             self.last_rx_bytes.into_into_dart().into_dart(),
+            self.rx_bytes_per_second.into_into_dart().into_dart(),
             self.error.into_into_dart().into_dart(),
             self.auto_send_error.into_into_dart().into_dart(),
             self.auto_send_input.into_into_dart().into_dart(),
@@ -2671,6 +2684,7 @@ impl SseEncode for crate::api::AppSnapshot {
         <u64>::sse_encode(self.rx_bytes, serializer);
         <u64>::sse_encode(self.tx_bytes, serializer);
         <u64>::sse_encode(self.last_rx_bytes, serializer);
+        <f64>::sse_encode(self.rx_bytes_per_second, serializer);
         <Option<crate::api::CoreError>>::sse_encode(self.error, serializer);
         <Option<crate::api::CoreError>>::sse_encode(self.auto_send_error, serializer);
         <crate::api::LogSnapshot>::sse_encode(self.log, serializer);
@@ -2690,6 +2704,7 @@ impl SseEncode for crate::api::AppState {
         <u64>::sse_encode(self.rx_bytes, serializer);
         <u64>::sse_encode(self.tx_bytes, serializer);
         <u64>::sse_encode(self.last_rx_bytes, serializer);
+        <f64>::sse_encode(self.rx_bytes_per_second, serializer);
         <Option<crate::api::CoreError>>::sse_encode(self.error, serializer);
         <Option<crate::api::CoreError>>::sse_encode(self.auto_send_error, serializer);
         <String>::sse_encode(self.auto_send_input, serializer);
@@ -2919,6 +2934,13 @@ impl SseEncode for crate::api::ExportOptions {
         <bool>::sse_encode(self.hex, serializer);
         <bool>::sse_encode(self.timestamps, serializer);
         <bool>::sse_encode(self.strip_ansi, serializer);
+    }
+}
+
+impl SseEncode for f64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_f64::<NativeEndian>(self).unwrap();
     }
 }
 

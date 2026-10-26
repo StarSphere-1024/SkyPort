@@ -43,6 +43,7 @@ class ReceiveController extends UiController {
       rxBytes: 0,
       txBytes: 0,
       lastRxBytes: 0,
+      rxBytesPerSecond: 0,
       log: rust.LogSnapshot(
         records: [],
         totalBytes: 0,
