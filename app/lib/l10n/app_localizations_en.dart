@@ -145,7 +145,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get disconnecting => 'Disconnecting...';
 
   @override
-  String get reconnecting => 'Waiting for device...';
+  String get reconnecting => 'Waiting to reconnect...';
+
+  @override
+  String get disconnectedReconnecting =>
+      'Serial port disconnected; reconnecting automatically.';
 
   @override
   String get disconnected => 'Disconnected';

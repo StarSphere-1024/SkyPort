@@ -81,7 +81,129 @@ rust.LogDelta delta(
   incomplete: false,
 );
 
+rust.Event stateChanged(
+  int sequence,
+  rust.ConnectionState connection, {
+  rust.CoreError? error,
+}) => rust.Event(
+  sequence: sequence,
+  kind: rust.EventType.stateChanged,
+  state: rust.AppState(
+    sequence: sequence,
+    config: config,
+    connection: connection,
+    ports: const [],
+    rxBytes: 0,
+    txBytes: 0,
+    lastRxBytes: 0,
+    rxBytesPerSecond: 0,
+    autoSendInput: '',
+    error: error,
+  ),
+);
+
 void main() {
+  test(
+    'retry diagnostics cannot hide partial writes or replay loss notices',
+    () {
+      const lost = rust.CoreError(
+        kind: rust.ErrorKind.disconnected,
+        message: 'device removed',
+        bytesWritten: 0,
+      );
+      const retry = rust.CoreError(
+        kind: rust.ErrorKind.openFailed,
+        message: 'device absent',
+        bytesWritten: 0,
+      );
+      const partial = rust.CoreError(
+        kind: rust.ErrorKind.timeout,
+        message: 'write deadline',
+        bytesWritten: 2,
+      );
+      final disconnected = emptyState().withEvents([
+        stateChanged(1, rust.ConnectionState.reconnecting, error: lost),
+        const rust.Event(
+          sequence: 2,
+          kind: rust.EventType.disconnected,
+          error: lost,
+        ),
+      ]);
+      expect(disconnected.errorNotices, [(error: lost, reconnecting: true)]);
+      final retrying = disconnected.withEvents([
+        stateChanged(3, rust.ConnectionState.reconnecting, error: retry),
+        const rust.Event(sequence: 4, kind: rust.EventType.reconnecting),
+      ]);
+      expect(retrying.error, retry);
+      expect(
+        identical(retrying.errorNotices, disconnected.errorNotices),
+        isTrue,
+      );
+
+      final failed = retrying.withEvents([
+        const rust.Event(
+          sequence: 5,
+          kind: rust.EventType.writeFailed,
+          requestId: 7,
+          error: partial,
+        ),
+        stateChanged(6, rust.ConnectionState.reconnecting, error: retry),
+      ]);
+      expect(failed.error, retry);
+      expect(failed.errorNotices.single.error.bytesWritten, 2);
+      expect(failed.errorNotices.single.reconnecting, isFalse);
+      final recovered = failed.withEvent(
+        stateChanged(7, rust.ConnectionState.connected),
+      );
+      expect(recovered.error, isNull);
+      expect(identical(recovered.errorNotices, failed.errorNotices), isTrue);
+    },
+  );
+
+  test(
+    'manual connect failures notify once per attempt, even if identical',
+    () {
+      const error = rust.CoreError(
+        kind: rust.ErrorKind.openFailed,
+        message: 'device absent',
+        bytesWritten: 0,
+      );
+      var state = emptyState();
+      List<UiErrorNotice>? previous;
+      for (var attempt = 0; attempt < 2; attempt++) {
+        final sequence = attempt * 4;
+        state = state.withEvents([
+          stateChanged(sequence + 1, rust.ConnectionState.connecting),
+          stateChanged(
+            sequence + 2,
+            rust.ConnectionState.disconnected,
+            error: error,
+          ),
+          rust.Event(
+            sequence: sequence + 3,
+            kind: rust.EventType.disconnected,
+            error: error,
+          ),
+          rust.Event(
+            sequence: sequence + 4,
+            kind: rust.EventType.commandFailed,
+            requestId: attempt + 1,
+            error: error,
+          ),
+        ]);
+        expect(state.errorNotices, [(error: error, reconnecting: false)]);
+        expect(identical(state.errorNotices, previous), isFalse);
+        previous = state.errorNotices;
+      }
+      final stopped = state.withEvents([
+        stateChanged(9, rust.ConnectionState.disconnecting),
+        stateChanged(10, rust.ConnectionState.disconnected),
+      ]);
+      expect(identical(stopped.errorNotices, previous), isTrue);
+      expect(stopped.error, isNull);
+    },
+  );
+
   test('event batches do not resurrect trimmed or cleared pending rows', () {
     const pending = 0xFFFFFFFFFFFFFFFF;
     final state = emptyState().withEvents([

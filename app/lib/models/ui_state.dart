@@ -21,6 +21,8 @@ enum UiFlowControl { none, hardware, software }
 
 enum UiNewline { none, lf, cr, crlf }
 
+typedef UiErrorNotice = ({rust.CoreError error, bool reconnecting});
+
 class UiState {
   final int sequence;
   final UiConnection connection;
@@ -46,6 +48,7 @@ class UiState {
   final double rxBytesPerSecond;
   final rust.CoreError? error;
   final rust.CoreError? autoSendError;
+  final List<UiErrorNotice> errorNotices;
   final LogState logs;
   final int trimmedBytes;
   final int trimmedRecords;
@@ -77,6 +80,7 @@ class UiState {
     this.rxBytesPerSecond = 0,
     required this.error,
     this.autoSendError,
+    this.errorNotices = const [],
     required this.logs,
     required this.trimmedBytes,
     required this.trimmedRecords,
@@ -150,6 +154,7 @@ class UiState {
     lastRxBytes: update.lastRxBytes,
     error: update.error,
     autoSendError: update.autoSendError,
+    errorNotices: errorNotices,
     logs: logs,
     trimmedBytes: trimmedBytes,
     trimmedRecords: trimmedRecords,
@@ -162,11 +167,25 @@ class UiState {
   UiState withEvents(Iterable<rust.Event> events) {
     var next = this;
     final deltas = <rust.LogDelta>[];
+    List<UiErrorNotice>? notices;
     for (final event in events) {
       if (event.sequence <= next.sequence) continue;
       switch (event.kind) {
         case rust.EventType.stateChanged:
-          if (event.state != null) next = next.withState(event.state!);
+          final update = event.state;
+          if (update != null) {
+            if (next.connection == UiConnection.connected &&
+                (update.connection == rust.ConnectionState.reconnecting ||
+                    update.connection == rust.ConnectionState.disconnected) &&
+                update.error != null) {
+              (notices ??= []).add((
+                error: update.error!,
+                reconnecting:
+                    update.connection == rust.ConnectionState.reconnecting,
+              ));
+            }
+            next = next.withState(update);
+          }
         case rust.EventType.portsChanged:
           next = next._copy(sequence: event.sequence, ports: event.ports);
         case rust.EventType.logChanged:
@@ -180,6 +199,11 @@ class UiState {
             txBytes: event.txBytes,
           );
         case rust.EventType.disconnected:
+          next = next._copy(
+            sequence: event.sequence,
+            error: event.error,
+            replaceError: true,
+          );
         case rust.EventType.writeFailed:
         case rust.EventType.queueOverflow:
         case rust.EventType.taskFailed:
@@ -189,11 +213,15 @@ class UiState {
             error: event.error,
             replaceError: true,
           );
+          if (event.error != null) {
+            (notices ??= []).add((error: event.error!, reconnecting: false));
+          }
         case rust.EventType.reconnecting:
         case rust.EventType.commandCompleted:
           next = next._copy(sequence: event.sequence);
       }
     }
+    if (notices != null) next = next._copy(errorNotices: notices);
     if (deltas.isEmpty) return next;
     if (deltas.length == 1) return next.withLogDelta(deltas.single);
 
@@ -270,8 +298,11 @@ class UiState {
   }
 
   UiState withDataGap(bool value) => _copy(dataGap: value);
-  UiState withBridgeError(rust.CoreError value) =>
-      _copy(error: value, replaceError: true);
+  UiState withBridgeError(rust.CoreError value) => _copy(
+    error: value,
+    replaceError: true,
+    errorNotices: [(error: value, reconnecting: false)],
+  );
 
   UiState _copy({
     int? sequence,
@@ -282,6 +313,7 @@ class UiState {
     bool replaceError = false,
     rust.CoreError? error,
     LogState? logs,
+    List<UiErrorNotice>? errorNotices,
     int? trimmedBytes,
     int? trimmedRecords,
     bool? logIncomplete,
@@ -311,6 +343,7 @@ class UiState {
     rxBytesPerSecond: rxBytesPerSecond,
     error: replaceError ? error : this.error,
     autoSendError: autoSendError,
+    errorNotices: errorNotices ?? this.errorNotices,
     logs: logs ?? this.logs,
     trimmedBytes: trimmedBytes ?? this.trimmedBytes,
     trimmedRecords: trimmedRecords ?? this.trimmedRecords,

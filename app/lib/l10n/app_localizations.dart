@@ -371,8 +371,14 @@ abstract class AppLocalizations {
   /// No description provided for @reconnecting.
   ///
   /// In en, this message translates to:
-  /// **'Waiting for device...'**
+  /// **'Waiting to reconnect...'**
   String get reconnecting;
+
+  /// No description provided for @disconnectedReconnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Serial port disconnected; reconnecting automatically.'**
+  String get disconnectedReconnecting;
 
   /// No description provided for @disconnected.
   ///

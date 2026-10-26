@@ -145,7 +145,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get disconnecting => '断开中...';
 
   @override
-  String get reconnecting => '等待设备...';
+  String get reconnecting => '等待设备重连...';
+
+  @override
+  String get disconnectedReconnecting => '串口已断开，正在自动重连';
 
   @override
   String get disconnected => '未连接';

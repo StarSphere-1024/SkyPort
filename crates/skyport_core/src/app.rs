@@ -492,7 +492,6 @@ fn run_worker(
                 && !config.serial.port_name.is_empty()
                 && !stop.load(Ordering::Acquire)
             {
-                publish_state(&shared, ConnectionState::Reconnecting, None);
                 publish_simple(&shared, EventKind::Reconnecting);
                 match serial::open(&config.serial) {
                     Ok(open) if !stop.load(Ordering::Acquire) => {

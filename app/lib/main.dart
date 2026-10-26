@@ -6,9 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:skyport/src/rust/api.dart' as rust;
 import 'package:dynamic_color/dynamic_color.dart';
 import 'host_core.dart';
+import 'models/ui_state.dart';
 import 'providers/common_providers.dart';
 import 'providers/ui_controller.dart';
 import 'providers/theme_provider.dart';
@@ -264,11 +264,22 @@ class _HomePageState extends ConsumerState<HomePage>
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<rust.CoreError?>(
-      uiControllerProvider.select((value) => value.error),
+    ref.listen<List<UiErrorNotice>>(
+      uiControllerProvider.select((value) => value.errorNotices),
       (previous, next) {
-        if (next != null && previous != next) {
-          showErrorNotice(context, next);
+        for (final notice in next) {
+          if (notice.reconnecting &&
+              ref.read(uiControllerProvider).connection !=
+                  UiConnection.reconnecting) {
+            continue;
+          }
+          showErrorNotice(
+            context,
+            notice.error,
+            message: notice.reconnecting
+                ? AppLocalizations.of(context).disconnectedReconnecting
+                : null,
+          );
         }
       },
     );

@@ -5,6 +5,8 @@ import '../providers/ui_controller.dart';
 import '../l10n/app_localizations.dart';
 import '../models/ui_state.dart';
 import '../utils/connection_status.dart';
+import '../utils/error_messages.dart';
+import 'shared/error_notice.dart';
 
 class StatusBar extends ConsumerWidget {
   const StatusBar({super.key});
@@ -24,6 +26,7 @@ class StatusBar extends ConsumerWidget {
           dataBits: state.dataBits,
           parity: state.parity,
           stopBits: state.stopBits,
+          error: state.error,
         ),
       ),
     );
@@ -46,6 +49,8 @@ class StatusBar extends ConsumerWidget {
             state.portName.isNotEmpty);
     final statusColor = connectionStatusColor(state.connection, theme);
     final status = connectionStatusLabel(state.connection, l10n);
+    final reconnecting = state.connection == UiConnection.reconnecting;
+    final diagnostic = reconnecting ? state.error : null;
     final portText = state.portName.isEmpty ? '' : state.portName;
     final serialSettings =
         '${state.baudRate} · ${state.dataBits}'
@@ -83,11 +88,17 @@ class StatusBar extends ConsumerWidget {
           ),
           Expanded(
             child: Tooltip(
-              message: '$status\n${state.portName}  $serialSettings',
+              message:
+                  '$status\n${state.portName}  $serialSettings'
+                  '${diagnostic == null ? '' : '\n${localizedError(l10n, diagnostic)}'}',
               child: Text.rich(
                 TextSpan(
-                  text: portText.isEmpty ? l10n.noPortSelected : portText,
+                  text: reconnecting ? '$status  ' : '',
                   children: [
+                    TextSpan(
+                      text: portText.isEmpty ? l10n.noPortSelected : portText,
+                      style: reconnecting ? secondaryStyle : null,
+                    ),
                     if (portText.isNotEmpty)
                       TextSpan(
                         text: '  $serialSettings',
@@ -101,28 +112,39 @@ class StatusBar extends ConsumerWidget {
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Tooltip(
-              message:
-                  '$statsText\n'
-                  '${l10n.trafficStats(state.rxBytes, state.txBytes, state.lastRxBytes)}'
-                  '\n${l10n.trafficStatsTooltip}',
-              child: Text.rich(
-                TextSpan(
-                  text: 'RX $rxText - $lastRxText    TX $txText',
-                  style: TextStyle(color: colorScheme.primary),
-                  children: [
-                    TextSpan(text: '    $rateText', style: secondaryStyle),
-                  ],
+          if (diagnostic != null)
+            IconButton(
+              tooltip:
+                  '${l10n.diagnosticDetails}: ${localizedError(l10n, diagnostic)}',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+              onPressed: () => showErrorDetails(context, diagnostic),
+              icon: const Icon(Icons.info_outline, size: 16),
+            ),
+          if (!reconnecting) ...[
+            const SizedBox(width: 12),
+            Expanded(
+              child: Tooltip(
+                message:
+                    '$statsText\n'
+                    '${l10n.trafficStats(state.rxBytes, state.txBytes, state.lastRxBytes)}'
+                    '\n${l10n.trafficStatsTooltip}',
+                child: Text.rich(
+                  TextSpan(
+                    text: 'RX $rxText - $lastRxText    TX $txText',
+                    style: TextStyle(color: colorScheme.primary),
+                    children: [
+                      TextSpan(text: '    $rateText', style: secondaryStyle),
+                    ],
+                  ),
+                  maxLines: 1,
+                  textAlign: TextAlign.end,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
-                maxLines: 1,
-                textAlign: TextAlign.end,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
-          ),
+          ],
         ],
       ),
     );

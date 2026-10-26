@@ -16,6 +16,7 @@ import 'package:skyport/providers/ui_controller.dart';
 import 'package:skyport/providers/theme_provider.dart';
 import 'package:skyport/src/rust/api.dart' as rust;
 import 'package:skyport/src/rust/frb_generated.dart';
+import 'package:skyport/utils/error_messages.dart';
 import 'package:skyport/widgets/connection_rail.dart';
 import 'package:skyport/widgets/right_panel/send_input_widget.dart';
 import 'package:skyport/widgets/application_settings.dart';
@@ -25,6 +26,10 @@ import 'package:skyport/widgets/status_bar.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  final hasPtyHarness =
+      Platform.environment['SKYPORT_PTY'] != null &&
+      Platform.environment['SKYPORT_PTY_CONTROL'] != null &&
+      Platform.environment['SKYPORT_PTY_ACK'] != null;
 
   testWidgets('application settings persist reconnect changes', (tester) async {
     final directory = (await tester.runAsync(
@@ -580,6 +585,155 @@ void main() {
           expect(restored.snapshot!.appliedConfig!.flowControl, coreMode);
         }
       }
+
+      final reconnectController = container!.read(
+        uiControllerProvider.notifier,
+      );
+      reconnectController.setAutoReconnect(true);
+      await _until(
+        tester,
+        () => container!.read(uiControllerProvider).autoReconnect,
+      );
+      final strings = AppLocalizations.of(
+        tester.element(find.byType(HomePage)),
+      );
+      if (tester
+          .widget<ConnectionRail>(find.byType(ConnectionRail))
+          .panelOpen) {
+        await tester.tap(find.byTooltip(strings.serialPageLabel));
+        await tester.pumpAndSettle();
+      }
+      final retrySubscription = (await tester.runAsync(
+        () => rust.subscribe(handle: handle),
+      ))!;
+      await tester.runAsync(() => _ptyControl('unplug1'));
+      await _until(
+        tester,
+        () =>
+            container!.read(uiControllerProvider).connection ==
+            UiConnection.reconnecting,
+      );
+      final reconnectingNotice = strings.disconnectedReconnecting;
+      final noticeText = find.descendant(
+        of: find.byType(SnackBar),
+        matching: find.byType(SelectableText),
+      );
+      expect(
+        tester.widget<SelectableText>(noticeText).data,
+        reconnectingNotice,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(SnackBar),
+          matching: find.byType(IconButton),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 3500)),
+      );
+      await tester.pumpAndSettle();
+      final attempts = (await tester.runAsync(
+        () => rust.nextEvents(subscription: retrySubscription.subscription!),
+      ))!;
+      expect(
+        attempts.events.where(
+          (event) => event.kind == rust.EventType.reconnecting,
+        ),
+        hasLength(greaterThanOrEqualTo(6)),
+      );
+      await tester.runAsync(
+        () => rust.cancelSubscription(
+          subscription: retrySubscription.subscription!,
+        ),
+      );
+      expect(
+        container.read(uiControllerProvider).connection,
+        UiConnection.reconnecting,
+      );
+      expect(find.byType(SnackBar), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byType(StatusBar),
+          matching: find.textContaining(strings.reconnecting),
+        ),
+        findsOneWidget,
+      );
+      final diagnostic = container.read(uiControllerProvider).error!;
+      await tester.tap(find.byIcon(Icons.info_outline));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<SelectableText>(
+              find.descendant(
+                of: find.byType(AlertDialog),
+                matching: find.byType(SelectableText),
+              ),
+            )
+            .data,
+        contains(diagnostic.message),
+      );
+      await tester.tap(find.widgetWithText(TextButton, strings.close));
+      await tester.pumpAndSettle();
+
+      await tester.runAsync(() => _ptyControl('replace'));
+      await _until(
+        tester,
+        () =>
+            container!.read(uiControllerProvider).connection ==
+            UiConnection.connected,
+      );
+      expect(container.read(uiControllerProvider).error, isNull);
+      expect(find.byIcon(Icons.info_outline), findsNothing);
+      expect(find.byType(SnackBar), findsNothing);
+
+      await tester.runAsync(() => _ptyControl('unplug2'));
+      await _until(
+        tester,
+        () =>
+            container!.read(uiControllerProvider).connection ==
+            UiConnection.reconnecting,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.ancestor(
+          of: find.byIcon(Icons.circle),
+          matching: find.byType(IconButton),
+        ),
+      );
+      await _until(
+        tester,
+        () =>
+            container!.read(uiControllerProvider).connection ==
+            UiConnection.disconnected,
+      );
+      // Clear the second loss notice before checking the manual failure.
+      ScaffoldMessenger.of(
+        tester.element(find.byType(HomePage)),
+      ).clearSnackBars();
+      await tester.pumpAndSettle();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 1500)),
+      );
+      expect(
+        container.read(uiControllerProvider).connection,
+        UiConnection.disconnected,
+      );
+      expect(container.read(uiControllerProvider).error, isNull);
+      await tester.runAsync(() => reconnectController.connect());
+      await _until(
+        tester,
+        () => container!.read(uiControllerProvider).error != null,
+      );
+      expect(
+        container.read(uiControllerProvider).connection,
+        UiConnection.disconnected,
+      );
+      expect(
+        tester.widget<SelectableText>(noticeText).data,
+        localizedError(strings, container.read(uiControllerProvider).error!),
+      );
     } finally {
       await tester.pumpWidget(const SizedBox.shrink());
       container?.dispose();
@@ -590,7 +744,7 @@ void main() {
       RustLib.dispose();
       await tester.runAsync(() => directory.delete(recursive: true));
     }
-  }, skip: Platform.environment['SKYPORT_PTY'] == null);
+  }, skip: !hasPtyHarness);
 }
 
 Future<void> _until(WidgetTester tester, bool Function() ready) async {
@@ -603,5 +757,20 @@ Future<void> _until(WidgetTester tester, bool Function() ready) async {
       () => Future<void>.delayed(const Duration(milliseconds: 25)),
     );
     await tester.pump();
+  }
+  await tester.pump();
+}
+
+Future<void> _ptyControl(String command) async {
+  final control = File(Platform.environment['SKYPORT_PTY_CONTROL']!);
+  final acknowledgement = File(Platform.environment['SKYPORT_PTY_ACK']!);
+  await control.writeAsString(command, flush: true);
+  final deadline = DateTime.now().add(const Duration(seconds: 5));
+  while (!await acknowledgement.exists() ||
+      await acknowledgement.readAsString() != command) {
+    if (DateTime.now().isAfter(deadline)) {
+      fail('PTY harness did not acknowledge $command');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 25));
   }
 }

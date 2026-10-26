@@ -363,9 +363,8 @@ class UiController extends Notifier<UiState> {
     }
     final completer = Completer<rust.CoreError?>();
     _pending[id] = completer;
-    final error = await completer.future;
-    if (error != null && !_disposed) state = state.withBridgeError(error);
-    return error;
+    // Terminal events already project their one-shot notices in _consume.
+    return completer.future;
   }
 }
 
