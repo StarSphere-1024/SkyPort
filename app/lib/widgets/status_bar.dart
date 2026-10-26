@@ -36,7 +36,7 @@ class StatusBar extends ConsumerWidget {
     final lastRxText = _formatIecBytes(state.lastRxBytes);
     final txText = _formatIecBytes(state.txBytes);
     final rateText = '${_formatIecBytes(state.rxBytesPerSecond)}/s';
-    final statsText = 'RX $rxText - $lastRxText · TX $txText · $rateText';
+    final statsText = 'RX $rxText - $lastRxText    TX $txText    $rateText';
     final disconnect =
         state.connection == UiConnection.connected ||
         state.connection == UiConnection.reconnecting;
@@ -66,7 +66,7 @@ class StatusBar extends ConsumerWidget {
       child: Row(
         children: [
           IconButton(
-            tooltip: '$status · ${disconnect ? l10n.disconnect : l10n.connect}',
+            tooltip: '$status\n${disconnect ? l10n.disconnect : l10n.connect}',
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints.tightFor(width: 32, height: 32),
             onPressed: !canToggle
@@ -83,14 +83,14 @@ class StatusBar extends ConsumerWidget {
           ),
           Expanded(
             child: Tooltip(
-              message: '$status\n${state.portName} · $serialSettings',
+              message: '$status\n${state.portName}  $serialSettings',
               child: Text.rich(
                 TextSpan(
                   text: portText.isEmpty ? l10n.noPortSelected : portText,
                   children: [
                     if (portText.isNotEmpty)
                       TextSpan(
-                        text: ' · $serialSettings',
+                        text: '  $serialSettings',
                         style: secondaryStyle,
                       ),
                   ],
@@ -110,10 +110,10 @@ class StatusBar extends ConsumerWidget {
                   '\n${l10n.trafficStatsTooltip}',
               child: Text.rich(
                 TextSpan(
-                  text: 'RX $rxText - $lastRxText · TX $txText',
+                  text: 'RX $rxText - $lastRxText    TX $txText',
                   style: TextStyle(color: colorScheme.primary),
                   children: [
-                    TextSpan(text: ' · $rateText', style: secondaryStyle),
+                    TextSpan(text: '    $rateText', style: secondaryStyle),
                   ],
                 ),
                 maxLines: 1,

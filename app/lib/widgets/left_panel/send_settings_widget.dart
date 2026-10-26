@@ -7,6 +7,7 @@ import '../../providers/ui_controller.dart';
 import '../shared/compact_switch.dart';
 import '../../utils/error_messages.dart';
 import '../shared/error_notice.dart';
+import '../shared/dropdown_builders.dart';
 
 class SendSettingsWidget extends ConsumerWidget {
   const SendSettingsWidget({super.key});
@@ -144,20 +145,15 @@ class SendSettingsWidget extends ConsumerWidget {
             ),
             SizedBox(
               width: 145,
-              child: DropdownMenu<UiNewline>(
+              child: DropdownBuilders.buildDropdown<UiNewline>(
+                context: context,
+                label: l10n.newlineMode,
+                showLabel: false,
                 enabled: !settings.hexSend,
-                expandedInsets: EdgeInsets.zero,
                 initialSelection: settings.appendNewline
                     ? settings.newline
                     : UiNewline.none,
-                textStyle: Theme.of(context).textTheme.bodyMedium,
-                inputDecorationTheme: const InputDecorationTheme(
-                  isDense: true,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                  ),
-                ),
-                dropdownMenuEntries: const [
+                entries: const [
                   DropdownMenuEntry(value: UiNewline.none, label: 'None'),
                   DropdownMenuEntry(value: UiNewline.lf, label: r'LF (\n)'),
                   DropdownMenuEntry(value: UiNewline.cr, label: r'CR (\r)'),

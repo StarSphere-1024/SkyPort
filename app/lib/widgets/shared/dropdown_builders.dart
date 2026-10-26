@@ -21,6 +21,7 @@ class DropdownBuilders {
     required ValueChanged<T?>? onSelected,
     Key? menuKey,
     bool enabled = true,
+    bool showLabel = true,
     String? hintText,
     String? errorText,
   }) {
@@ -33,15 +34,17 @@ class DropdownBuilders {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+        if (showLabel) ...[
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
-        ),
-        const SizedBox(height: 6),
+          const SizedBox(height: 6),
+        ],
         LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 125;
