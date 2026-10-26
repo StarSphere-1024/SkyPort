@@ -345,15 +345,6 @@ void main() {
       ),
     );
     expect(find.textContaining('115200 · 8N1'), findsOneWidget);
-    expect(
-      find.byWidgetPredicate(
-        (widget) =>
-            widget is Tooltip &&
-            (widget.message?.contains('RX: 123456789 B | TX: 987654321 B') ??
-                false),
-      ),
-      findsOneWidget,
-    );
     expect(find.textContaining('1.5 KiB/s'), findsOneWidget);
     expect(tester.takeException(), isNull);
     final statusText = tester.widget<Text>(

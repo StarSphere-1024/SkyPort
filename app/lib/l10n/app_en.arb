@@ -49,14 +49,15 @@
   "disconnected": "Disconnected",
   "autoReconnect": "Smart Reconnect",
   "unavailable": "Unavailable",
-  "trafficStats": "RX: {rx} B | TX: {tx} B",
+  "trafficStats": "RX: {rx} B - {lastRx} B | TX: {tx} B",
   "@trafficStats": {
     "placeholders": {
       "rx": {"type": "int"},
-      "tx": {"type": "int"}
+      "tx": {"type": "int"},
+      "lastRx": {"type": "int"}
     }
   },
-  "trafficStatsTooltip": "Total received bytes · Total sent bytes · Receive rate",
+  "trafficStatsTooltip": "Total received bytes - Last received packet size · Total sent bytes · Receive rate",
   "settingsAppearance": "Appearance",
   "settingsConnection": "Connection",
   "settingsLogs": "Logs",

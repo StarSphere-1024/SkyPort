@@ -16,6 +16,7 @@ class StatusBar extends ConsumerWidget {
         (state) => (
           rxBytes: state.rxBytes,
           txBytes: state.txBytes,
+          lastRxBytes: state.lastRxBytes,
           rxBytesPerSecond: state.rxBytesPerSecond,
           connection: state.connection,
           portName: state.portName,
@@ -31,11 +32,11 @@ class StatusBar extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
 
     final secondaryStyle = TextStyle(color: colorScheme.onSurfaceVariant);
-    final totalsText =
-        'RX ${_formatIecBytes(state.rxBytes)} · '
-        'TX ${_formatIecBytes(state.txBytes)}';
+    final rxText = _formatIecBytes(state.rxBytes);
+    final lastRxText = _formatIecBytes(state.lastRxBytes);
+    final txText = _formatIecBytes(state.txBytes);
     final rateText = '${_formatIecBytes(state.rxBytesPerSecond)}/s';
-    final statsText = '$totalsText · $rateText';
+    final statsText = 'RX $rxText - $lastRxText · TX $txText · $rateText';
     final disconnect =
         state.connection == UiConnection.connected ||
         state.connection == UiConnection.reconnecting;
@@ -104,11 +105,13 @@ class StatusBar extends ConsumerWidget {
           Expanded(
             child: Tooltip(
               message:
-                  '$statsText\n${l10n.trafficStats(state.rxBytes, state.txBytes)}'
+                  '$statsText\n'
+                  '${l10n.trafficStats(state.rxBytes, state.txBytes, state.lastRxBytes)}'
                   '\n${l10n.trafficStatsTooltip}',
               child: Text.rich(
                 TextSpan(
-                  text: totalsText,
+                  text: 'RX $rxText - $lastRxText · TX $txText',
+                  style: TextStyle(color: colorScheme.primary),
                   children: [
                     TextSpan(text: ' · $rateText', style: secondaryStyle),
                   ],

@@ -49,14 +49,15 @@
   "disconnected": "未连接",
   "autoReconnect": "智能重连",
   "unavailable": "不可用",
-  "trafficStats": "接收: {rx} 字节 | 发送: {tx} 字节",
+  "trafficStats": "接收: {rx} 字节 - {lastRx} 字节 | 发送: {tx} 字节",
   "@trafficStats": {
     "placeholders": {
       "rx": {"type": "int"},
-      "tx": {"type": "int"}
+      "tx": {"type": "int"},
+      "lastRx": {"type": "int"}
     }
   },
-  "trafficStatsTooltip": "累计接收字节数 · 累计发送字节数 · 接收速率",
+  "trafficStatsTooltip": "累计接收字节数 - 最近一包大小 · 累计发送字节数 · 接收速率",
   "settingsAppearance": "外观",
   "settingsConnection": "连接",
   "settingsLogs": "日志",

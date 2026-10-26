@@ -157,13 +157,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get unavailable => 'Unavailable';
 
   @override
-  String trafficStats(int rx, int tx) {
-    return 'RX: $rx B | TX: $tx B';
+  String trafficStats(int rx, int tx, int lastRx) {
+    return 'RX: $rx B - $lastRx B | TX: $tx B';
   }
 
   @override
   String get trafficStatsTooltip =>
-      'Total received bytes · Total sent bytes · Receive rate';
+      'Total received bytes - Last received packet size · Total sent bytes · Receive rate';
 
   @override
   String get settingsAppearance => 'Appearance';
