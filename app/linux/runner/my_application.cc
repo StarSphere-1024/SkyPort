@@ -253,14 +253,8 @@ static void my_application_activate(GApplication* application) {
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
 
-  // An empty, zero-height titlebar retains GTK's client-side shadow and
-  // resize borders; the only visible header is rendered inside Flutter.
-  GtkWidget* titlebar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-  gtk_widget_set_size_request(titlebar, -1, 0);
-  // Keep it hidden as well as empty so theme .titlebar padding cannot add
-  // native caption height. A non-null custom titlebar still enables CSD.
-  gtk_widget_set_no_show_all(titlebar, TRUE);
-  gtk_window_set_titlebar(window, titlebar);
+  // Flutter draws the titlebar; leave outer borders and corners to the compositor.
+  gtk_window_set_decorated(window, FALSE);
   gtk_window_set_title(window, "SkyPort");
 
   gtk_window_set_default_size(window, 1200, 800);
