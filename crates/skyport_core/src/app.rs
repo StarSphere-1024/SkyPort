@@ -1399,7 +1399,7 @@ fn publish_to_subscribers_locked(state: &mut State, event: Event) {
         }
         let reserved = sub
             .queued_bytes
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |used| {
+            .try_update(Ordering::AcqRel, Ordering::Acquire, |used| {
                 used.checked_add(weight)
                     .filter(|total| *total <= MAX_SUBSCRIBER_BYTES)
             });
