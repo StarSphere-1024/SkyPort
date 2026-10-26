@@ -1,104 +1,164 @@
+<div align="center">
+
+<img src="app/assets/icon.png" alt="SkyPort" width="88">
+
 # SkyPort
 
-[![Build Status](https://github.com/StarSphere-1024/SkyPort/actions/workflows/release.yml/badge.svg)](https://github.com/StarSphere-1024/SkyPort/actions/workflows/release.yml)
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+**English** · [简体中文](README_zh_CN.md)
 
-一款基于 Rust + Flutter 的跨平台串口调试助手，专注桌面平台的高性能串口收发与调试体验，支持 ANSI 转义序列渲染和灵活的数据处理模式。
+**A desktop serial port debugging assistant for embedded development and hardware testing**
 
-**v2.0.0 已重构为 Rust + Flutter 全新实现**：Rust 核心负责串口生命周期、数据收发、配置持久化、日志、统计与调度；Flutter 负责桌面界面和交互，通过 `flutter_rust_bridge` 与 Rust 核心通信。
+Connect devices, send and receive text or Hex data, inspect ANSI-colored logs, and export debugging records.
 
-## 📸 界面预览
+[![CI](https://github.com/StarSphere-1024/SkyPort/actions/workflows/ci.yml/badge.svg)](https://github.com/StarSphere-1024/SkyPort/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/StarSphere-1024/SkyPort)](https://github.com/StarSphere-1024/SkyPort/releases/latest) [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
 
-<img src="static/images/main_interface.png" alt="SkyPort 主界面" width="75%">
+[Download](#download) · [Quick start](#quick-start) · [Release notes](https://github.com/StarSphere-1024/SkyPort/releases) · [Build from source](#build-from-source) · [Report an issue](#report-an-issue)
 
-## ✨ 功能特性
+**Windows / Linux** · **Text / Hex** transfer · **English / Chinese** interface
 
-*   **串口操作**
-    *   自动扫描和列出可用串口。
-    *   连接和断开串口设备，连接状态与收发统计显示在底部状态栏。
-    *   可配置波特率、数据位、停止位和校验位，常用参数会被记忆并自动恢复。
-    *   支持智能重连，当设备意外断开时自动尝试重新连接。
+</div>
 
-*   **数据收发**
-    *   支持 ASCII 和 Hex 两种格式发送和接收数据。
-    *   支持 ANSI 转义序列的解析和渲染，用于彩色日志输出。
-    *   采用**统一流式缓冲架构**，自动处理数据包边界：
-    *   每条记录可选显示时间戳，并区分显示"发送"和"接收"记录。
-    *   可配置日志缓冲区大小（16-512MB，默认128MB）来控制内存使用。
+<p align="center">
+  <img src="static/images/main_interface.png" alt="SkyPort dark theme with a Chinese interface: serial settings, text transmission, and ANSI-colored logs" width="100%">
+</p>
 
-*   **发送配置**
-    *   支持 Hex 发送和文本发送模式切换。
-    *   文本发送可选择是否自动追加换行，以及换行风格（LF / CR / CRLF）。
-    *   支持自动发送和历史发送数据记忆。
+## Features
 
-*   **界面与体验**
-    *   基于 Material Design 3，左右双栏布局：左侧为配置与发送控制，右侧为数据日志与输入区。
-    *   支持浅色/深色/跟随系统主题切换。
-    *   多种预设主题色可选。
-    *   支持串口自动重连。
-    *   可启用/禁用 ANSI 转义序列渲染。
-    *   窗口尺寸、位置和串口偏好会被记忆，提升日常使用效率。
+- **Serial connections**: discover available ports, configure baud rate, data bits, stop bits, parity, and flow control, and remember your settings.
+- **Text and Hex transfer**: switch transmission and receive-display modes; optionally append LF, CR, or CRLF to text transmissions.
+- **Log viewing and export**: display ANSI colors, timestamps, and separate sent and received records; adjust the log buffer and export debugging records.
+- **Repeatable debugging**: reduce repetitive input with send history and automatic sending at a configurable interval.
+- **Connection status and statistics**: view connection state, byte counts, and receive rate, with optional automatic reconnection after a device disconnects.
+- **Desktop experience**: English and Chinese interfaces, light, dark, and system themes, and remembered window size and position.
 
-*   **跨平台**
-    *   当前支持 Windows 和 Linux 桌面平台；macOS 项目文件存在，但暂不视为已支持平台。
+## Download
 
-## 📥 下载安装
+Download from the **[latest release](https://github.com/StarSphere-1024/SkyPort/releases/latest)**. Previous versions and release notes are available on [Releases](https://github.com/StarSphere-1024/SkyPort/releases).
 
-当前源码版本为 **v2.0.0**，应用版本由 `app/pubspec.yaml` 统一管理。
+| Platform | Packages | How to choose |
+| --- | --- | --- |
+| Windows | Installer `-setup.exe` / portable `-portable.zip` | Follow the installer, or fully extract the portable archive and run `skyport.exe` |
+| Linux | `.deb` / `.rpm` / `.AppImage` | Prefer `.deb` on Debian / Ubuntu, `.rpm` on RPM-based distributions such as Fedora, or make the AppImage executable and run it |
 
-你可以从 [GitHub Releases](https://github.com/StarSphere-1024/SkyPort/releases) 页面下载最新版本的安装包。
+Both platforms provide `amd64` (x64 / x86_64) and `arm64` (ARM64 / aarch64) packages. Choose `amd64` for Intel / AMD x64 computers and `arm64` for ARM devices. Check your system's processor architecture if unsure.
 
-## 🚀 如何构建
+> Keep the entire portable directory intact. Do not copy only the executable or remove bundled libraries and resources. Windows and Linux are currently supported; macOS is not. The macOS project files in this repository do not imply a supported release.
 
-### 环境准备
-安装满足 `app/pubspec.yaml` 的 Flutter/Dart SDK、Rust stable 和对应桌面平台编译工具链。Linux 需要 GTK3、`pkg-config` 和 libudev 开发包（Debian/Ubuntu：`libgtk-3-dev libudev-dev`）。核心可单独构建，不需要 Flutter SDK。
+## Quick start
 
-### 构建步骤
+1. **Connect your device**: plug the serial device into your computer, launch SkyPort, and select a port under "Serial Port Settings".
+2. **Match the parameters**: set baud rate, data bits, stop bits, parity, and flow control to match your device. Click "Connect" and confirm that the status becomes "Connected".
+3. **Send data**: enter a command supported by your device. In text mode, configure newline handling to match its protocol. For binary data, enable "Hex Send" and enter complete bytes.
+4. **Inspect the response**: view sent and received records in the log area. Enable Hex display, timestamps, or ANSI rendering as needed. Whether the device echoes or responds depends on its protocol.
+5. **Save your records**: use "Export Logs" to save debugging records. To send the same content repeatedly, configure an automatic-send interval.
 
-1.  **克隆仓库**
-    ```bash
-    git clone https://github.com/StarSphere-1024/SkyPort.git
-    cd SkyPort
-    ```
+Automatic reconnection restores the connection; it does not mean failed data has been resent. If sending fails, inspect the error and the number of bytes written before deciding what to do next.
 
-2.  **验证核心并获取 Flutter 依赖**
-    从仓库根目录执行：
-    ```bash
-    cargo test --locked -p skyport_core
-    cd app
-    flutter pub get
-    ```
+## FAQ
 
-3.  **运行应用（桌面）**
-    在 `app/` 目录执行：
-    ```bash
-    flutter run -d windows  # Windows
-    flutter run -d linux    # Linux
-    ```
+**No serial port found, or unable to connect?**
 
-4.  **构建发布版本**
-    在 `app/` 目录、对应宿主机及其平台工具链上执行：
-    ```bash
-    flutter build windows --release  # Windows host
-    flutter build linux --release    # Linux host
-    ```
-    macOS 项目文件保留，但未接入本次 native 打包和验收，不在当前正式支持范围内。
+Check that the operating system recognizes the device, the required drivers are installed, and no other program is using the port. On Linux, also check your user's permissions for the serial device. Do not bypass permission setup by routinely running the application as root.
 
-Flutter 的 Linux/Windows CMake 构建会调用 Cargo，并将 bridge 动态库放入最终 bundle。不要只复制可执行文件；Linux 库位于 `lib/libskyport_flutter_bridge.so`，Windows 库与 `.exe` 相邻。
+**Garbled received data, or no response after sending?**
 
-从仓库根目录运行检查：
+Check the communication parameters, text / Hex mode, and newline requirements. Inspect binary data using Hex display. ANSI rendering is for text logs containing escape sequences; it does not turn binary data into readable text.
+
+**Can exported logs recover lost data?**
+
+No. Exports contain only the records currently retained. Data evicted from the buffer or lost in a data gap cannot be recovered by exporting. Export important debugging records promptly.
+
+## Build from source
+
+### Prerequisites
+
+- Flutter / Dart: satisfy the SDK constraints in [`app/pubspec.yaml`](app/pubspec.yaml). See the [CI configuration](.github/workflows/test.yml) for the toolchain versions used in CI.
+- Rust stable, with the appropriate platform compilation target installed through rustup.
+- Windows: Visual Studio with the "Desktop development with C++" workload.
+- Linux: Clang, CMake, Ninja, `pkg-config`, and GTK3 and libudev development packages. On Debian / Ubuntu:
+
+  ```bash
+  sudo apt-get install clang cmake ninja-build pkg-config libgtk-3-dev libudev-dev
+  ```
+
+Running only the Rust core tests does not require Flutter. On Linux, `pkg-config` and the libudev development package are still required.
+
+### Get the source and dependencies
 
 ```bash
-tool/test_quiet.sh
-python3 scripts/pty_ui_smoke.py                  # Linux，真实 bridge + UI + 伪终端
-python3 scripts/package_smoke.py <bundle或发行包> # 验证打包后的真实加载与生命周期
+git clone https://github.com/StarSphere-1024/SkyPort.git
+cd SkyPort
+cd app
+flutter pub get
 ```
 
-有显示环境时可直接运行 smoke；无显示的 Linux CI 使用 `xvfb-run -a`。支持检查目录、deb、rpm、AppImage 和 Windows portable zip。Windows 安装程序须先安装到隔离目录，再检查该目录；物理串口和不同架构仍需各自验收。
+### Run and build
 
-RPM 包的 smoke 检查需要 `bsdtar`（Debian/Ubuntu：`sudo apt-get install libarchive-tools`）。
+Run the following commands from `app/`, choosing the group for your host system:
 
-修改 bridge API 后，从仓库根目录安装生成器，再进入 `app/` 生成绑定：
+**Windows**
+
+```bash
+flutter run -d windows
+flutter build windows --release
+```
+
+**Linux**
+
+```bash
+flutter run -d linux
+flutter build linux --release
+```
+
+Flutter's Windows / Linux CMake build invokes Cargo and bundles the Rust bridge library. Distribute the complete bundle: `skyport_flutter_bridge.dll` sits next to the Windows `.exe`, while Linux uses `lib/libskyport_flutter_bridge.so`.
+
+## Development and contributing
+
+SkyPort uses Rust + Flutter. The independent Rust core owns serial lifecycle, data transfer, configuration persistence, logs, statistics, and scheduling. Flutter handles the desktop interface and interaction, accessing the core through `flutter_rust_bridge`.
+
+See the [Rust core design](docs/rust-serial-kernel-design.md) (in Chinese) for architecture and data, queue, and configuration migration contracts. Dependency versions are defined in the [Flutter manifest](app/pubspec.yaml), [Cargo manifest](Cargo.toml), and their respective lockfiles.
+
+When opening a pull request, describe the use case, behavior changes, and verification results. Include reproduction steps for bug fixes. When changing cross-layer interfaces, update Rust, the bridge, and Dart consumers together.
+
+<details>
+<summary>Local checks and real serial-path verification</summary>
+
+Run the Rust core tests and Flutter unit / widget tests from the repository root:
+
+```bash
+cargo test --locked -p skyport_core
+tool/test_quiet.sh
+```
+
+On systems without Bash, such as Windows, run `dart ../tool/quiet_flutter_test.dart` from `app/`. Run static analysis from `app/` as well:
+
+```bash
+flutter analyze
+```
+
+Run the following commands from the repository root:
+
+```bash
+python3 scripts/pty_ui_smoke.py
+python3 scripts/package_smoke.py <bundle-or-package-path>
+```
+
+- `pty_ui_smoke.py`: Linux only; exercises data transfer and lifecycle with the real UI, bridge, and pseudo-terminals.
+- `package_smoke.py`: checks loading and lifecycle for a complete bundle, deb, rpm, AppImage, or Windows portable zip on the corresponding platform. Install Windows installers into an isolated directory first, then check that directory.
+- Linux checks require a display. Prefix commands with `xvfb-run -a` in headless environments.
+- RPM package checks require `bsdtar`; install `libarchive-tools` on Debian / Ubuntu.
+- On Windows, replace `python3` with your local Python command, usually `python`.
+
+Pseudo-terminal verification does not replace acceptance testing with physical serial ports, other architectures, or actual hardware.
+
+</details>
+
+<details>
+<summary>Generate bindings after changing the bridge API</summary>
+
+Regenerate bindings only after relevant API / type changes. Do not edit generated files manually. Keep the generator version aligned with the [bridge manifest](crates/skyport_flutter_bridge/Cargo.toml).
+
+Run from the repository root:
 
 ```bash
 cargo install flutter_rust_bridge_codegen --version 2.13.0 --locked
@@ -106,44 +166,21 @@ cd app
 flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml
 ```
 
-架构与队列、日志、迁移合同见 [Rust 核心设计](docs/rust-serial-kernel-design.md)。核心保存版本化 `config.json`；Flutter 只保存主题、显示等前端偏好，并在 Rust 成功写入新配置后标记旧串口偏好迁移完成。
+</details>
 
-## 📦 主要依赖
+## Report an issue
 
-*   [flutter_riverpod](https://pub.dev/packages/flutter_riverpod) (v3.0.3): 用于状态管理。
-*   [serialport](https://docs.rs/serialport) (Cargo 锁定 4.10.1): 独立 Rust 核心的串口通信。
-*   [flutter_rust_bridge](https://pub.dev/packages/flutter_rust_bridge) (v2.13.0): Flutter 的类型化 native 接入，核心不依赖它。
-*   [shared_preferences](https://pub.dev/packages/shared_preferences) (v2.5.3): 前端显示偏好及旧配置的一次性读取。
-*   [ansi_escape_codes](https://pub.dev/packages/ansi_escape_codes) (v4.0.1): 用于 ANSI 转义序列解析和渲染。
-*   [flutter_localizations](https://api.flutter.dev/flutter/flutter_localizations/flutter_localizations-library.html) + [intl](https://pub.dev/packages/intl) (v0.20.2): 用于国际化支持。
+Report bugs or suggest features through [GitHub Issues](https://github.com/StarSphere-1024/SkyPort/issues). Search existing issues first, and include where possible:
 
-## 🤝 贡献
+- Application version, operating system version, and processor architecture.
+- Reproduction steps, expected behavior, and actual results.
+- Relevant serial parameters, text / Hex mode, and newline configuration.
+- Error messages, diagnostic details, relevant logs, or screenshots.
 
-欢迎贡献！请遵循以下步骤：
+Remove keys, device identifiers, and other sensitive data before sharing logs. For feature requests, describe the debugging scenario and the problem you want to solve.
 
-1. Fork 本仓库
-2. 创建你的特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交你的更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启一个 Pull Request
+## License
 
-### 开发环境设置
-- 安装满足 `app/pubspec.yaml` 要求的 Flutter SDK（Dart SDK `>=3.10.0`）。
-- 从仓库根目录执行 `cargo test --locked -p skyport_core`；从 `app/` 执行 `flutter pub get`。
-- 从 `app/` 使用 `flutter run -d linux` 或在 Windows 宿主机上使用 `flutter run -d windows`。
+SkyPort is licensed under the [GNU Affero General Public License v3.0](LICENSE).
 
-## 🐛 问题报告
-
-如果你发现 bug 或有功能建议，请在 [Issues](https://github.com/StarSphere-1024/SkyPort/issues) 页面提交。
-
-## 📄 许可证
-
-本项目采用 [GNU Affero General Public License v3.0](LICENSE) 许可证。
-
-## 👤 作者
-
-**StarSphere-1024** - [GitHub](https://github.com/StarSphere-1024)
-
----
-
-*如果这个项目对你有帮助，请给它一个 ⭐！*
+Maintained by [StarSphere-1024](https://github.com/StarSphere-1024).
