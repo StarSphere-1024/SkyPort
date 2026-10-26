@@ -29,6 +29,8 @@
   "parityEven": "偶",
   "stopBits": "停止位",
   "receiveSettings": "接收设置",
+  "receiveData": "数据接收",
+  "clearLogs": "清空",
   "hexDisplay": "十六进制显示",
   "showTimestamp": "显示时间戳",
   "showSent": "显示发送数据",

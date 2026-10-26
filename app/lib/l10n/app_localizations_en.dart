@@ -97,6 +97,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get receiveSettings => 'Receive Settings';
 
   @override
+  String get receiveData => 'Data Receive';
+
+  @override
+  String get clearLogs => 'Clear';
+
+  @override
   String get hexDisplay => 'Hex Display';
 
   @override

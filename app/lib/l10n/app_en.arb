@@ -29,6 +29,8 @@
   "parityEven": "Even",
   "stopBits": "Stop Bits",
   "receiveSettings": "Receive Settings",
+  "receiveData": "Data Receive",
+  "clearLogs": "Clear",
   "hexDisplay": "Hex Display",
   "showTimestamp": "Show Timestamp",
   "showSent": "Show Sent Data",

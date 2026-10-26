@@ -97,6 +97,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get receiveSettings => '接收设置';
 
   @override
+  String get receiveData => '数据接收';
+
+  @override
+  String get clearLogs => '清空';
+
+  @override
   String get hexDisplay => '十六进制显示';
 
   @override

@@ -272,6 +272,18 @@ abstract class AppLocalizations {
   /// **'Receive Settings'**
   String get receiveSettings;
 
+  /// No description provided for @receiveData.
+  ///
+  /// In en, this message translates to:
+  /// **'Data Receive'**
+  String get receiveData;
+
+  /// No description provided for @clearLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clearLogs;
+
   /// No description provided for @hexDisplay.
   ///
   /// In en, this message translates to:

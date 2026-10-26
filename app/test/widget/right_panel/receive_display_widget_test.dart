@@ -93,6 +93,50 @@ class ReceiveSettings extends UiSettingsNotifier {
 }
 
 void main() {
+  testWidgets('toolbar remains usable without covering logs at narrow widths', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(360, 500));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final controller = ReceiveController();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          uiControllerProvider.overrideWith(() => controller),
+          uiSettingsProvider.overrideWith(ReceiveSettings.new),
+        ],
+        child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: Column(children: [ReceiveDisplayWidget()])),
+        ),
+      ),
+    );
+    final buttons = find.byType(TextButton);
+    for (final button in tester.widgetList<TextButton>(buttons)) {
+      expect(button.onPressed, isNull);
+    }
+    controller.receiveThrough(101);
+    await tester.pumpAndSettle();
+    for (final button in tester.widgetList<TextButton>(buttons)) {
+      expect(button.onPressed, isNotNull);
+      expect(
+        tester.getRect(find.byWidget(button)).bottom,
+        lessThan(tester.getRect(find.byType(ListView)).top),
+      );
+    }
+    final headerPosition = tester.getTopLeft(buttons.first);
+    await tester.drag(find.byType(ListView), const Offset(0, 300));
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(buttons.first), headerPosition);
+    expect(tester.takeException(), isNull);
+    controller.resetLogs();
+    await tester.pumpAndSettle();
+    for (final button in tester.widgetList<TextButton>(buttons)) {
+      expect(button.onPressed, isNull);
+    }
+  });
+
   testWidgets('short output starts at the top and appends downward', (
     tester,
   ) async {
@@ -205,34 +249,8 @@ void main() {
           ),
         ),
       );
-      expect(find.byType(IconButton), findsNothing);
       controller.receiveThrough(100);
       await tester.pumpAndSettle();
-      final l10n = AppLocalizations.of(
-        tester.element(find.byType(ReceiveDisplayWidget)),
-      );
-      final clearButton = find.byTooltip(l10n.clearReceiveArea);
-      final exportButton = find.byTooltip(l10n.exportLogs);
-      expect(tester.getSize(exportButton), const Size.square(32));
-      expect(
-        tester.getRect(exportButton).right,
-        tester.getRect(clearButton).left - 4,
-      );
-      final clear = find
-          .descendant(of: clearButton, matching: find.byType(CustomPaint))
-          .last;
-      expect(tester.getSize(clearButton), const Size.square(32));
-      Color? clearColor() => IconTheme.of(tester.element(clear)).color;
-      expect(clearColor()!.a, closeTo(0.4, 0.01));
-      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      await mouse.addPointer(location: Offset.zero);
-      await mouse.moveTo(tester.getCenter(clear));
-      await tester.pumpAndSettle();
-      expect(clearColor()!.a, 1);
-      await mouse.moveTo(Offset.zero);
-      await tester.pumpAndSettle();
-      expect(clearColor()!.a, closeTo(0.4, 0.01));
-      await mouse.removePointer();
       final position = tester
           .state<ScrollableState>(
             find.descendant(
@@ -283,11 +301,8 @@ void main() {
       expect(position.pixels, closeTo(readingPosition, 1));
       controller.resetLogs();
       await tester.pumpAndSettle();
-      expect(find.byType(IconButton), findsNothing);
       controller.receiveThrough(100);
       await tester.pumpAndSettle();
-      expect(clearButton, findsOneWidget);
-      expect(exportButton, findsOneWidget);
     },
   );
 }
