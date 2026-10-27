@@ -99,63 +99,58 @@ class _AboutPanelState extends State<AboutPanel> {
             ),
           ),
           const SizedBox(height: 24),
-          SettingsSection(
-            title: l10n.aboutMore,
-            children: [
-              Material(
-                color: colors.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(16),
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: _openProject,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+          Material(
+            color: colors.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(16),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: _openProject,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: colors.surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(
-                                Icons.code_rounded,
-                                size: 20,
-                                color: colors.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                l10n.projectLink,
-                                style: theme.textTheme.titleSmall,
-                              ),
-                            ),
-                            Icon(
-                              Icons.open_in_new_rounded,
-                              size: 20,
-                              color: colors.onSurfaceVariant,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        SelectableText(
-                          'github.com/StarSphere-1024/SkyPort',
-                          onTap: _openProject,
-                          style: theme.textTheme.bodySmall?.copyWith(
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: colors.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.code_rounded,
+                            size: 20,
                             color: colors.onSurfaceVariant,
                           ),
                         ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            l10n.projectLink,
+                            style: theme.textTheme.titleSmall,
+                          ),
+                        ),
+                        Icon(
+                          Icons.open_in_new_rounded,
+                          size: 20,
+                          color: colors.onSurfaceVariant,
+                        ),
                       ],
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    SelectableText(
+                      'github.com/StarSphere-1024/SkyPort',
+                      onTap: _openProject,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         ],
       ),

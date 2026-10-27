@@ -152,16 +152,10 @@ abstract class AppLocalizations {
   /// **'A desktop serial port debugging assistant built with Rust and Flutter.'**
   String get aboutDescription;
 
-  /// No description provided for @aboutMore.
-  ///
-  /// In en, this message translates to:
-  /// **'More'**
-  String get aboutMore;
-
   /// No description provided for @projectLink.
   ///
   /// In en, this message translates to:
-  /// **'Project'**
+  /// **'Project address'**
   String get projectLink;
 
   /// No description provided for @projectLinkOpenFailed.
@@ -359,7 +353,7 @@ abstract class AppLocalizations {
   /// No description provided for @newlineMode.
   ///
   /// In en, this message translates to:
-  /// **'Newline'**
+  /// **'Append newline'**
   String get newlineMode;
 
   /// No description provided for @enterDataToSend.

@@ -37,10 +37,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'A desktop serial port debugging assistant built with Rust and Flutter.';
 
   @override
-  String get aboutMore => 'More';
-
-  @override
-  String get projectLink => 'Project';
+  String get projectLink => 'Project address';
 
   @override
   String get projectLinkOpenFailed =>
@@ -141,7 +138,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appendNewline => 'Append newline';
 
   @override
-  String get newlineMode => 'Newline';
+  String get newlineMode => 'Append newline';
 
   @override
   String get enterDataToSend => 'Enter data to send';

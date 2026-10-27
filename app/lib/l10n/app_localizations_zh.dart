@@ -36,10 +36,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutDescription => '基于 Rust 与 Flutter 的桌面串口调试助手。';
 
   @override
-  String get aboutMore => '更多';
-
-  @override
-  String get projectLink => '项目';
+  String get projectLink => '项目地址';
 
   @override
   String get projectLinkOpenFailed => '无法打开项目链接，可复制链接后在浏览器中打开。';
@@ -139,7 +136,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appendNewline => '添加换行符';
 
   @override
-  String get newlineMode => '换行符';
+  String get newlineMode => '追加换行符';
 
   @override
   String get enterDataToSend => '输入要发送的数据';
