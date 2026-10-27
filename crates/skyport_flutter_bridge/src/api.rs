@@ -4,6 +4,117 @@ use skyport_core as core;
 
 pub struct CoreHandle(core::AppCore);
 pub struct SubscriptionHandle(Mutex<core::EventSubscription>);
+pub struct SearchHandle(core::SearchSession);
+
+#[derive(Clone, Copy, Debug)]
+pub struct SearchOptions {
+    pub hex: bool,
+    pub case_sensitive: bool,
+    pub show_sent: bool,
+    pub strip_ansi: bool,
+}
+pub struct StartSearchReply {
+    pub search: Option<SearchHandle>,
+    pub snapshot: Option<SearchSnapshotInfo>,
+    pub error: Option<CoreError>,
+}
+pub struct SearchProgress {
+    pub total_matches: u64,
+    pub complete: bool,
+    pub cancelled: bool,
+    pub error: Option<CoreError>,
+}
+pub struct SearchMatchReply {
+    pub hit: Option<SearchHit>,
+    pub error: Option<CoreError>,
+}
+pub struct SearchRecordReply {
+    pub record: Option<SearchRecordView>,
+    pub error: Option<CoreError>,
+}
+#[derive(Clone, Debug)]
+pub struct SearchHit {
+    pub record_id: u64,
+    pub timestamp_ms: i64,
+    pub source_length: u64,
+    pub index: u64,
+}
+#[derive(Clone, Debug)]
+pub struct SearchSnapshotInfo {
+    pub sequence: u64,
+    pub first_record_id: Option<u64>,
+    pub last_record_id: Option<u64>,
+    pub pending: Option<SearchHit>,
+}
+#[derive(Clone, Copy, Debug)]
+pub struct SearchRange {
+    pub start: u32,
+    pub end: u32,
+}
+#[derive(Clone, Debug)]
+pub struct SearchRecordView {
+    pub record_id: u64,
+    pub timestamp_ms: i64,
+    pub source_length: u64,
+    pub text: String,
+    pub ranges: Vec<SearchRange>,
+    pub focus_range: Option<SearchRange>,
+    pub leading_clipped: bool,
+    pub trailing_clipped: bool,
+}
+
+impl From<SearchOptions> for core::SearchOptions {
+    fn from(value: SearchOptions) -> Self {
+        Self {
+            hex: value.hex,
+            case_sensitive: value.case_sensitive,
+            show_sent: value.show_sent,
+            strip_ansi: value.strip_ansi,
+        }
+    }
+}
+impl From<core::SearchHit> for SearchHit {
+    fn from(value: core::SearchHit) -> Self {
+        Self {
+            record_id: value.record_id,
+            timestamp_ms: value.timestamp_ms,
+            source_length: value.source_length,
+            index: value.index,
+        }
+    }
+}
+impl From<core::SearchSnapshotInfo> for SearchSnapshotInfo {
+    fn from(value: core::SearchSnapshotInfo) -> Self {
+        Self {
+            sequence: value.sequence,
+            first_record_id: value.first_record_id,
+            last_record_id: value.last_record_id,
+            pending: value.pending.map(Into::into),
+        }
+    }
+}
+impl From<core::SearchRange> for SearchRange {
+    fn from(value: core::SearchRange) -> Self {
+        Self {
+            start: value.start,
+            end: value.end,
+        }
+    }
+}
+impl From<core::SearchRecordView> for SearchRecordView {
+    fn from(value: core::SearchRecordView) -> Self {
+        Self {
+            record_id: value.record_id,
+            timestamp_ms: value.timestamp_ms,
+            source_length: value.source_length,
+            text: value.text,
+            ranges: value.ranges.into_iter().map(Into::into).collect(),
+            focus_range: value.focus_range.map(Into::into),
+            leading_clipped: value.leading_clipped,
+            trailing_clipped: value.trailing_clipped,
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug)]
 pub enum Parity {
@@ -166,6 +277,7 @@ pub enum ErrorCode {
     NoLogsToExport,
     ExportFailed,
     QueueCapacityInvalid,
+    SearchQueryTooLarge,
 }
 #[derive(Clone, Debug)]
 pub struct CoreError {
@@ -350,6 +462,7 @@ impl From<core::ErrorCode> for ErrorCode {
             core::ErrorCode::NoLogsToExport => Self::NoLogsToExport,
             core::ErrorCode::ExportFailed => Self::ExportFailed,
             core::ErrorCode::QueueCapacityInvalid => Self::QueueCapacityInvalid,
+            core::ErrorCode::SearchQueryTooLarge => Self::SearchQueryTooLarge,
         }
     }
 }
@@ -688,6 +801,69 @@ pub fn close_core(handle: &CoreHandle) -> CloseReply {
     CloseReply {
         error: handle.0.close().err().map(Into::into),
     }
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn start_search(
+    handle: &CoreHandle,
+    query: String,
+    options: SearchOptions,
+) -> StartSearchReply {
+    match handle.0.start_search(query, options.into()) {
+        Ok(search) => {
+            let snapshot = search.snapshot_info().into();
+            StartSearchReply {
+                search: Some(SearchHandle(search)),
+                snapshot: Some(snapshot),
+                error: None,
+            }
+        }
+        Err(error) => StartSearchReply {
+            search: None,
+            snapshot: None,
+            error: Some(error.into()),
+        },
+    }
+}
+pub fn poll_search(search: &SearchHandle) -> SearchProgress {
+    let value = search.0.poll();
+    SearchProgress {
+        total_matches: value.total_matches,
+        complete: value.complete,
+        cancelled: value.cancelled,
+        error: value.error.map(Into::into),
+    }
+}
+pub fn search_match(search: &SearchHandle, index: u64) -> SearchMatchReply {
+    match search.0.search_match(index) {
+        Ok(hit) => SearchMatchReply {
+            hit: hit.map(Into::into),
+            error: None,
+        },
+        Err(error) => SearchMatchReply {
+            hit: None,
+            error: Some(error.into()),
+        },
+    }
+}
+pub fn search_record(
+    search: &SearchHandle,
+    record_id: u64,
+    focus_index: Option<u64>,
+) -> SearchRecordReply {
+    match search.0.search_record(record_id, focus_index) {
+        Ok(record) => SearchRecordReply {
+            record: record.map(Into::into),
+            error: None,
+        },
+        Err(error) => SearchRecordReply {
+            record: None,
+            error: Some(error.into()),
+        },
+    }
+}
+pub fn cancel_search(search: &SearchHandle) {
+    search.0.cancel();
 }
 pub fn snapshot(handle: &CoreHandle) -> SnapshotReply {
     match handle.0.snapshot() {

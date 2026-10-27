@@ -27,6 +27,7 @@ String _coreError(AppLocalizations l10n, rust.CoreError error) {
   final reason = switch (error.code) {
     rust.ErrorCode.invalidHexCharacter => l10n.invalidHexChars,
     rust.ErrorCode.incompleteHexByte => l10n.hexEvenLength,
+    rust.ErrorCode.searchQueryTooLarge => l10n.errorSearchQueryTooLarge,
     rust.ErrorCode.portNameRequired => l10n.errorPortNameRequired,
     rust.ErrorCode.portNameTooLong => l10n.errorPortNameTooLong,
     rust.ErrorCode.portNameInvalid => l10n.errorPortNameInvalid,

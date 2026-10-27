@@ -112,10 +112,19 @@ void main() {
         ),
       ),
     );
-    final buttons = find.byType(TextButton);
+    final buttons = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextButton && widget.key != const ValueKey('search-open'),
+    );
     for (final button in tester.widgetList<TextButton>(buttons)) {
       expect(button.onPressed, isNull);
     }
+    expect(
+      tester
+          .widget<TextButton>(find.byKey(const ValueKey('search-open')))
+          .onPressed,
+      isNotNull,
+    );
     controller.receiveThrough(101);
     await tester.pumpAndSettle();
     for (final button in tester.widgetList<TextButton>(buttons)) {
@@ -135,6 +144,12 @@ void main() {
     for (final button in tester.widgetList<TextButton>(buttons)) {
       expect(button.onPressed, isNull);
     }
+    expect(
+      tester
+          .widget<TextButton>(find.byKey(const ValueKey('search-open')))
+          .onPressed,
+      isNotNull,
+    );
   });
 
   testWidgets('short output starts at the top and appends downward', (

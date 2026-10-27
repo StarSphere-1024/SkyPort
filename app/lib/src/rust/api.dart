@@ -7,7 +7,7 @@ import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `dispatch`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 Future<CreateCoreReply> createCore({
   required String dataDirectory,
@@ -19,6 +19,37 @@ Future<CreateCoreReply> createCore({
 
 Future<CloseReply> closeCore({required CoreHandle handle}) =>
     RustLib.instance.api.crateApiCloseCore(handle: handle);
+
+StartSearchReply startSearch({
+  required CoreHandle handle,
+  required String query,
+  required SearchOptions options,
+}) => RustLib.instance.api.crateApiStartSearch(
+  handle: handle,
+  query: query,
+  options: options,
+);
+
+Future<SearchProgress> pollSearch({required SearchHandle search}) =>
+    RustLib.instance.api.crateApiPollSearch(search: search);
+
+Future<SearchMatchReply> searchMatch({
+  required SearchHandle search,
+  required int index,
+}) => RustLib.instance.api.crateApiSearchMatch(search: search, index: index);
+
+Future<SearchRecordReply> searchRecord({
+  required SearchHandle search,
+  required int recordId,
+  int? focusIndex,
+}) => RustLib.instance.api.crateApiSearchRecord(
+  search: search,
+  recordId: recordId,
+  focusIndex: focusIndex,
+);
+
+Future<void> cancelSearch({required SearchHandle search}) =>
+    RustLib.instance.api.crateApiCancelSearch(search: search);
 
 Future<SnapshotReply> snapshot({required CoreHandle handle}) =>
     RustLib.instance.api.crateApiSnapshot(handle: handle);
@@ -110,6 +141,9 @@ Future<DispatchReply> exportLog({
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<CoreHandle>>
 abstract class CoreHandle implements RustOpaqueInterface {}
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SearchHandle>>
+abstract class SearchHandle implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SubscriptionHandle>>
 abstract class SubscriptionHandle implements RustOpaqueInterface {}
@@ -481,6 +515,7 @@ enum ErrorCode {
   noLogsToExport,
   exportFailed,
   queueCapacityInvalid,
+  searchQueryTooLarge,
 }
 
 enum ErrorKind {
@@ -808,6 +843,231 @@ enum Newline { none, lf, cr, crLf }
 
 enum Parity { none, odd, even }
 
+class SearchHit {
+  final int recordId;
+  final int timestampMs;
+  final int sourceLength;
+  final int index;
+
+  const SearchHit({
+    required this.recordId,
+    required this.timestampMs,
+    required this.sourceLength,
+    required this.index,
+  });
+
+  @override
+  int get hashCode =>
+      recordId.hashCode ^
+      timestampMs.hashCode ^
+      sourceLength.hashCode ^
+      index.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SearchHit &&
+          runtimeType == other.runtimeType &&
+          recordId == other.recordId &&
+          timestampMs == other.timestampMs &&
+          sourceLength == other.sourceLength &&
+          index == other.index;
+}
+
+class SearchMatchReply {
+  final SearchHit? hit;
+  final CoreError? error;
+
+  const SearchMatchReply({this.hit, this.error});
+
+  @override
+  int get hashCode => hit.hashCode ^ error.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SearchMatchReply &&
+          runtimeType == other.runtimeType &&
+          hit == other.hit &&
+          error == other.error;
+}
+
+class SearchOptions {
+  final bool hex;
+  final bool caseSensitive;
+  final bool showSent;
+  final bool stripAnsi;
+
+  const SearchOptions({
+    required this.hex,
+    required this.caseSensitive,
+    required this.showSent,
+    required this.stripAnsi,
+  });
+
+  @override
+  int get hashCode =>
+      hex.hashCode ^
+      caseSensitive.hashCode ^
+      showSent.hashCode ^
+      stripAnsi.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SearchOptions &&
+          runtimeType == other.runtimeType &&
+          hex == other.hex &&
+          caseSensitive == other.caseSensitive &&
+          showSent == other.showSent &&
+          stripAnsi == other.stripAnsi;
+}
+
+class SearchProgress {
+  final int totalMatches;
+  final bool complete;
+  final bool cancelled;
+  final CoreError? error;
+
+  const SearchProgress({
+    required this.totalMatches,
+    required this.complete,
+    required this.cancelled,
+    this.error,
+  });
+
+  @override
+  int get hashCode =>
+      totalMatches.hashCode ^
+      complete.hashCode ^
+      cancelled.hashCode ^
+      error.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SearchProgress &&
+          runtimeType == other.runtimeType &&
+          totalMatches == other.totalMatches &&
+          complete == other.complete &&
+          cancelled == other.cancelled &&
+          error == other.error;
+}
+
+class SearchRange {
+  final int start;
+  final int end;
+
+  const SearchRange({required this.start, required this.end});
+
+  @override
+  int get hashCode => start.hashCode ^ end.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SearchRange &&
+          runtimeType == other.runtimeType &&
+          start == other.start &&
+          end == other.end;
+}
+
+class SearchRecordReply {
+  final SearchRecordView? record;
+  final CoreError? error;
+
+  const SearchRecordReply({this.record, this.error});
+
+  @override
+  int get hashCode => record.hashCode ^ error.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SearchRecordReply &&
+          runtimeType == other.runtimeType &&
+          record == other.record &&
+          error == other.error;
+}
+
+class SearchRecordView {
+  final int recordId;
+  final int timestampMs;
+  final int sourceLength;
+  final String text;
+  final List<SearchRange> ranges;
+  final SearchRange? focusRange;
+  final bool leadingClipped;
+  final bool trailingClipped;
+
+  const SearchRecordView({
+    required this.recordId,
+    required this.timestampMs,
+    required this.sourceLength,
+    required this.text,
+    required this.ranges,
+    this.focusRange,
+    required this.leadingClipped,
+    required this.trailingClipped,
+  });
+
+  @override
+  int get hashCode =>
+      recordId.hashCode ^
+      timestampMs.hashCode ^
+      sourceLength.hashCode ^
+      text.hashCode ^
+      ranges.hashCode ^
+      focusRange.hashCode ^
+      leadingClipped.hashCode ^
+      trailingClipped.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SearchRecordView &&
+          runtimeType == other.runtimeType &&
+          recordId == other.recordId &&
+          timestampMs == other.timestampMs &&
+          sourceLength == other.sourceLength &&
+          text == other.text &&
+          ranges == other.ranges &&
+          focusRange == other.focusRange &&
+          leadingClipped == other.leadingClipped &&
+          trailingClipped == other.trailingClipped;
+}
+
+class SearchSnapshotInfo {
+  final int sequence;
+  final int? firstRecordId;
+  final int? lastRecordId;
+  final SearchHit? pending;
+
+  const SearchSnapshotInfo({
+    required this.sequence,
+    this.firstRecordId,
+    this.lastRecordId,
+    this.pending,
+  });
+
+  @override
+  int get hashCode =>
+      sequence.hashCode ^
+      firstRecordId.hashCode ^
+      lastRecordId.hashCode ^
+      pending.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SearchSnapshotInfo &&
+          runtimeType == other.runtimeType &&
+          sequence == other.sequence &&
+          firstRecordId == other.firstRecordId &&
+          lastRecordId == other.lastRecordId &&
+          pending == other.pending;
+}
+
 class SendSettings {
   final bool hex;
   final Newline newline;
@@ -900,6 +1160,26 @@ class SnapshotReply {
       identical(this, other) ||
       other is SnapshotReply &&
           runtimeType == other.runtimeType &&
+          snapshot == other.snapshot &&
+          error == other.error;
+}
+
+class StartSearchReply {
+  final SearchHandle? search;
+  final SearchSnapshotInfo? snapshot;
+  final CoreError? error;
+
+  const StartSearchReply({this.search, this.snapshot, this.error});
+
+  @override
+  int get hashCode => search.hashCode ^ snapshot.hashCode ^ error.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is StartSearchReply &&
+          runtimeType == other.runtimeType &&
+          search == other.search &&
           snapshot == other.snapshot &&
           error == other.error;
 }

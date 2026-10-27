@@ -233,7 +233,8 @@ class UiState {
         removed.add(id);
       }
       for (final record in delta.upsert) {
-        removed.remove(record.id);
+        // Preserve removal before reinsertion: a recycled pending ID is a new
+        // record even when its timestamp and bytes equal the previous one.
         upsert[record.id] = record;
       }
     }

@@ -25,12 +25,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreHandle;
 
   CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_SearchHandlePtr => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle;
+
+  CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_SubscriptionHandlePtr => wire
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSubscriptionHandle;
 
   @protected
   CoreHandle
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreHandle(
+    dynamic raw,
+  );
+
+  @protected
+  SearchHandle
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
     dynamic raw,
   );
 
@@ -43,6 +53,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   CoreHandle
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreHandle(
+    dynamic raw,
+  );
+
+  @protected
+  SearchHandle
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
     dynamic raw,
   );
 
@@ -61,6 +77,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   CoreHandle
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreHandle(
+    dynamic raw,
+  );
+
+  @protected
+  SearchHandle
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
     dynamic raw,
   );
 
@@ -88,6 +110,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   CoreHandle
   dco_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreHandle(
+    dynamic raw,
+  );
+
+  @protected
+  SearchHandle
+  dco_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
     dynamic raw,
   );
 
@@ -135,6 +163,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Parity dco_decode_box_autoadd_parity(dynamic raw);
+
+  @protected
+  SearchHit dco_decode_box_autoadd_search_hit(dynamic raw);
+
+  @protected
+  SearchOptions dco_decode_box_autoadd_search_options(dynamic raw);
+
+  @protected
+  SearchRange dco_decode_box_autoadd_search_range(dynamic raw);
+
+  @protected
+  SearchRecordView dco_decode_box_autoadd_search_record_view(dynamic raw);
+
+  @protected
+  SearchSnapshotInfo dco_decode_box_autoadd_search_snapshot_info(dynamic raw);
 
   @protected
   SerialConfig dco_decode_box_autoadd_serial_config(dynamic raw);
@@ -215,6 +258,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  List<SearchRange> dco_decode_list_search_range(dynamic raw);
+
+  @protected
   LogDelta dco_decode_log_delta(dynamic raw);
 
   @protected
@@ -238,6 +284,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   CoreHandle?
   dco_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreHandle(
+    dynamic raw,
+  );
+
+  @protected
+  SearchHandle?
+  dco_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
     dynamic raw,
   );
 
@@ -278,6 +330,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Parity? dco_decode_opt_box_autoadd_parity(dynamic raw);
 
   @protected
+  SearchHit? dco_decode_opt_box_autoadd_search_hit(dynamic raw);
+
+  @protected
+  SearchRange? dco_decode_opt_box_autoadd_search_range(dynamic raw);
+
+  @protected
+  SearchRecordView? dco_decode_opt_box_autoadd_search_record_view(dynamic raw);
+
+  @protected
+  SearchSnapshotInfo? dco_decode_opt_box_autoadd_search_snapshot_info(
+    dynamic raw,
+  );
+
+  @protected
   SerialConfig? dco_decode_opt_box_autoadd_serial_config(dynamic raw);
 
   @protected
@@ -296,6 +362,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Parity dco_decode_parity(dynamic raw);
 
   @protected
+  SearchHit dco_decode_search_hit(dynamic raw);
+
+  @protected
+  SearchMatchReply dco_decode_search_match_reply(dynamic raw);
+
+  @protected
+  SearchOptions dco_decode_search_options(dynamic raw);
+
+  @protected
+  SearchProgress dco_decode_search_progress(dynamic raw);
+
+  @protected
+  SearchRange dco_decode_search_range(dynamic raw);
+
+  @protected
+  SearchRecordReply dco_decode_search_record_reply(dynamic raw);
+
+  @protected
+  SearchRecordView dco_decode_search_record_view(dynamic raw);
+
+  @protected
+  SearchSnapshotInfo dco_decode_search_snapshot_info(dynamic raw);
+
+  @protected
   SendSettings dco_decode_send_settings(dynamic raw);
 
   @protected
@@ -303,6 +393,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SnapshotReply dco_decode_snapshot_reply(dynamic raw);
+
+  @protected
+  StartSearchReply dco_decode_start_search_reply(dynamic raw);
 
   @protected
   SubscribeReply dco_decode_subscribe_reply(dynamic raw);
@@ -329,6 +422,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SearchHandle
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SubscriptionHandle
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSubscriptionHandle(
     SseDeserializer deserializer,
@@ -337,6 +436,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   CoreHandle
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreHandle(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SearchHandle
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
     SseDeserializer deserializer,
   );
 
@@ -355,6 +460,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   CoreHandle
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreHandle(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SearchHandle
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
     SseDeserializer deserializer,
   );
 
@@ -382,6 +493,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   CoreHandle
   sse_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreHandle(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SearchHandle
+  sse_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
     SseDeserializer deserializer,
   );
 
@@ -433,6 +550,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Parity sse_decode_box_autoadd_parity(SseDeserializer deserializer);
+
+  @protected
+  SearchHit sse_decode_box_autoadd_search_hit(SseDeserializer deserializer);
+
+  @protected
+  SearchOptions sse_decode_box_autoadd_search_options(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SearchRange sse_decode_box_autoadd_search_range(SseDeserializer deserializer);
+
+  @protected
+  SearchRecordView sse_decode_box_autoadd_search_record_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SearchSnapshotInfo sse_decode_box_autoadd_search_snapshot_info(
+    SseDeserializer deserializer,
+  );
 
   @protected
   SerialConfig sse_decode_box_autoadd_serial_config(
@@ -515,6 +653,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  List<SearchRange> sse_decode_list_search_range(SseDeserializer deserializer);
+
+  @protected
   LogDelta sse_decode_log_delta(SseDeserializer deserializer);
 
   @protected
@@ -538,6 +679,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   CoreHandle?
   sse_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreHandle(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SearchHandle?
+  sse_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
     SseDeserializer deserializer,
   );
 
@@ -588,6 +735,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Parity? sse_decode_opt_box_autoadd_parity(SseDeserializer deserializer);
 
   @protected
+  SearchHit? sse_decode_opt_box_autoadd_search_hit(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SearchRange? sse_decode_opt_box_autoadd_search_range(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SearchRecordView? sse_decode_opt_box_autoadd_search_record_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SearchSnapshotInfo? sse_decode_opt_box_autoadd_search_snapshot_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SerialConfig? sse_decode_opt_box_autoadd_serial_config(
     SseDeserializer deserializer,
   );
@@ -608,6 +775,34 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Parity sse_decode_parity(SseDeserializer deserializer);
 
   @protected
+  SearchHit sse_decode_search_hit(SseDeserializer deserializer);
+
+  @protected
+  SearchMatchReply sse_decode_search_match_reply(SseDeserializer deserializer);
+
+  @protected
+  SearchOptions sse_decode_search_options(SseDeserializer deserializer);
+
+  @protected
+  SearchProgress sse_decode_search_progress(SseDeserializer deserializer);
+
+  @protected
+  SearchRange sse_decode_search_range(SseDeserializer deserializer);
+
+  @protected
+  SearchRecordReply sse_decode_search_record_reply(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SearchRecordView sse_decode_search_record_view(SseDeserializer deserializer);
+
+  @protected
+  SearchSnapshotInfo sse_decode_search_snapshot_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SendSettings sse_decode_send_settings(SseDeserializer deserializer);
 
   @protected
@@ -615,6 +810,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SnapshotReply sse_decode_snapshot_reply(SseDeserializer deserializer);
+
+  @protected
+  StartSearchReply sse_decode_start_search_reply(SseDeserializer deserializer);
 
   @protected
   SubscribeReply sse_decode_subscribe_reply(SseDeserializer deserializer);
@@ -643,6 +841,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    SearchHandle self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSubscriptionHandle(
     SubscriptionHandle self,
     SseSerializer serializer,
@@ -652,6 +857,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreHandle(
     CoreHandle self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    SearchHandle self,
     SseSerializer serializer,
   );
 
@@ -672,6 +884,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreHandle(
     CoreHandle self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    SearchHandle self,
     SseSerializer serializer,
   );
 
@@ -701,6 +920,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
   sse_encode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreHandle(
     CoreHandle self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    SearchHandle self,
     SseSerializer serializer,
   );
 
@@ -779,6 +1005,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_box_autoadd_parity(Parity self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_search_hit(
+    SearchHit self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_search_options(
+    SearchOptions self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_search_range(
+    SearchRange self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_search_record_view(
+    SearchRecordView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_search_snapshot_info(
+    SearchSnapshotInfo self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_serial_config(
@@ -877,6 +1133,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_search_range(
+    List<SearchRange> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_log_delta(LogDelta self, SseSerializer serializer);
 
   @protected
@@ -901,6 +1163,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
   sse_encode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreHandle(
     CoreHandle? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    SearchHandle? self,
     SseSerializer serializer,
   );
 
@@ -969,6 +1238,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_search_hit(
+    SearchHit? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_search_range(
+    SearchRange? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_search_record_view(
+    SearchRecordView? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_search_snapshot_info(
+    SearchSnapshotInfo? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_serial_config(
     SerialConfig? self,
     SseSerializer serializer,
@@ -993,6 +1286,45 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_parity(Parity self, SseSerializer serializer);
 
   @protected
+  void sse_encode_search_hit(SearchHit self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_search_match_reply(
+    SearchMatchReply self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_search_options(SearchOptions self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_search_progress(
+    SearchProgress self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_search_range(SearchRange self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_search_record_reply(
+    SearchRecordReply self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_search_record_view(
+    SearchRecordView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_search_snapshot_info(
+    SearchSnapshotInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_send_settings(SendSettings self, SseSerializer serializer);
 
   @protected
@@ -1000,6 +1332,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_snapshot_reply(SnapshotReply self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_start_search_reply(
+    StartSearchReply self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_subscribe_reply(
@@ -1045,6 +1383,22 @@ class RustLibWire implements BaseWire {
       );
 
   void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    int ptr,
+  ) => wasmModule
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+        ptr,
+      );
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    int ptr,
+  ) => wasmModule
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+        ptr,
+      );
+
+  void
   rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSubscriptionHandle(
     int ptr,
   ) => wasmModule
@@ -1074,6 +1428,16 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void
   rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreHandle(
+    int ptr,
+  );
+
+  external void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    int ptr,
+  );
+
+  external void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
     int ptr,
   );
 

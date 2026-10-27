@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/ui_settings_provider.dart';
@@ -9,6 +10,9 @@ import '../../utils/constants.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/log_export_service.dart';
 import '../../src/rust/api.dart' as rust;
+import '../../providers/search_controller.dart';
+import 'log_search_bar.dart';
+import 'search_results_list.dart';
 
 class LogIndexMapper {
   final List<LogChunk> chunks;
@@ -85,11 +89,43 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
   bool _programmaticScroll = false;
   bool _hasActiveSelection = false;
   bool _scrollScheduled = false;
+  bool _hasUsedSearchList = false;
   LogIndexMapper? _mapper;
+  final FocusNode _searchFocus = FocusNode();
+
+  KeyEventResult _onKey(KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final search = ref.read(searchControllerProvider.notifier);
+    final keyboard = HardwareKeyboard.instance;
+    if (keyboard.isControlPressed &&
+        event.logicalKey == LogicalKeyboardKey.keyF) {
+      _openSearch();
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.escape &&
+        ref.read(searchControllerProvider).visible) {
+      search.close();
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.f3 &&
+        ref.read(searchControllerProvider).visible) {
+      search.navigate(keyboard.isShiftPressed ? -1 : 1);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  void _openSearch() {
+    ref.read(searchControllerProvider.notifier).open();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _searchFocus.requestFocus();
+    });
+  }
 
   @override
   void initState() {
     super.initState();
+    FocusManager.instance.addEarlyKeyEventHandler(_onKey);
     _scrollController.addListener(() {
       if (!_scrollController.hasClients) return;
 
@@ -116,6 +152,8 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
 
   @override
   void dispose() {
+    FocusManager.instance.removeEarlyKeyEventHandler(_onKey);
+    _searchFocus.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -167,6 +205,8 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final settings = ref.watch(uiSettingsProvider);
+    final search = ref.watch(searchControllerProvider);
+    if (search.hasResults) _hasUsedSearchList = true;
     final hasVisibleLogs = ref.watch(
       uiControllerProvider.select(
         (state) => state.logs.chunks.any(
@@ -181,7 +221,9 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
       previous,
       next,
     ) {
-      if (next.chunks.isNotEmpty && !_hasActiveSelection) {
+      if (next.chunks.isNotEmpty &&
+          !_hasActiveSelection &&
+          !_hasUsedSearchList) {
         _scrollToBottom();
       }
     });
@@ -196,8 +238,19 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
             _ReceiveToolbar(
               enabled: hasVisibleLogs,
               onExport: _exportLogs,
-              onClear: () => ref.read(uiControllerProvider.notifier).clearLog(),
+              onSearch: () {
+                if (ref.read(searchControllerProvider).visible) {
+                  ref.read(searchControllerProvider.notifier).close();
+                } else {
+                  _openSearch();
+                }
+              },
+              onClear: () {
+                ref.read(searchControllerProvider.notifier).clear();
+                ref.read(uiControllerProvider.notifier).clearLog();
+              },
             ),
+            if (search.visible) LogSearchBar(focusNode: _searchFocus),
             Consumer(
               builder: (context, ref, _) {
                 final state = ref.watch(
@@ -245,6 +298,9 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                       children: [
                         Consumer(
                           builder: (context, ref, child) {
+                            if (_hasUsedSearchList) {
+                              return const SearchResultsList();
+                            }
                             final logState = ref.watch(
                               uiControllerProvider.select(
                                 (state) => state.logs,
@@ -371,7 +427,7 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                             );
                           },
                         ),
-                        if (!_stickToBottom)
+                        if (!_stickToBottom && !_hasUsedSearchList)
                           Positioned(
                             right: 16,
                             bottom: 16,
@@ -398,11 +454,13 @@ class _ReceiveToolbar extends StatelessWidget {
     required this.enabled,
     required this.onExport,
     required this.onClear,
+    required this.onSearch,
   });
 
   final bool enabled;
   final VoidCallback onExport;
   final VoidCallback onClear;
+  final VoidCallback onSearch;
 
   @override
   Widget build(BuildContext context) {
@@ -416,10 +474,13 @@ class _ReceiveToolbar extends StatelessWidget {
           Widget icon,
           VoidCallback onPressed, {
           String? tooltip,
+          Key? key,
+          bool alwaysEnabled = false,
         }) {
           return Tooltip(
             message: tooltip ?? label,
             child: TextButton(
+              key: key,
               style: TextButton.styleFrom(
                 foregroundColor: theme.colorScheme.onSurfaceVariant,
                 minimumSize: const Size(36, 36),
@@ -428,7 +489,7 @@ class _ReceiveToolbar extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              onPressed: enabled ? onPressed : null,
+              onPressed: enabled || alwaysEnabled ? onPressed : null,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -460,6 +521,15 @@ class _ReceiveToolbar extends StatelessWidget {
                   ),
                 ),
               ),
+              action(
+                l10n.searchLabel,
+                const Icon(Icons.search, size: 18),
+                onSearch,
+                key: const ValueKey('search-open'),
+                tooltip: l10n.searchOpen,
+                alwaysEnabled: true,
+              ),
+              const SizedBox(width: 4),
               action(
                 l10n.exportLogs,
                 const Icon(Icons.file_download_outlined, size: 18),

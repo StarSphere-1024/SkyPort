@@ -4,9 +4,30 @@ import 'package:skyport/host_core.dart';
 import 'package:skyport/l10n/app_localizations.dart';
 import 'package:skyport/main.dart';
 import 'package:skyport/src/rust/api.dart' as rust;
+import 'package:skyport/utils/error_messages.dart';
 import 'package:skyport/widgets/shared/error_notice.dart';
 
 void main() {
+  test('oversized search queries have structured bilingual messages', () async {
+    const error = rust.CoreError(
+      kind: rust.ErrorKind.invalidArgument,
+      code: rust.ErrorCode.searchQueryTooLarge,
+      message: 'private native query limit diagnostic',
+      bytesWritten: 0,
+    );
+    for (final language in ['en', 'zh']) {
+      final l10n = await AppLocalizations.delegate.load(Locale(language));
+      final message = localizedError(l10n, error);
+      expect(message, l10n.errorSearchQueryTooLarge);
+      expect(message, contains('64 KiB'));
+      expect(message, isNot(contains(error.message)));
+      expect(errorDiagnostics(error), contains('searchQueryTooLarge'));
+      if (language == 'zh') {
+        expect(message, matches(RegExp(r'[\u4e00-\u9fff]')));
+      }
+    }
+  });
+
   testWidgets('error notices expire and can be closed manually', (
     tester,
   ) async {

@@ -722,6 +722,12 @@ abstract class AppLocalizations {
   /// **'Invalid argument'**
   String get errorInvalidArgument;
 
+  /// No description provided for @errorSearchQueryTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Search query exceeds the 64 KiB UTF-8 limit.'**
+  String get errorSearchQueryTooLarge;
+
   /// No description provided for @errorPortNotFound.
   ///
   /// In en, this message translates to:
@@ -997,6 +1003,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'An unexpected error occurred. See diagnostic details.'**
   String get errorUnexpected;
+
+  /// No description provided for @searchOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Search retained log (Ctrl+F)'**
+  String get searchOpen;
+
+  /// No description provided for @searchLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get searchLabel;
+
+  /// No description provided for @searchSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Search (Enter)'**
+  String get searchSubmit;
+
+  /// No description provided for @searchPrevious.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous match (Shift+F3)'**
+  String get searchPrevious;
+
+  /// No description provided for @searchNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next match (F3)'**
+  String get searchNext;
+
+  /// No description provided for @searchClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close search (Esc)'**
+  String get searchClose;
+
+  /// No description provided for @searchCaseSensitive.
+  ///
+  /// In en, this message translates to:
+  /// **'Match case'**
+  String get searchCaseSensitive;
+
+  /// No description provided for @searchTextHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search…'**
+  String get searchTextHint;
+
+  /// No description provided for @searchHexHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hex…'**
+  String get searchHexHint;
+
+  /// No description provided for @searchStarting.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting search…'**
+  String get searchStarting;
+
+  /// No description provided for @searchProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching… {count} matches found'**
+  String searchProgress(int count);
+
+  /// No description provided for @searchCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{current}/{total}'**
+  String searchCount(int current, int total);
+
+  /// No description provided for @searchNoMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'No matches'**
+  String get searchNoMatches;
+
+  /// No description provided for @searchDirty.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft or display options changed — press Enter to refresh'**
+  String get searchDirty;
+
+  /// No description provided for @searchStale.
+  ///
+  /// In en, this message translates to:
+  /// **'Retained records changed — press Enter to refresh'**
+  String get searchStale;
+
+  /// No description provided for @searchWrapped.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrapped around'**
+  String get searchWrapped;
+
+  /// No description provided for @searchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Search failed: {message}'**
+  String searchFailed(String message);
+
+  /// No description provided for @searchContextBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'… earlier context clipped'**
+  String get searchContextBefore;
+
+  /// No description provided for @searchContextAfter.
+  ///
+  /// In en, this message translates to:
+  /// **'later context clipped …'**
+  String get searchContextAfter;
 }
 
 class _AppLocalizationsDelegate

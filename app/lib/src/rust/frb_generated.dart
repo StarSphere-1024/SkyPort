@@ -64,7 +64,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -374635432;
+  int get rustContentHash => 1556776806;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -76,6 +76,8 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
+  Future<void> crateApiCancelSearch({required SearchHandle search});
+
   Future<void> crateApiCancelSubscription({
     required SubscriptionHandle subscription,
   });
@@ -105,6 +107,19 @@ abstract class RustLibApi extends BaseApi {
 
   Future<EventsReply> crateApiNextEvents({
     required SubscriptionHandle subscription,
+  });
+
+  Future<SearchProgress> crateApiPollSearch({required SearchHandle search});
+
+  Future<SearchMatchReply> crateApiSearchMatch({
+    required SearchHandle search,
+    required int index,
+  });
+
+  Future<SearchRecordReply> crateApiSearchRecord({
+    required SearchHandle search,
+    required int recordId,
+    int? focusIndex,
   });
 
   Future<DispatchReply> crateApiSendHex({
@@ -144,6 +159,12 @@ abstract class RustLibApi extends BaseApi {
 
   Future<SnapshotReply> crateApiSnapshot({required CoreHandle handle});
 
+  StartSearchReply crateApiStartSearch({
+    required CoreHandle handle,
+    required String query,
+    required SearchOptions options,
+  });
+
   Future<SubscribeReply> crateApiSubscribe({required CoreHandle handle});
 
   Future<DispatchReply> crateApiUpdateConfig({
@@ -158,6 +179,14 @@ abstract class RustLibApi extends BaseApi {
   get rust_arc_decrement_strong_count_CoreHandle;
 
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_CoreHandlePtr;
+
+  RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_SearchHandle;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_SearchHandle;
+
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SearchHandlePtr;
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_SubscriptionHandle;
@@ -178,6 +207,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
+  Future<void> crateApiCancelSearch({required SearchHandle search}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+            search,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 1,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiCancelSearchConstMeta,
+        argValues: [search],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCancelSearchConstMeta =>
+      const TaskConstMeta(debugName: "cancel_search", argNames: ["search"]);
+
+  @override
   Future<void> crateApiCancelSubscription({
     required SubscriptionHandle subscription,
   }) {
@@ -192,7 +252,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 1,
+            funcId: 2,
             port: port_,
           );
         },
@@ -225,7 +285,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 2,
+            funcId: 3,
             port: port_,
           );
         },
@@ -256,7 +316,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 3,
+            funcId: 4,
             port: port_,
           );
         },
@@ -283,7 +343,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 5,
             port: port_,
           );
         },
@@ -314,7 +374,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 6,
             port: port_,
           );
         },
@@ -346,7 +406,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 7,
             port: port_,
           );
         },
@@ -379,7 +439,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 8,
             port: port_,
           );
         },
@@ -416,7 +476,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 9,
             port: port_,
           );
         },
@@ -449,7 +509,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 10,
             port: port_,
           );
         },
@@ -482,7 +542,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 11,
             port: port_,
           );
         },
@@ -501,6 +561,113 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "next_events", argNames: ["subscription"]);
 
   @override
+  Future<SearchProgress> crateApiPollSearch({required SearchHandle search}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+            search,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 12,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_search_progress,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPollSearchConstMeta,
+        argValues: [search],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPollSearchConstMeta =>
+      const TaskConstMeta(debugName: "poll_search", argNames: ["search"]);
+
+  @override
+  Future<SearchMatchReply> crateApiSearchMatch({
+    required SearchHandle search,
+    required int index,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+            search,
+            serializer,
+          );
+          sse_encode_CastedPrimitive_u_64(index, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 13,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_search_match_reply,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSearchMatchConstMeta,
+        argValues: [search, index],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSearchMatchConstMeta => const TaskConstMeta(
+    debugName: "search_match",
+    argNames: ["search", "index"],
+  );
+
+  @override
+  Future<SearchRecordReply> crateApiSearchRecord({
+    required SearchHandle search,
+    required int recordId,
+    int? focusIndex,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+            search,
+            serializer,
+          );
+          sse_encode_CastedPrimitive_u_64(recordId, serializer);
+          sse_encode_opt_CastedPrimitive_u_64(focusIndex, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 14,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_search_record_reply,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSearchRecordConstMeta,
+        argValues: [search, recordId, focusIndex],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSearchRecordConstMeta => const TaskConstMeta(
+    debugName: "search_record",
+    argNames: ["search", "recordId", "focusIndex"],
+  );
+
+  @override
   Future<DispatchReply> crateApiSendHex({
     required CoreHandle handle,
     required String input,
@@ -517,7 +684,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 15,
             port: port_,
           );
         },
@@ -552,7 +719,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 16,
             port: port_,
           );
         },
@@ -591,7 +758,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 17,
             port: port_,
           );
         },
@@ -628,7 +795,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 18,
             port: port_,
           );
         },
@@ -673,7 +840,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 19,
             port: port_,
           );
         },
@@ -710,7 +877,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 20,
             port: port_,
           );
         },
@@ -743,7 +910,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 21,
             port: port_,
           );
         },
@@ -762,6 +929,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "snapshot", argNames: ["handle"]);
 
   @override
+  StartSearchReply crateApiStartSearch({
+    required CoreHandle handle,
+    required String query,
+    required SearchOptions options,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreHandle(
+            handle,
+            serializer,
+          );
+          sse_encode_String(query, serializer);
+          sse_encode_box_autoadd_search_options(options, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 22)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_start_search_reply,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiStartSearchConstMeta,
+        argValues: [handle, query, options],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiStartSearchConstMeta => const TaskConstMeta(
+    debugName: "start_search",
+    argNames: ["handle", "query", "options"],
+  );
+
+  @override
   Future<SubscribeReply> crateApiSubscribe({required CoreHandle handle}) {
     return handler.executeNormal(
       NormalTask(
@@ -774,7 +975,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 23,
             port: port_,
           );
         },
@@ -809,7 +1010,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 24,
             port: port_,
           );
         },
@@ -838,6 +1039,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreHandle;
 
   RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_SearchHandle => wire
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_SearchHandle => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle;
+
+  RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_SubscriptionHandle => wire
       .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSubscriptionHandle;
 
@@ -852,6 +1061,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return CoreHandleImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  SearchHandle
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SearchHandleImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -870,6 +1088,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return CoreHandleImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  SearchHandle
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SearchHandleImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -904,6 +1131,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return CoreHandleImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  SearchHandle
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SearchHandleImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -1001,6 +1237,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SearchHandle
+  dco_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+      raw,
+    );
+  }
+
+  @protected
   SubscriptionHandle
   dco_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSubscriptionHandle(
     dynamic raw,
@@ -1087,6 +1334,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Parity dco_decode_box_autoadd_parity(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_parity(raw);
+  }
+
+  @protected
+  SearchHit dco_decode_box_autoadd_search_hit(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_search_hit(raw);
+  }
+
+  @protected
+  SearchOptions dco_decode_box_autoadd_search_options(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_search_options(raw);
+  }
+
+  @protected
+  SearchRange dco_decode_box_autoadd_search_range(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_search_range(raw);
+  }
+
+  @protected
+  SearchRecordView dco_decode_box_autoadd_search_record_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_search_record_view(raw);
+  }
+
+  @protected
+  SearchSnapshotInfo dco_decode_box_autoadd_search_snapshot_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_search_snapshot_info(raw);
   }
 
   @protected
@@ -1336,6 +1613,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SearchRange> dco_decode_list_search_range(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_search_range).toList();
+  }
+
+  @protected
   LogDelta dco_decode_log_delta(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -1420,6 +1703,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SearchHandle?
+  dco_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+            raw,
+          );
+  }
+
+  @protected
   SubscriptionHandle?
   dco_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSubscriptionHandle(
     dynamic raw,
@@ -1493,6 +1789,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SearchHit? dco_decode_opt_box_autoadd_search_hit(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_search_hit(raw);
+  }
+
+  @protected
+  SearchRange? dco_decode_opt_box_autoadd_search_range(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_search_range(raw);
+  }
+
+  @protected
+  SearchRecordView? dco_decode_opt_box_autoadd_search_record_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_search_record_view(raw);
+  }
+
+  @protected
+  SearchSnapshotInfo? dco_decode_opt_box_autoadd_search_snapshot_info(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_search_snapshot_info(raw);
+  }
+
+  @protected
   SerialConfig? dco_decode_opt_box_autoadd_serial_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_serial_config(raw);
@@ -1526,6 +1850,116 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Parity dco_decode_parity(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return Parity.values[raw as int];
+  }
+
+  @protected
+  SearchHit dco_decode_search_hit(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return SearchHit(
+      recordId: dco_decode_CastedPrimitive_u_64(arr[0]),
+      timestampMs: dco_decode_CastedPrimitive_i_64(arr[1]),
+      sourceLength: dco_decode_CastedPrimitive_u_64(arr[2]),
+      index: dco_decode_CastedPrimitive_u_64(arr[3]),
+    );
+  }
+
+  @protected
+  SearchMatchReply dco_decode_search_match_reply(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return SearchMatchReply(
+      hit: dco_decode_opt_box_autoadd_search_hit(arr[0]),
+      error: dco_decode_opt_box_autoadd_core_error(arr[1]),
+    );
+  }
+
+  @protected
+  SearchOptions dco_decode_search_options(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return SearchOptions(
+      hex: dco_decode_bool(arr[0]),
+      caseSensitive: dco_decode_bool(arr[1]),
+      showSent: dco_decode_bool(arr[2]),
+      stripAnsi: dco_decode_bool(arr[3]),
+    );
+  }
+
+  @protected
+  SearchProgress dco_decode_search_progress(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return SearchProgress(
+      totalMatches: dco_decode_CastedPrimitive_u_64(arr[0]),
+      complete: dco_decode_bool(arr[1]),
+      cancelled: dco_decode_bool(arr[2]),
+      error: dco_decode_opt_box_autoadd_core_error(arr[3]),
+    );
+  }
+
+  @protected
+  SearchRange dco_decode_search_range(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return SearchRange(
+      start: dco_decode_u_32(arr[0]),
+      end: dco_decode_u_32(arr[1]),
+    );
+  }
+
+  @protected
+  SearchRecordReply dco_decode_search_record_reply(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return SearchRecordReply(
+      record: dco_decode_opt_box_autoadd_search_record_view(arr[0]),
+      error: dco_decode_opt_box_autoadd_core_error(arr[1]),
+    );
+  }
+
+  @protected
+  SearchRecordView dco_decode_search_record_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return SearchRecordView(
+      recordId: dco_decode_CastedPrimitive_u_64(arr[0]),
+      timestampMs: dco_decode_CastedPrimitive_i_64(arr[1]),
+      sourceLength: dco_decode_CastedPrimitive_u_64(arr[2]),
+      text: dco_decode_String(arr[3]),
+      ranges: dco_decode_list_search_range(arr[4]),
+      focusRange: dco_decode_opt_box_autoadd_search_range(arr[5]),
+      leadingClipped: dco_decode_bool(arr[6]),
+      trailingClipped: dco_decode_bool(arr[7]),
+    );
+  }
+
+  @protected
+  SearchSnapshotInfo dco_decode_search_snapshot_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return SearchSnapshotInfo(
+      sequence: dco_decode_CastedPrimitive_u_64(arr[0]),
+      firstRecordId: dco_decode_opt_CastedPrimitive_u_64(arr[1]),
+      lastRecordId: dco_decode_opt_CastedPrimitive_u_64(arr[2]),
+      pending: dco_decode_opt_box_autoadd_search_hit(arr[3]),
+    );
   }
 
   @protected
@@ -1569,6 +2003,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return SnapshotReply(
       snapshot: dco_decode_opt_box_autoadd_app_snapshot(arr[0]),
       error: dco_decode_opt_box_autoadd_core_error(arr[1]),
+    );
+  }
+
+  @protected
+  StartSearchReply dco_decode_start_search_reply(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return StartSearchReply(
+      search:
+          dco_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+            arr[0],
+          ),
+      snapshot: dco_decode_opt_box_autoadd_search_snapshot_info(arr[1]),
+      error: dco_decode_opt_box_autoadd_core_error(arr[2]),
     );
   }
 
@@ -1631,6 +2081,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SearchHandle
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return SearchHandleImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
   SubscriptionHandle
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSubscriptionHandle(
     SseDeserializer deserializer,
@@ -1649,6 +2111,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return CoreHandleImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  SearchHandle
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return SearchHandleImpl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
@@ -1687,6 +2161,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return CoreHandleImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  SearchHandle
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return SearchHandleImpl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
@@ -1818,6 +2304,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SearchHandle
+  sse_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+      deserializer,
+    ));
+  }
+
+  @protected
   SubscriptionHandle
   sse_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSubscriptionHandle(
     SseDeserializer deserializer,
@@ -1914,6 +2411,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Parity sse_decode_box_autoadd_parity(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_parity(deserializer));
+  }
+
+  @protected
+  SearchHit sse_decode_box_autoadd_search_hit(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_search_hit(deserializer));
+  }
+
+  @protected
+  SearchOptions sse_decode_box_autoadd_search_options(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_search_options(deserializer));
+  }
+
+  @protected
+  SearchRange sse_decode_box_autoadd_search_range(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_search_range(deserializer));
+  }
+
+  @protected
+  SearchRecordView sse_decode_box_autoadd_search_record_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_search_record_view(deserializer));
+  }
+
+  @protected
+  SearchSnapshotInfo sse_decode_box_autoadd_search_snapshot_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_search_snapshot_info(deserializer));
   }
 
   @protected
@@ -2219,6 +2754,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SearchRange> sse_decode_list_search_range(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <SearchRange>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_search_range(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   LogDelta sse_decode_log_delta(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_upsert = sse_decode_list_log_record(deserializer);
@@ -2322,6 +2869,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreHandle(
+        deserializer,
+      ));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  SearchHandle?
+  sse_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
         deserializer,
       ));
     } else {
@@ -2466,6 +3029,58 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SearchHit? sse_decode_opt_box_autoadd_search_hit(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_search_hit(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  SearchRange? sse_decode_opt_box_autoadd_search_range(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_search_range(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  SearchRecordView? sse_decode_opt_box_autoadd_search_record_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_search_record_view(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  SearchSnapshotInfo? sse_decode_opt_box_autoadd_search_snapshot_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_search_snapshot_info(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   SerialConfig? sse_decode_opt_box_autoadd_serial_config(
     SseDeserializer deserializer,
   ) {
@@ -2530,6 +3145,119 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SearchHit sse_decode_search_hit(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_recordId = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_timestampMs = sse_decode_CastedPrimitive_i_64(deserializer);
+    var var_sourceLength = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_index = sse_decode_CastedPrimitive_u_64(deserializer);
+    return SearchHit(
+      recordId: var_recordId,
+      timestampMs: var_timestampMs,
+      sourceLength: var_sourceLength,
+      index: var_index,
+    );
+  }
+
+  @protected
+  SearchMatchReply sse_decode_search_match_reply(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_hit = sse_decode_opt_box_autoadd_search_hit(deserializer);
+    var var_error = sse_decode_opt_box_autoadd_core_error(deserializer);
+    return SearchMatchReply(hit: var_hit, error: var_error);
+  }
+
+  @protected
+  SearchOptions sse_decode_search_options(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_hex = sse_decode_bool(deserializer);
+    var var_caseSensitive = sse_decode_bool(deserializer);
+    var var_showSent = sse_decode_bool(deserializer);
+    var var_stripAnsi = sse_decode_bool(deserializer);
+    return SearchOptions(
+      hex: var_hex,
+      caseSensitive: var_caseSensitive,
+      showSent: var_showSent,
+      stripAnsi: var_stripAnsi,
+    );
+  }
+
+  @protected
+  SearchProgress sse_decode_search_progress(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_totalMatches = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_complete = sse_decode_bool(deserializer);
+    var var_cancelled = sse_decode_bool(deserializer);
+    var var_error = sse_decode_opt_box_autoadd_core_error(deserializer);
+    return SearchProgress(
+      totalMatches: var_totalMatches,
+      complete: var_complete,
+      cancelled: var_cancelled,
+      error: var_error,
+    );
+  }
+
+  @protected
+  SearchRange sse_decode_search_range(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_start = sse_decode_u_32(deserializer);
+    var var_end = sse_decode_u_32(deserializer);
+    return SearchRange(start: var_start, end: var_end);
+  }
+
+  @protected
+  SearchRecordReply sse_decode_search_record_reply(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_record = sse_decode_opt_box_autoadd_search_record_view(
+      deserializer,
+    );
+    var var_error = sse_decode_opt_box_autoadd_core_error(deserializer);
+    return SearchRecordReply(record: var_record, error: var_error);
+  }
+
+  @protected
+  SearchRecordView sse_decode_search_record_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_recordId = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_timestampMs = sse_decode_CastedPrimitive_i_64(deserializer);
+    var var_sourceLength = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_text = sse_decode_String(deserializer);
+    var var_ranges = sse_decode_list_search_range(deserializer);
+    var var_focusRange = sse_decode_opt_box_autoadd_search_range(deserializer);
+    var var_leadingClipped = sse_decode_bool(deserializer);
+    var var_trailingClipped = sse_decode_bool(deserializer);
+    return SearchRecordView(
+      recordId: var_recordId,
+      timestampMs: var_timestampMs,
+      sourceLength: var_sourceLength,
+      text: var_text,
+      ranges: var_ranges,
+      focusRange: var_focusRange,
+      leadingClipped: var_leadingClipped,
+      trailingClipped: var_trailingClipped,
+    );
+  }
+
+  @protected
+  SearchSnapshotInfo sse_decode_search_snapshot_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_sequence = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_firstRecordId = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_lastRecordId = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_pending = sse_decode_opt_box_autoadd_search_hit(deserializer);
+    return SearchSnapshotInfo(
+      sequence: var_sequence,
+      firstRecordId: var_firstRecordId,
+      lastRecordId: var_lastRecordId,
+      pending: var_pending,
+    );
+  }
+
+  @protected
   SendSettings sse_decode_send_settings(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_hex = sse_decode_bool(deserializer);
@@ -2573,6 +3301,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_snapshot = sse_decode_opt_box_autoadd_app_snapshot(deserializer);
     var var_error = sse_decode_opt_box_autoadd_core_error(deserializer);
     return SnapshotReply(snapshot: var_snapshot, error: var_error);
+  }
+
+  @protected
+  StartSearchReply sse_decode_start_search_reply(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_search =
+        sse_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+          deserializer,
+        );
+    var var_snapshot = sse_decode_opt_box_autoadd_search_snapshot_info(
+      deserializer,
+    );
+    var var_error = sse_decode_opt_box_autoadd_core_error(deserializer);
+    return StartSearchReply(
+      search: var_search,
+      snapshot: var_snapshot,
+      error: var_error,
+    );
   }
 
   @protected
@@ -2635,6 +3381,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    SearchHandle self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as SearchHandleImpl).frbInternalSseEncode(move: true),
+      serializer,
+    );
+  }
+
+  @protected
+  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSubscriptionHandle(
     SubscriptionHandle self,
     SseSerializer serializer,
@@ -2655,6 +3414,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
       (self as CoreHandleImpl).frbInternalSseEncode(move: false),
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    SearchHandle self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as SearchHandleImpl).frbInternalSseEncode(move: false),
       serializer,
     );
   }
@@ -2693,6 +3465,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
       (self as CoreHandleImpl).frbInternalSseEncode(move: null),
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    SearchHandle self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as SearchHandleImpl).frbInternalSseEncode(move: null),
       serializer,
     );
   }
@@ -2777,6 +3562,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreHandle(
+      self,
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    SearchHandle self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
       self,
       serializer,
     );
@@ -2901,6 +3699,51 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_box_autoadd_parity(Parity self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_parity(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_search_hit(
+    SearchHit self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_search_hit(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_search_options(
+    SearchOptions self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_search_options(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_search_range(
+    SearchRange self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_search_range(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_search_record_view(
+    SearchRecordView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_search_record_view(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_search_snapshot_info(
+    SearchSnapshotInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_search_snapshot_info(self, serializer);
   }
 
   @protected
@@ -3138,6 +3981,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_search_range(
+    List<SearchRange> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_search_range(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_log_delta(LogDelta self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_log_record(self.upsert, serializer);
@@ -3222,6 +4077,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreHandle(
+        self,
+        serializer,
+      );
+    }
+  }
+
+  @protected
+  void
+  sse_encode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+    SearchHandle? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
         self,
         serializer,
       );
@@ -3373,6 +4245,58 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_search_hit(
+    SearchHit? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_search_hit(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_search_range(
+    SearchRange? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_search_range(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_search_record_view(
+    SearchRecordView? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_search_record_view(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_search_snapshot_info(
+    SearchSnapshotInfo? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_search_snapshot_info(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_serial_config(
     SerialConfig? self,
     SseSerializer serializer,
@@ -3438,6 +4362,91 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_search_hit(SearchHit self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_CastedPrimitive_u_64(self.recordId, serializer);
+    sse_encode_CastedPrimitive_i_64(self.timestampMs, serializer);
+    sse_encode_CastedPrimitive_u_64(self.sourceLength, serializer);
+    sse_encode_CastedPrimitive_u_64(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_search_match_reply(
+    SearchMatchReply self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_search_hit(self.hit, serializer);
+    sse_encode_opt_box_autoadd_core_error(self.error, serializer);
+  }
+
+  @protected
+  void sse_encode_search_options(SearchOptions self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.hex, serializer);
+    sse_encode_bool(self.caseSensitive, serializer);
+    sse_encode_bool(self.showSent, serializer);
+    sse_encode_bool(self.stripAnsi, serializer);
+  }
+
+  @protected
+  void sse_encode_search_progress(
+    SearchProgress self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_CastedPrimitive_u_64(self.totalMatches, serializer);
+    sse_encode_bool(self.complete, serializer);
+    sse_encode_bool(self.cancelled, serializer);
+    sse_encode_opt_box_autoadd_core_error(self.error, serializer);
+  }
+
+  @protected
+  void sse_encode_search_range(SearchRange self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.start, serializer);
+    sse_encode_u_32(self.end, serializer);
+  }
+
+  @protected
+  void sse_encode_search_record_reply(
+    SearchRecordReply self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_search_record_view(self.record, serializer);
+    sse_encode_opt_box_autoadd_core_error(self.error, serializer);
+  }
+
+  @protected
+  void sse_encode_search_record_view(
+    SearchRecordView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_CastedPrimitive_u_64(self.recordId, serializer);
+    sse_encode_CastedPrimitive_i_64(self.timestampMs, serializer);
+    sse_encode_CastedPrimitive_u_64(self.sourceLength, serializer);
+    sse_encode_String(self.text, serializer);
+    sse_encode_list_search_range(self.ranges, serializer);
+    sse_encode_opt_box_autoadd_search_range(self.focusRange, serializer);
+    sse_encode_bool(self.leadingClipped, serializer);
+    sse_encode_bool(self.trailingClipped, serializer);
+  }
+
+  @protected
+  void sse_encode_search_snapshot_info(
+    SearchSnapshotInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_CastedPrimitive_u_64(self.sequence, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.firstRecordId, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.lastRecordId, serializer);
+    sse_encode_opt_box_autoadd_search_hit(self.pending, serializer);
+  }
+
+  @protected
   void sse_encode_send_settings(SendSettings self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_bool(self.hex, serializer);
@@ -3463,6 +4472,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_snapshot_reply(SnapshotReply self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_opt_box_autoadd_app_snapshot(self.snapshot, serializer);
+    sse_encode_opt_box_autoadd_core_error(self.error, serializer);
+  }
+
+  @protected
+  void sse_encode_start_search_reply(
+    StartSearchReply self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSearchHandle(
+      self.search,
+      serializer,
+    );
+    sse_encode_opt_box_autoadd_search_snapshot_info(self.snapshot, serializer);
     sse_encode_opt_box_autoadd_core_error(self.error, serializer);
   }
 
@@ -3527,6 +4550,26 @@ class CoreHandleImpl extends RustOpaque implements CoreHandle {
         RustLib.instance.api.rust_arc_decrement_strong_count_CoreHandle,
     rustArcDecrementStrongCountPtr:
         RustLib.instance.api.rust_arc_decrement_strong_count_CoreHandlePtr,
+  );
+}
+
+@sealed
+class SearchHandleImpl extends RustOpaque implements SearchHandle {
+  // Not to be used by end users
+  SearchHandleImpl.frbInternalDcoDecode(List<dynamic> wire)
+    : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  SearchHandleImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+    : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        RustLib.instance.api.rust_arc_increment_strong_count_SearchHandle,
+    rustArcDecrementStrongCount:
+        RustLib.instance.api.rust_arc_decrement_strong_count_SearchHandle,
+    rustArcDecrementStrongCountPtr:
+        RustLib.instance.api.rust_arc_decrement_strong_count_SearchHandlePtr,
   );
 }
 

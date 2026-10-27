@@ -338,6 +338,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorInvalidArgument => 'Invalid argument';
 
   @override
+  String get errorSearchQueryTooLarge =>
+      'Search query exceeds the 64 KiB UTF-8 limit.';
+
+  @override
   String get errorPortNotFound => 'Port not found';
 
   @override
@@ -493,4 +497,68 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorUnexpected =>
       'An unexpected error occurred. See diagnostic details.';
+
+  @override
+  String get searchOpen => 'Search retained log (Ctrl+F)';
+
+  @override
+  String get searchLabel => 'Search';
+
+  @override
+  String get searchSubmit => 'Search (Enter)';
+
+  @override
+  String get searchPrevious => 'Previous match (Shift+F3)';
+
+  @override
+  String get searchNext => 'Next match (F3)';
+
+  @override
+  String get searchClose => 'Close search (Esc)';
+
+  @override
+  String get searchCaseSensitive => 'Match case';
+
+  @override
+  String get searchTextHint => 'Search…';
+
+  @override
+  String get searchHexHint => 'Hex…';
+
+  @override
+  String get searchStarting => 'Starting search…';
+
+  @override
+  String searchProgress(int count) {
+    return 'Searching… $count matches found';
+  }
+
+  @override
+  String searchCount(int current, int total) {
+    return '$current/$total';
+  }
+
+  @override
+  String get searchNoMatches => 'No matches';
+
+  @override
+  String get searchDirty =>
+      'Draft or display options changed — press Enter to refresh';
+
+  @override
+  String get searchStale => 'Retained records changed — press Enter to refresh';
+
+  @override
+  String get searchWrapped => 'Wrapped around';
+
+  @override
+  String searchFailed(String message) {
+    return 'Search failed: $message';
+  }
+
+  @override
+  String get searchContextBefore => '… earlier context clipped';
+
+  @override
+  String get searchContextAfter => 'later context clipped …';
 }

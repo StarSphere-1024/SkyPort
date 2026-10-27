@@ -12,8 +12,10 @@ import 'package:skyport/l10n/app_localizations.dart';
 import 'package:skyport/models/log_model.dart';
 import 'package:skyport/models/ui_state.dart';
 import 'package:skyport/providers/common_providers.dart';
+import 'package:skyport/providers/search_controller.dart';
 import 'package:skyport/providers/ui_controller.dart';
 import 'package:skyport/providers/theme_provider.dart';
+import 'package:skyport/providers/ui_settings_provider.dart';
 import 'package:skyport/src/rust/api.dart' as rust;
 import 'package:skyport/src/rust/frb_generated.dart';
 import 'package:skyport/utils/error_messages.dart';
@@ -288,6 +290,7 @@ void main() {
       state = container.read(uiControllerProvider);
       expect(state.rxBytes, 5);
       expect(state.sendHistory.last, '00 ff A5 0a');
+      await _exerciseSnapshotSearch(tester, container);
       await tester.tap(
         find.descendant(
           of: find.byType(ConnectionRail),
@@ -745,6 +748,70 @@ void main() {
       await tester.runAsync(() => directory.delete(recursive: true));
     }
   }, skip: !hasPtyHarness);
+}
+
+Future<void> _exerciseSnapshotSearch(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  final settings = container.read(uiSettingsProvider.notifier);
+  final wasHex = container.read(uiSettingsProvider).hexDisplay;
+  final showedSent = container.read(uiSettingsProvider).showSent;
+  settings.setHexDisplay(true);
+  settings.setShowSent(true);
+  await tester.pump();
+  await tester.tap(find.byKey(const ValueKey('search-open')));
+  await tester.pumpAndSettle();
+  final input = find.byKey(const ValueKey('search-input'));
+  await tester.enterText(input, '00');
+  await tester.pump();
+  expect(container.read(searchControllerProvider).activeQuery, isNull);
+  await tester.tap(find.byKey(const ValueKey('search-submit')));
+  await _until(tester, () {
+    final search = container.read(searchControllerProvider);
+    return search.complete && search.selectedIndex != null;
+  });
+  expect(container.read(searchControllerProvider).total, 2);
+  expect(container.read(searchControllerProvider).selectedIndex, 0);
+  final first = container.read(searchControllerProvider).selectedHit!.recordId;
+  await tester.tap(find.byKey(const ValueKey('search-next')));
+  await _until(
+    tester,
+    () => container.read(searchControllerProvider).selectedIndex == 1,
+  );
+  expect(
+    container.read(searchControllerProvider).selectedHit!.recordId,
+    isNot(first),
+  );
+  await tester.tap(find.byKey(const ValueKey('search-next')));
+  await _until(
+    tester,
+    () => container.read(searchControllerProvider).selectedIndex == 0,
+  );
+  expect(container.read(searchControllerProvider).wrapped, isTrue);
+  await tester.tap(find.byKey(const ValueKey('search-previous')));
+  await _until(
+    tester,
+    () => container.read(searchControllerProvider).selectedIndex == 1,
+  );
+  await tester.enterText(input, 'GG');
+  await tester.pump();
+  expect(container.read(searchControllerProvider).activeQuery, '00');
+  await tester.tap(find.byKey(const ValueKey('search-submit')));
+  await _until(
+    tester,
+    () => container.read(searchControllerProvider).error != null,
+  );
+  expect(container.read(searchControllerProvider).activeQuery, '00');
+  expect(container.read(searchControllerProvider).total, 2);
+  await tester.enterText(input, '');
+  await tester.tap(find.byKey(const ValueKey('search-submit')));
+  await tester.pump();
+  expect(container.read(searchControllerProvider).activeQuery, isNull);
+  await tester.tap(find.byKey(const ValueKey('search-close')));
+  settings.setHexDisplay(wasHex);
+  settings.setShowSent(showedSent);
+  await tester.pumpAndSettle();
 }
 
 Future<void> _until(WidgetTester tester, bool Function() ready) async {

@@ -332,6 +332,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get errorInvalidArgument => '参数无效';
 
   @override
+  String get errorSearchQueryTooLarge => '搜索内容超过 64 KiB UTF-8 字节限制。';
+
+  @override
   String get errorPortNotFound => '未找到串口';
 
   @override
@@ -468,4 +471,67 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get errorUnexpected => '发生意外错误，请查看诊断详情。';
+
+  @override
+  String get searchOpen => '搜索保留日志（Ctrl+F）';
+
+  @override
+  String get searchLabel => '搜索';
+
+  @override
+  String get searchSubmit => '搜索（Enter）';
+
+  @override
+  String get searchPrevious => '上一个匹配（Shift+F3）';
+
+  @override
+  String get searchNext => '下一个匹配（F3）';
+
+  @override
+  String get searchClose => '关闭搜索（Esc）';
+
+  @override
+  String get searchCaseSensitive => '区分大小写';
+
+  @override
+  String get searchTextHint => '搜索…';
+
+  @override
+  String get searchHexHint => 'Hex…';
+
+  @override
+  String get searchStarting => '正在开始搜索…';
+
+  @override
+  String searchProgress(int count) {
+    return '正在搜索… 已找到 $count 个匹配';
+  }
+
+  @override
+  String searchCount(int current, int total) {
+    return '$current/$total';
+  }
+
+  @override
+  String get searchNoMatches => '没有匹配';
+
+  @override
+  String get searchDirty => '输入或显示选项已更改 — 按 Enter 刷新';
+
+  @override
+  String get searchStale => '保留日志已更改 — 按 Enter 刷新';
+
+  @override
+  String get searchWrapped => '已循环到另一端';
+
+  @override
+  String searchFailed(String message) {
+    return '搜索失败：$message';
+  }
+
+  @override
+  String get searchContextBefore => '… 已省略前文';
+
+  @override
+  String get searchContextAfter => '已省略后文 …';
 }

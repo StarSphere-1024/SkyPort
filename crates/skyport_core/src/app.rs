@@ -1,7 +1,8 @@
 use crate::{
+    search::{PreparedSearch, SearchWorker},
     serial, timestamp_ms, AppConfig, AppOptions, AppSnapshot, AppState, Command, ConnectionState,
     CoreError, ErrorCode, ErrorKind, Event, EventKind, LogDelta, LogStore, Newline, RequestId,
-    SerialConfig,
+    SearchOptions, SearchSession, SerialConfig,
 };
 use std::{
     collections::HashMap,
@@ -54,6 +55,7 @@ struct Inner {
     closed: Condvar,
     worker: Mutex<Option<JoinHandle<()>>>,
     stop: Arc<AtomicBool>,
+    search: SearchWorker,
 }
 pub struct AppCore {
     inner: Arc<Inner>,
@@ -99,6 +101,7 @@ impl AppCore {
             worker_error: Mutex::new(None),
         });
         let (tx, rx) = mpsc::sync_channel(options.command_capacity);
+        let search = SearchWorker::new()?;
         let shared_for_worker = shared.clone();
         let stop = Arc::new(AtomicBool::new(false));
         let worker_stop = stop.clone();
@@ -151,6 +154,7 @@ impl AppCore {
                 closed: Condvar::new(),
                 worker: Mutex::new(Some(worker)),
                 stop,
+                search,
             }),
         })
     }
@@ -192,6 +196,28 @@ impl AppCore {
         Ok(snapshot)
     }
 
+    pub fn start_search(
+        &self,
+        query: String,
+        options: SearchOptions,
+    ) -> Result<SearchSession, CoreError> {
+        // Invalid queries must leave the previous session intact.
+        let prepared = PreparedSearch::new(query, options)?;
+        let life = self.inner.lifecycle.lock().map_err(lock_error)?;
+        if life.closing || life.closed {
+            return Err(CoreError::new(ErrorKind::Closed, "AppCore is closed"));
+        }
+        check_worker(&self.inner.shared)?;
+        let (records, sequence) = {
+            let state = self.inner.shared.state.lock().map_err(lock_error)?;
+            (
+                state.log.search_snapshot(options.show_sent),
+                state.snapshot.sequence,
+            )
+        };
+        // Only metadata and Arc handles were captured under the state lock.
+        Ok(self.inner.search.submit(records, prepared, sequence))
+    }
     pub fn subscribe(&self) -> Result<(AppSnapshot, EventSubscription), CoreError> {
         let life = self.inner.lifecycle.lock().map_err(lock_error)?;
         if life.closing || life.closed {
@@ -242,6 +268,7 @@ impl AppCore {
         self.inner.stop.store(true, Ordering::Release);
         publish_state(&self.inner.shared, ConnectionState::Closing, None);
         drop(life);
+        let search_error = self.inner.search.close().err();
         let handle = self.inner.worker.lock().map_err(lock_error)?.take();
         let join_error = handle
             .and_then(|handle| handle.join().err())
@@ -253,7 +280,8 @@ impl AppCore {
                     .lock()
                     .ok()
                     .and_then(|error| error.clone())
-            });
+            })
+            .or(search_error);
         if let Some(error) = join_error.as_ref() {
             publish_simple(&self.inner.shared, EventKind::TaskFailed(error.clone()));
         }
@@ -1558,5 +1586,115 @@ fn auto_wait(shared: &Shared, next: Instant, maximum: Duration) -> Duration {
         maximum.min(next.saturating_duration_since(Instant::now()))
     } else {
         maximum
+    }
+}
+
+#[cfg(test)]
+mod search_tests {
+    use super::*;
+
+    #[test]
+    fn search_snapshot_sequence_and_boundaries_capture_before_queued_events_are_consumed() {
+        let dir = tempfile::tempdir().unwrap();
+        let core = AppCore::create(AppOptions {
+            data_directory: dir.path().into(),
+            ..AppOptions::default()
+        })
+        .unwrap();
+        let (projected, subscription) = core.subscribe().unwrap();
+        {
+            let mut state = core.inner.shared.state.lock().unwrap();
+            state.log.sent(b"excluded", 10);
+            let delta = state.log.receive(b"retained\npending", 11);
+            publish_simple_locked(&mut state, EventKind::LogChanged(delta));
+        }
+        let options = SearchOptions {
+            hex: false,
+            case_sensitive: true,
+            show_sent: false,
+            strip_ansi: false,
+        };
+        let first = core.start_search("pending".into(), options).unwrap();
+        let captured = first.snapshot_info();
+        assert_eq!(captured.sequence, projected.sequence + 1);
+        assert_eq!(captured.first_record_id, Some(2));
+        assert_eq!(captured.last_record_id, Some(2));
+        assert_eq!(
+            captured.pending,
+            Some(crate::SearchHit {
+                record_id: u64::MAX,
+                timestamp_ms: 11,
+                source_length: 7,
+                index: 0,
+            })
+        );
+        {
+            let mut state = core.inner.shared.state.lock().unwrap();
+            let delta = state.log.receive(b" extended\nlater", 12);
+            publish_simple_locked(&mut state, EventKind::LogChanged(delta));
+        }
+        assert_eq!(first.snapshot_info(), captured);
+        assert_eq!(
+            first
+                .search_record(u64::MAX, None)
+                .unwrap()
+                .unwrap()
+                .source_length,
+            7
+        );
+        let second = core.start_search("later".into(), options).unwrap();
+        assert_eq!(second.snapshot_info().sequence, captured.sequence + 1);
+        assert_eq!(second.snapshot_info().last_record_id, Some(3));
+        assert_eq!(
+            second.snapshot_info().pending,
+            Some(crate::SearchHit {
+                record_id: u64::MAX,
+                timestamp_ms: 12,
+                source_length: 5,
+                index: 0,
+            })
+        );
+        assert!(first.poll().cancelled);
+        assert_eq!(first.snapshot_info(), captured);
+        let event = subscription
+            .recv_timeout(Duration::from_secs(1))
+            .unwrap()
+            .unwrap();
+        assert_eq!(event.sequence, captured.sequence);
+        core.close().unwrap();
+    }
+
+    #[test]
+    fn search_releases_application_lock_and_close_awaits_payload_release() {
+        let dir = tempfile::tempdir().unwrap();
+        let core = AppCore::create(AppOptions {
+            data_directory: dir.path().into(),
+            ..AppOptions::default()
+        })
+        .unwrap();
+        let payload = {
+            let mut state = core.inner.shared.state.lock().unwrap();
+            state.log = LogStore::new(32 * 1024 * 1024);
+            state.log.sent(&vec![b'x'; 16 * 1024 * 1024], 1);
+            Arc::downgrade(&state.log.search_snapshot(true)[0].data)
+        };
+        let session = core
+            .start_search(
+                "x".repeat(8192),
+                SearchOptions {
+                    hex: false,
+                    case_sensitive: true,
+                    show_sent: true,
+                    strip_ansi: false,
+                },
+            )
+            .unwrap();
+        // The scan may still be in the long row, but it never owns this mutex.
+        core.inner.shared.state.lock().unwrap().log.clear();
+        assert!(core.dispatch(Command::ListPorts).is_ok());
+        core.close().unwrap();
+        assert!(session.poll().cancelled);
+        assert!(payload.upgrade().is_none());
+        assert!(session.search_match(0).unwrap().is_none());
     }
 }

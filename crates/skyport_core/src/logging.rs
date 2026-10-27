@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
+use std::sync::Arc;
 use std::{collections::VecDeque, fmt::Write};
 
 const MAX_PENDING_BYTES: usize = 256 * 1024;
@@ -49,8 +50,31 @@ pub struct ExportOptions {
     pub strip_ansi: bool,
 }
 
+// Public log/event values retain their owned Vec contract. Retained history and
+// search snapshots share payloads; only the bounded pending row is copy-on-write.
+#[derive(Clone)]
+pub(crate) struct StoredRecord {
+    pub(crate) id: u64,
+    pub(crate) timestamp_ms: i64,
+    pub(crate) direction: Direction,
+    pub(crate) data: Arc<Vec<u8>>,
+    pending: bool,
+}
+
+impl StoredRecord {
+    fn owned(&self) -> LogRecord {
+        LogRecord {
+            id: self.id,
+            timestamp_ms: self.timestamp_ms,
+            direction: self.direction,
+            data: self.data.as_ref().clone(),
+            pending: self.pending,
+        }
+    }
+}
+
 pub struct LogStore {
-    records: VecDeque<LogRecord>,
+    records: VecDeque<StoredRecord>,
     capacity: u64,
     total_bytes: u64,
     trimmed_bytes: u64,
@@ -78,12 +102,20 @@ impl LogStore {
 
     pub fn snapshot(&self) -> LogSnapshot {
         LogSnapshot {
-            records: self.records.iter().cloned().collect(),
+            records: self.records.iter().map(StoredRecord::owned).collect(),
             total_bytes: self.total_bytes,
             trimmed_bytes: self.trimmed_bytes,
             trimmed_records: self.trimmed_records,
             incomplete: self.incomplete,
         }
+    }
+
+    pub(crate) fn search_snapshot(&self, show_sent: bool) -> Vec<StoredRecord> {
+        self.records
+            .iter()
+            .filter(|record| show_sent || record.direction != Direction::Sent)
+            .cloned()
+            .collect()
     }
 
     pub fn receive(&mut self, data: &[u8], timestamp_ms: i64) -> LogDelta {
@@ -121,11 +153,11 @@ impl LogStore {
     }
 
     pub fn sent(&mut self, data: &[u8], timestamp_ms: i64) -> LogDelta {
-        let record = LogRecord {
+        let record = StoredRecord {
             id: self.allocate_id(),
             timestamp_ms,
             direction: Direction::Sent,
-            data: data.to_vec(),
+            data: Arc::new(data.to_vec()),
             pending: false,
         };
         self.total_bytes = self.total_bytes.saturating_add(record.data.len() as u64);
@@ -137,7 +169,7 @@ impl LogStore {
             self.records.push_back(record.clone());
         }
         let removed = self.trim();
-        self.delta(vec![record], removed)
+        self.delta(vec![record.owned()], removed)
     }
 
     pub fn clear(&mut self) -> LogDelta {
@@ -227,13 +259,13 @@ impl LogStore {
         let id = *self.pending_id.get_or_insert(u64::MAX);
         let timestamp = *self.pending_timestamp_ms.get_or_insert(timestamp_ms);
         if let Some(record) = self.records.back_mut().filter(|r| r.id == id) {
-            record.data.extend_from_slice(bytes);
+            Arc::make_mut(&mut record.data).extend_from_slice(bytes);
         } else {
-            self.records.push_back(LogRecord {
+            self.records.push_back(StoredRecord {
                 id,
                 timestamp_ms: timestamp,
                 direction: Direction::Received,
-                data: bytes.to_vec(),
+                data: Arc::new(bytes.to_vec()),
                 pending: true,
             });
         }
@@ -253,13 +285,16 @@ impl LogStore {
     }
     fn pop_pending_byte(&mut self) {
         if let Some(record) = self.records.back_mut().filter(|r| r.pending) {
-            if record.data.pop().is_some() {
+            if Arc::make_mut(&mut record.data).pop().is_some() {
                 self.total_bytes = self.total_bytes.saturating_sub(1);
             }
         }
     }
     fn pending_record(&self) -> Option<LogRecord> {
-        self.records.back().filter(|r| r.pending).cloned()
+        self.records
+            .back()
+            .filter(|r| r.pending)
+            .map(StoredRecord::owned)
     }
     fn finish_pending(&mut self, timestamp_ms: i64) -> LogRecord {
         if let Some(id) = self.pending_id.take() {
@@ -269,17 +304,17 @@ impl LogStore {
             record.pending = false;
             self.pending_timestamp_ms = None;
             self.records.push_back(record.clone());
-            record
+            record.owned()
         } else {
-            let record = LogRecord {
+            let record = StoredRecord {
                 id: self.allocate_id(),
                 timestamp_ms,
                 direction: Direction::Received,
-                data: Vec::new(),
+                data: Arc::new(Vec::new()),
                 pending: false,
             };
             self.records.push_back(record.clone());
-            record
+            record.owned()
         }
     }
     fn allocate_id(&mut self) -> u64 {

@@ -108,6 +108,101 @@ class LogEntry {
     return (text: buffer.toString(), truncated: false);
   }
 
+  /// Search offsets are UTF-16, exactly like Dart String substring offsets.
+  /// The bounded canonical view may be centered well beyond the normal preview.
+  List<InlineSpan> getSearchSpans({
+    required String text,
+    required List<({int start, int end})> ranges,
+    required ({int start, int end})? focus,
+    required bool showTimestamp,
+    required bool showSent,
+    required TextStyle baseStyle,
+    required TextStyle timestampStyle,
+    required Color primaryColor,
+    required Color onSurfaceColor,
+    required Color matchColor,
+    required Color selectedColor,
+  }) {
+    final sent = type == LogEntryType.sent;
+    final style = baseStyle.copyWith(
+      color: sent ? primaryColor : onSurfaceColor,
+    );
+    final spans = <InlineSpan>[
+      if (showTimestamp)
+        TextSpan(
+          text: '${DateFormat('HH:mm:ss.SSS').format(timestamp)} ',
+          style: timestampStyle,
+        ),
+      if (showSent)
+        TextSpan(
+          text: sent ? 'TX > ' : 'RX < ',
+          style: style.copyWith(fontWeight: FontWeight.bold),
+        ),
+    ];
+    void append(int start, int end, TextStyle spanStyle) {
+      var cursor = start;
+      while (cursor < end) {
+        final newline = text.indexOf('\n', cursor);
+        if (newline < 0 || newline >= end) {
+          spans.add(
+            TextSpan(text: text.substring(cursor, end), style: spanStyle),
+          );
+          break;
+        }
+        if (newline > cursor) {
+          spans.add(
+            TextSpan(text: text.substring(cursor, newline), style: spanStyle),
+          );
+        }
+        // Use source offsets, not highlight boundaries, to classify blank lines.
+        final compact =
+            newline == text.length - 1 ||
+            newline == 0 ||
+            text.codeUnitAt(newline - 1) == 10;
+        spans.add(
+          compact
+              ? _compactNewline(spanStyle)
+              : TextSpan(text: '\n', style: spanStyle),
+        );
+        cursor = newline + 1;
+      }
+    }
+
+    var cursor = 0;
+    for (final range in ranges) {
+      final start = range.start.clamp(cursor, text.length);
+      final end = range.end.clamp(start, text.length);
+      if (start > cursor) {
+        append(cursor, start, style);
+      }
+      if (end > start) {
+        final selected =
+            focus != null && start < focus.end && end > focus.start;
+        append(
+          start,
+          end,
+          style.copyWith(
+            backgroundColor: selected ? selectedColor : matchColor,
+            fontWeight: selected ? FontWeight.bold : null,
+          ),
+        );
+      }
+      cursor = end;
+    }
+    if (cursor < text.length) {
+      append(cursor, text.length, style);
+    }
+    return spans;
+  }
+
+  static WidgetSpan _compactNewline(TextStyle style) => WidgetSpan(
+    child: SizedBox(
+      width: 0,
+      height: 0,
+      child: Text('\n', style: style.copyWith(fontSize: 1)),
+    ),
+  );
+
   List<InlineSpan> getSpans({
     required bool hexDisplay,
     required bool showTimestamp,
@@ -239,15 +334,7 @@ class LogEntry {
           // Use a zero-sized WidgetSpan for trailing newlines OR internal empty lines.
           // This creates a "compact" view where empty lines don't take up visual space
           // but are still present when copied to clipboard.
-          spans.add(
-            WidgetSpan(
-              child: SizedBox(
-                width: 0,
-                height: 0,
-                child: Text('\n', style: contentStyle.copyWith(fontSize: 1)),
-              ),
-            ),
-          );
+          spans.add(_compactNewline(contentStyle));
         } else {
           // Normal internal newline after text, render as visible text to break the line
           spans.add(TextSpan(text: '\n', style: contentStyle));

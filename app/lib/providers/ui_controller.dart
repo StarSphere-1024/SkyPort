@@ -197,6 +197,11 @@ class UiController extends Notifier<UiState> {
     return true;
   }
 
+  Future<rust.StartSearchReply> startSearch(
+    String query,
+    rust.SearchOptions options,
+  ) async => rust.startSearch(handle: _handle, query: query, options: options);
+
   Future<void> _setConfig({
     String? portName,
     int? baudRate,

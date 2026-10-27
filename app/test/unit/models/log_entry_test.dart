@@ -198,6 +198,44 @@ void main() {
       });
     });
 
+    test(
+      'search spans preserve UTF-16 text, labels, and exact bounded highlights',
+      () {
+        final data = Uint8List(30000);
+        final entry = LogEntry(
+          data,
+          LogEntryType.sent,
+          DateTime(2026, 1, 1, 12, 34, 56),
+        );
+        const text = '😀 needle needle';
+        final spans = entry
+            .getSearchSpans(
+              text: text,
+              ranges: [(start: 3, end: 9), (start: 10, end: 16)],
+              focus: (start: 10, end: 16),
+              showTimestamp: true,
+              showSent: true,
+              baseStyle: const TextStyle(),
+              timestampStyle: const TextStyle(),
+              primaryColor: Colors.blue,
+              onSurfaceColor: Colors.black,
+              matchColor: Colors.yellow,
+              selectedColor: Colors.orange,
+            )
+            .cast<TextSpan>();
+        expect(
+          spans.map((span) => span.text).join(),
+          '12:34:56.000 TX > $text',
+        );
+        final matches = spans.where((span) => span.text == 'needle').toList();
+        expect(matches, hasLength(2));
+        expect(matches.first.style!.backgroundColor, Colors.yellow);
+        expect(matches.last.style!.backgroundColor, Colors.orange);
+        expect(data, everyElement(0));
+        expect(entry.debugHasCachedDisplayText, isFalse);
+      },
+    );
+
     group('Caching Behavior', () {
       test('spans are cached with LRU policy', () {
         final data = Uint8List.fromList('Hello'.codeUnits);

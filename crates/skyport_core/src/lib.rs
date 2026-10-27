@@ -1,6 +1,7 @@
 mod app;
 pub mod config;
 pub mod logging;
+mod search;
 mod serial;
 
 pub use app::{AppCore, EventSubscription};
@@ -8,6 +9,10 @@ pub use config::{
     AppConfig, FlowControl, LegacyConfig, Newline, Parity, SendSettings, SerialConfig,
 };
 pub use logging::{Direction, ExportOptions, LogDelta, LogRecord, LogSnapshot, LogStore};
+pub use search::{
+    SearchHit, SearchOptions, SearchProgress, SearchRange, SearchRecordView, SearchSession,
+    SearchSnapshotInfo,
+};
 use serde::{Deserialize, Serialize};
 use std::{error::Error, fmt, path::PathBuf, time::Duration};
 
@@ -58,6 +63,7 @@ pub enum ErrorCode {
     NoLogsToExport,
     ExportFailed,
     QueueCapacityInvalid,
+    SearchQueryTooLarge,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
