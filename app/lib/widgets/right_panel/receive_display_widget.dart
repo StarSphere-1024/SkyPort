@@ -466,61 +466,108 @@ class _ReceiveToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final showLabels = constraints.maxWidth >= 480;
-        Widget action(
-          String label,
-          Widget icon,
-          VoidCallback onPressed, {
-          String? tooltip,
-          Key? key,
-          bool alwaysEnabled = false,
-        }) {
-          return Tooltip(
-            message: tooltip ?? label,
-            child: TextButton(
-              key: key,
-              style: TextButton.styleFrom(
-                foregroundColor: theme.colorScheme.onSurfaceVariant,
-                minimumSize: const Size(36, 36),
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+    final titleStyle = theme.textTheme.titleSmall?.copyWith(
+      fontWeight: FontWeight.w500,
+    );
+    final actionStyle = theme.textTheme.labelLarge!;
+    final textPainter = TextPainter(
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      locale: Localizations.localeOf(context),
+    );
+    double textWidth(String text, TextStyle? style) {
+      textPainter.text = TextSpan(text: text, style: style);
+      textPainter.layout();
+      return textPainter.width;
+    }
+
+    const iconSize = 18.0;
+    const buttonSize = 48.0;
+    const actionSpacing = 4.0;
+    const titleSpacing = 8.0;
+    final headerWidth =
+        iconSize + titleSpacing + textWidth(l10n.receiveData, titleStyle);
+    final labeledActionsWidth =
+        [l10n.searchLabel, l10n.exportLogs, l10n.clearLogs].fold<double>(
+          actionSpacing * 2,
+          (width, label) =>
+              width +
+              (textWidth(label, actionStyle) + iconSize + 6 + 16).clamp(
+                buttonSize,
+                double.infinity,
+              ),
+        );
+    textPainter.dispose();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final showLabels =
+              constraints.maxWidth >=
+              headerWidth + titleSpacing + labeledActionsWidth;
+          const compactActionsWidth = buttonSize * 3 + actionSpacing * 2;
+          final showTitle =
+              constraints.maxWidth >=
+              headerWidth + titleSpacing + compactActionsWidth;
+          Widget action(
+            String label,
+            Widget icon,
+            VoidCallback onPressed, {
+            String? tooltip,
+            Key? key,
+            bool alwaysEnabled = false,
+          }) {
+            return Tooltip(
+              message: tooltip ?? label,
+              child: TextButton(
+                key: key,
+                style: TextButton.styleFrom(
+                  foregroundColor: theme.colorScheme.onSurfaceVariant,
+                  textStyle: actionStyle,
+                  minimumSize: const Size(buttonSize, buttonSize),
+                  visualDensity: VisualDensity.standard,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: enabled || alwaysEnabled ? onPressed : null,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    icon,
+                    if (showLabels) ...[const SizedBox(width: 6), Text(label)],
+                  ],
                 ),
               ),
-              onPressed: enabled || alwaysEnabled ? onPressed : null,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  icon,
-                  if (showLabels) ...[const SizedBox(width: 6), Text(label)],
-                ],
-              ),
-            ),
-          );
-        }
+            );
+          }
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Row(
+          final header = Row(
             children: [
               Icon(
                 Icons.receipt_long_outlined,
                 size: 18,
                 color: theme.colorScheme.primary,
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  l10n.receiveData,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w500,
+              if (showTitle) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l10n.receiveData,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: titleStyle,
                   ),
                 ),
-              ),
+              ],
+            ],
+          );
+          final actions = Wrap(
+            spacing: actionSpacing,
+            children: [
               action(
                 l10n.searchLabel,
                 const Icon(Icons.search, size: 18),
@@ -529,13 +576,11 @@ class _ReceiveToolbar extends StatelessWidget {
                 tooltip: l10n.searchOpen,
                 alwaysEnabled: true,
               ),
-              const SizedBox(width: 4),
               action(
                 l10n.exportLogs,
                 const Icon(Icons.file_download_outlined, size: 18),
                 onExport,
               ),
-              const SizedBox(width: 4),
               action(
                 l10n.clearLogs,
                 Builder(
@@ -548,9 +593,20 @@ class _ReceiveToolbar extends StatelessWidget {
                 tooltip: l10n.clearReceiveArea,
               ),
             ],
-          ),
-        );
-      },
+          );
+          if (constraints.maxWidth <
+              iconSize + titleSpacing + compactActionsWidth) {
+            return actions;
+          }
+          return Row(
+            children: [
+              Expanded(child: header),
+              const SizedBox(width: titleSpacing),
+              actions,
+            ],
+          );
+        },
+      ),
     );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -32,6 +34,10 @@ class StatusBar extends ConsumerWidget {
     );
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final actionStyle = IconButton.styleFrom(
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.standard,
+    );
     final l10n = AppLocalizations.of(context);
 
     final secondaryStyle = TextStyle(color: colorScheme.onSurfaceVariant);
@@ -68,84 +74,178 @@ class StatusBar extends ConsumerWidget {
         border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
         color: colorScheme.surface,
       ),
-      child: Row(
-        children: [
-          IconButton(
-            tooltip: '$status\n${disconnect ? l10n.disconnect : l10n.connect}',
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(width: 32, height: 32),
-            onPressed: !canToggle
-                ? null
-                : () {
-                    final controller = ref.read(uiControllerProvider.notifier);
-                    if (disconnect) {
-                      controller.disconnect();
-                    } else {
-                      controller.connect();
-                    }
-                  },
-            icon: Icon(Icons.circle, size: 10, color: statusColor),
-          ),
-          Expanded(
-            child: Tooltip(
-              message:
-                  '$status\n${state.portName}  $serialSettings'
-                  '${diagnostic == null ? '' : '\n${localizedError(l10n, diagnostic)}'}',
-              child: Text.rich(
-                TextSpan(
-                  text: reconnecting ? '$status  ' : '',
-                  children: [
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final style = theme.textTheme.bodySmall!;
+          final scaler = MediaQuery.textScalerOf(context);
+          final painter = TextPainter(
+            textDirection: Directionality.of(context),
+            textScaler: scaler,
+            locale: Localizations.localeOf(context),
+          );
+          double widthOf(String text) {
+            painter.text = TextSpan(text: text, style: style);
+            painter.layout();
+            return painter.width;
+          }
+
+          final available = math.max(
+            0.0,
+            constraints.maxWidth -
+                32 -
+                (reconnecting ? 0 : 12) -
+                (diagnostic == null ? 0 : 32),
+          );
+          final portLabel = portText.isEmpty ? l10n.noPortSelected : portText;
+          final minimumPortWidth = math.min(
+            widthOf(portLabel),
+            math.min(scaler.scale(80), available * 0.4),
+          );
+          final fullStatsWidth = widthOf(statsText);
+          final showDetails = available >= minimumPortWidth + fullStatsWidth;
+          final rxWidth = widthOf('RX $rxText');
+          final txWidth = widthOf('TX $txText');
+          final compactStatsWidth = rxWidth + 12 + txWidth;
+          final statsWidth = reconnecting
+              ? 0.0
+              : math.min(
+                  showDetails ? fullStatsWidth : compactStatsWidth,
+                  available - minimumPortWidth,
+                );
+          final showSettings =
+              portText.isNotEmpty &&
+              available - statsWidth >=
+                  minimumPortWidth + widthOf('  $serialSettings');
+          painter.dispose();
+
+          return Row(
+            children: [
+              IconButton(
+                style: actionStyle,
+                tooltip:
+                    '$status\n${disconnect ? l10n.disconnect : l10n.connect}',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 32,
+                  height: 32,
+                ),
+                onPressed: !canToggle
+                    ? null
+                    : () {
+                        final controller = ref.read(
+                          uiControllerProvider.notifier,
+                        );
+                        if (disconnect) {
+                          controller.disconnect();
+                        } else {
+                          controller.connect();
+                        }
+                      },
+                icon: Icon(Icons.circle, size: 10, color: statusColor),
+              ),
+              Expanded(
+                child: Tooltip(
+                  message:
+                      '$status\n${state.portName}  $serialSettings'
+                      '${diagnostic == null ? '' : '\n${localizedError(l10n, diagnostic)}'}',
+                  child: Text.rich(
                     TextSpan(
-                      text: portText.isEmpty ? l10n.noPortSelected : portText,
-                      style: reconnecting ? secondaryStyle : null,
+                      text: reconnecting ? '$status  ' : '',
+                      children: [
+                        TextSpan(
+                          text: portText.isEmpty
+                              ? l10n.noPortSelected
+                              : portText,
+                          style: reconnecting ? secondaryStyle : null,
+                        ),
+                        if (showSettings)
+                          TextSpan(
+                            text: '  $serialSettings',
+                            style: secondaryStyle,
+                          ),
+                      ],
                     ),
-                    if (portText.isNotEmpty)
-                      TextSpan(
-                        text: '  $serialSettings',
-                        style: secondaryStyle,
-                      ),
-                  ],
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
-          ),
-          if (diagnostic != null)
-            IconButton(
-              tooltip:
-                  '${l10n.diagnosticDetails}: ${localizedError(l10n, diagnostic)}',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints.tightFor(width: 32, height: 32),
-              onPressed: () => showErrorDetails(context, diagnostic),
-              icon: const Icon(Icons.info_outline, size: 16),
-            ),
-          if (!reconnecting) ...[
-            const SizedBox(width: 12),
-            Expanded(
-              child: Tooltip(
-                message:
-                    '$statsText\n'
-                    '${l10n.trafficStats(state.rxBytes, state.txBytes, state.lastRxBytes)}'
-                    '\n${l10n.trafficStatsTooltip}',
-                child: Text.rich(
-                  TextSpan(
-                    text: 'RX $rxText - $lastRxText    TX $txText',
-                    style: TextStyle(color: colorScheme.primary),
-                    children: [
-                      TextSpan(text: '    $rateText', style: secondaryStyle),
-                    ],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
-                  maxLines: 1,
-                  textAlign: TextAlign.end,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
-            ),
-          ],
-        ],
+              if (diagnostic != null)
+                IconButton(
+                  style: actionStyle,
+                  tooltip:
+                      '${l10n.diagnosticDetails}: ${localizedError(l10n, diagnostic)}',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 32,
+                    height: 32,
+                  ),
+                  onPressed: () => showErrorDetails(context, diagnostic),
+                  icon: const Icon(Icons.info_outline, size: 16),
+                ),
+              if (!reconnecting) ...[
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: statsWidth,
+                  child: Tooltip(
+                    message:
+                        '$statsText\n'
+                        '${l10n.trafficStats(state.rxBytes, state.txBytes, state.lastRxBytes)}'
+                        '\n${l10n.trafficStatsTooltip}',
+                    child: showDetails
+                        ? Text.rich(
+                            TextSpan(
+                              text: 'RX $rxText - $lastRxText    TX $txText',
+                              style: TextStyle(color: colorScheme.primary),
+                              children: [
+                                TextSpan(
+                                  text: '    $rateText',
+                                  style: secondaryStyle,
+                                ),
+                              ],
+                            ),
+                            maxLines: 1,
+                            textAlign: TextAlign.end,
+                            overflow: TextOverflow.ellipsis,
+                            style: style,
+                          )
+                        : Row(
+                            children: [
+                              SizedBox(
+                                width:
+                                    math.max(0, statsWidth - 12) *
+                                    rxWidth /
+                                    (rxWidth + txWidth),
+                                child: Text(
+                                  'RX $rxText',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: style.copyWith(
+                                    color: colorScheme.primary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'TX $txText',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.end,
+                                  style: style.copyWith(
+                                    color: colorScheme.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+              ],
+            ],
+          );
+        },
       ),
     );
   }

@@ -152,6 +152,95 @@ void main() {
     );
   });
 
+  testWidgets('toolbar actions stay reachable across widths and text scales', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final locale in AppLocalizations.supportedLocales) {
+      for (final scale in [1.0, 2.0]) {
+        await tester.binding.setSurfaceSize(const Size(1100, 700));
+        final controller = ReceiveController();
+        await tester.pumpWidget(
+          ProviderScope(
+            key: UniqueKey(),
+            overrides: [
+              uiControllerProvider.overrideWith(() => controller),
+              uiSettingsProvider.overrideWith(ReceiveSettings.new),
+            ],
+            child: MaterialApp(
+              locale: locale,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: TextScaler.linear(scale)),
+                child: child!,
+              ),
+              home: const Scaffold(
+                body: Column(children: [ReceiveDisplayWidget()]),
+              ),
+            ),
+          ),
+        );
+        controller.receiveThrough(2, first: 1);
+        await tester.pumpAndSettle();
+        final l10n = AppLocalizations.of(
+          tester.element(find.byType(ReceiveDisplayWidget)),
+        );
+        for (final width in [
+          1100.0,
+          696.0,
+          481.8,
+          480.0,
+          320.0,
+          240.0,
+          160.0,
+        ]) {
+          await tester.binding.setSurfaceSize(Size(width, 700));
+          await tester.pumpAndSettle();
+          final panel = tester.getRect(find.byType(Card));
+          final logs = tester.getRect(find.byType(ListView));
+          for (final tooltip in [
+            l10n.searchOpen,
+            l10n.exportLogs,
+            l10n.clearReceiveArea,
+          ]) {
+            final action = find.descendant(
+              of: find.byTooltip(tooltip),
+              matching: find.byType(TextButton),
+            );
+            expect(action.hitTestable(), findsOneWidget);
+            final rect = tester.getRect(action);
+            expect(rect.left, greaterThanOrEqualTo(panel.left));
+            expect(rect.right, lessThanOrEqualTo(panel.right));
+            expect(rect.bottom, lessThanOrEqualTo(logs.top));
+            expect(rect.width, greaterThanOrEqualTo(48));
+            expect(rect.height, greaterThanOrEqualTo(48));
+          }
+          if (width == 1100 && scale == 1) {
+            expect(find.text(l10n.exportLogs), findsOneWidget);
+          } else if (width == 160) {
+            expect(find.text(l10n.exportLogs), findsNothing);
+          }
+          if (width >= 320) {
+            await tester.tap(find.byKey(const ValueKey('search-open')));
+            await tester.pumpAndSettle();
+            expect(find.byKey(const ValueKey('search-input')), findsOneWidget);
+            await tester.tap(find.byKey(const ValueKey('search-open')));
+            await tester.pumpAndSettle();
+            expect(find.byKey(const ValueKey('search-input')), findsNothing);
+          }
+          expect(
+            tester.takeException(),
+            isNull,
+            reason: '$locale, text scale $scale, width $width',
+          );
+        }
+      }
+    }
+  });
+
   testWidgets('short output starts at the top and appends downward', (
     tester,
   ) async {

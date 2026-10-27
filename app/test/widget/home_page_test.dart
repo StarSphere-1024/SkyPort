@@ -19,6 +19,8 @@ import 'package:skyport/widgets/right_panel/send_input_widget.dart';
 
 class LayoutController extends UiController {
   String portName = '/dev/serial/by-id/usb-very-long-device-name-1234567890';
+  int receivedBytes = 123456789;
+  int sentBytes = 987654321;
   UiState snapshot(UiConnection connection) => UiState(
     sequence: 0,
     connection: connection,
@@ -37,8 +39,8 @@ class LayoutController extends UiController {
     sendHistory: const [],
     autoSendInput: '',
     ports: [if (portName.isNotEmpty) portName],
-    rxBytes: 123456789,
-    txBytes: 987654321,
+    rxBytes: receivedBytes,
+    txBytes: sentBytes,
     rxBytesPerSecond: 1536.5,
     lastRxBytes: 123456,
     error: null,
@@ -60,6 +62,12 @@ class LayoutController extends UiController {
 
   void showConnection(UiConnection connection) => state = snapshot(connection);
   UiConnection get connection => state.connection;
+
+  void showTraffic(int received, int sent) {
+    receivedBytes = received;
+    sentBytes = sent;
+    state = snapshot(state.connection);
+  }
 
   void showPort(String value) {
     portName = value;
@@ -371,6 +379,105 @@ void main() {
       expect(controller.connection, UiConnection.disconnected);
     },
   );
+  testWidgets('status bar prioritizes totals without losing tooltip details', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final locale in AppLocalizations.supportedLocales) {
+      for (final scale in [1.0, 2.0]) {
+        final controller = LayoutController();
+        await tester.binding.setSurfaceSize(const Size(2400, 600));
+        await tester.pumpWidget(
+          ProviderScope(
+            key: UniqueKey(),
+            overrides: [uiControllerProvider.overrideWith(() => controller)],
+            child: MaterialApp(
+              locale: locale,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: TextScaler.linear(scale)),
+                child: child!,
+              ),
+              home: const Scaffold(bottomNavigationBar: StatusBar()),
+            ),
+          ),
+        );
+        for (final count in [0, 123456789, 1099511627776]) {
+          controller.showTraffic(count, count * 8);
+          for (final width in [320.0, 600.0, 1800.0, 2400.0]) {
+            await tester.binding.setSurfaceSize(Size(width, 600));
+            await tester.pumpAndSettle();
+            final texts = find.descendant(
+              of: find.byType(StatusBar),
+              matching: find.byType(Text),
+            );
+            final visible = tester
+                .widgetList<Text>(texts)
+                .map((text) => text.data ?? text.textSpan!.toPlainText())
+                .join('\n');
+            expect(visible, contains('RX '));
+            expect(visible, contains('TX '));
+            if (width == 320) {
+              expect(visible, isNot(contains('8N1')));
+              expect(visible, isNot(contains('KiB/s')));
+            } else if (width == 2400) {
+              expect(visible, contains('8N1'));
+              expect(visible, contains('KiB/s'));
+            }
+            final tooltips = tester
+                .widgetList<Tooltip>(
+                  find.descendant(
+                    of: find.byType(StatusBar),
+                    matching: find.byType(Tooltip),
+                  ),
+                )
+                .map((tooltip) => tooltip.message ?? '')
+                .join('\n');
+            expect(tooltips, contains(controller.portName));
+            expect(tooltips, contains('8N1'));
+            expect(tooltips, contains('/s'));
+            final l10n = AppLocalizations.of(
+              tester.element(find.byType(StatusBar)),
+            );
+            expect(
+              tooltips,
+              contains(l10n.trafficStats(count, count * 8, 123456)),
+            );
+            final rects = [
+              for (final element in texts.evaluate())
+                tester.getRect(
+                  find.byElementPredicate(
+                    (candidate) => identical(candidate, element),
+                  ),
+                ),
+            ];
+            for (var i = 0; i < rects.length; i++) {
+              expect(rects[i].left, greaterThanOrEqualTo(0));
+              expect(rects[i].right, lessThanOrEqualTo(width));
+              for (var j = i + 1; j < rects.length; j++) {
+                expect(rects[i].overlaps(rects[j]), isFalse);
+              }
+            }
+            expect(tester.takeException(), isNull);
+          }
+        }
+        controller.showConnection(UiConnection.reconnecting);
+        await tester.pumpAndSettle();
+        expect(find.textContaining('RX '), findsNothing);
+        final l10n = AppLocalizations.of(
+          tester.element(find.byType(StatusBar)),
+        );
+        expect(find.textContaining(l10n.reconnecting), findsOneWidget);
+        await tester.tap(find.byType(IconButton));
+        await tester.pumpAndSettle();
+        expect(controller.connection, UiConnection.disconnected);
+      }
+    }
+  });
+
   testWidgets('connection status indicator stays legible across brightness', (
     tester,
   ) async {
@@ -393,16 +500,7 @@ void main() {
         ),
       ),
     );
-    expect(find.textContaining('115200 · 8N1'), findsOneWidget);
-    expect(find.textContaining('1.5 KiB/s'), findsOneWidget);
     expect(tester.takeException(), isNull);
-    final statusText = tester.widget<Text>(
-      find
-          .descendant(of: find.byType(StatusBar), matching: find.byType(Text))
-          .first,
-    );
-    expect(statusText.maxLines, 1);
-    expect(statusText.overflow, TextOverflow.ellipsis);
     var theme = Theme.of(tester.element(find.byType(StatusBar)));
     var status = tester.widget<Icon>(find.byIcon(Icons.circle)).color!;
     expect(
