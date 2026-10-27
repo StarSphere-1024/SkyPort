@@ -64,7 +64,6 @@
       "lastRx": {"type": "int"}
     }
   },
-  "trafficStatsTooltip": "累计接收字节数 - 最近一包大小 · 累计发送字节数 · 接收速率",
   "settingsAppearance": "外观",
   "settingsConnection": "连接",
   "settingsLogs": "日志",

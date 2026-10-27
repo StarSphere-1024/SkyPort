@@ -186,10 +186,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get trafficStatsTooltip =>
-      'Total received bytes - Last received packet size · Total sent bytes · Receive rate';
-
-  @override
   String get settingsAppearance => 'Appearance';
 
   @override

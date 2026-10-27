@@ -190,9 +190,8 @@ class StatusBar extends ConsumerWidget {
                   width: statsWidth,
                   child: Tooltip(
                     message:
-                        '$statsText\n'
                         '${l10n.trafficStats(state.rxBytes, state.txBytes, state.lastRxBytes)}'
-                        '\n${l10n.trafficStatsTooltip}',
+                        ' · $rateText',
                     child: showDetails
                         ? Text.rich(
                             TextSpan(

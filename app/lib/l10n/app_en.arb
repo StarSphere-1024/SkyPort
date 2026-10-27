@@ -64,7 +64,6 @@
       "lastRx": {"type": "int"}
     }
   },
-  "trafficStatsTooltip": "Total received bytes - Last received packet size · Total sent bytes · Receive rate",
   "settingsAppearance": "Appearance",
   "settingsConnection": "Connection",
   "settingsLogs": "Logs",

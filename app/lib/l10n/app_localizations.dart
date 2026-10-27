@@ -440,12 +440,6 @@ abstract class AppLocalizations {
   /// **'RX: {rx} B - {lastRx} B | TX: {tx} B'**
   String trafficStats(int rx, int tx, int lastRx);
 
-  /// No description provided for @trafficStatsTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Total received bytes - Last received packet size · Total sent bytes · Receive rate'**
-  String get trafficStatsTooltip;
-
   /// No description provided for @settingsAppearance.
   ///
   /// In en, this message translates to:

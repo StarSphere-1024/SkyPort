@@ -183,9 +183,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get trafficStatsTooltip => '累计接收字节数 - 最近一包大小 · 累计发送字节数 · 接收速率';
-
-  @override
   String get settingsAppearance => '外观';
 
   @override
