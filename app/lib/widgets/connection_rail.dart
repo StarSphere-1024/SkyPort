@@ -12,7 +12,7 @@ class ConnectionRail extends StatelessWidget {
     required this.onSelected,
   });
 
-  static const double width = 80;
+  static const double width = 64;
 
   final bool panelOpen;
   final ConfigurationPage selectedPage;
