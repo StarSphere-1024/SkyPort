@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Capture the real Windows UI with deterministic demo data; no serial hardware."""
+"""Capture the desktop UI with deterministic demo data; no serial hardware."""
 import argparse
 import json
 import os
 from pathlib import Path
 import shutil
 import subprocess
+import signal
+import sys
 import tempfile
 import time
 
@@ -63,12 +65,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        epilog=('Requires an unlocked Windows desktop, Dart/Flutter, PowerShell, and '
-                'the Windows build toolchain. Run flutter pub get in app/ first. '
-                'Uses the repository test wrapper with --no-pub and isolated in-memory '
-                'preferences. No native core session or serial port is opened. '
-                'Do not interact with the desktop during capture. The destination is '
-                'replaced only after capture and scenario teardown succeed.'),
+        epilog=('Requires a desktop session, Dart/Flutter and the platform build '
+                'toolchain; Windows also requires PowerShell. Run flutter pub get in '
+                'app/ first. Linux captures the Flutter-rendered window content; '
+                'Windows captures the foreground window. No native core session or '
+                'serial port is opened. The destination is replaced only after '
+                'capture and scenario teardown succeed.'),
     )
     parser.add_argument('--theme', choices=['dark', 'light'], default='dark', help='UI theme')
     parser.add_argument('--language', choices=['zh', 'en'], default='zh', help='UI language')
@@ -78,34 +80,39 @@ def main() -> None:
     parser.add_argument('--height', type=int, default=800, help='Window height in pixels')
     parser.add_argument('--timeout', type=int, default=600, help='Total build/scenario deadline in seconds')
     args = parser.parse_args()
-    if os.name != 'nt':
-        parser.error('Desktop capture currently supports Windows only')
+    if os.name != 'nt' and not sys.platform.startswith('linux'):
+        parser.error('Desktop capture supports Windows and Linux only')
     if args.width < 1000 or args.height < 800 or args.timeout <= 0:
         parser.error('Use a positive timeout and a window of at least 1000 x 800')
     dart = shutil.which('dart')
     flutter = os.environ.get('FLUTTER_BIN') or shutil.which('flutter')
-    if not dart or not flutter or not shutil.which('powershell'):
-        parser.error('Dart/Flutter and Windows PowerShell must be on PATH')
+    if not dart or not flutter or (os.name == 'nt' and not shutil.which('powershell')):
+        parser.error('Dart/Flutter and, on Windows, PowerShell must be on PATH')
     output = args.output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='skyport-screenshot-') as temporary:
         work = Path(temporary)
-        capture = work / 'capture.ps1'
-        capture.write_text(WINDOW_SCRIPT, encoding='utf-8')
+        if os.name == 'nt':
+            capture = work / 'capture.ps1'
+            capture.write_text(WINDOW_SCRIPT, encoding='utf-8')
         env = os.environ.copy()
         env.update({
             'FLUTTER_BIN': flutter,
             'SKYPORT_SCREENSHOT_DIR': str(work),
             'SKYPORT_SCREENSHOT_THEME': args.theme,
             'SKYPORT_SCREENSHOT_LANGUAGE': args.language,
+            'SKYPORT_SCREENSHOT_WIDTH': str(args.width),
+            'SKYPORT_SCREENSHOT_HEIGHT': str(args.height),
         })
         # Preserve the previous asset unless capture and scenario teardown succeed.
         staged = output.with_name(output.name + '.pending.png')
         with (work / 'flutter.log').open('w+', encoding='utf-8') as log:
             process = subprocess.Popen(
                 [dart, '../tool/quiet_flutter_test.dart',
-                 'integration_test/readme_screenshot_test.dart', '-d', 'windows', '--no-pub'],
+                 'integration_test/readme_screenshot_test.dart', '-d',
+                 'windows' if os.name == 'nt' else 'linux', '--no-pub'],
                 cwd=root / 'app', env=env, stdout=log, stderr=subprocess.STDOUT,
+                start_new_session=os.name != 'nt',
             )
             try:
                 deadline = time.monotonic() + args.timeout
@@ -114,15 +121,19 @@ def main() -> None:
                     if time.monotonic() >= deadline:
                         raise TimeoutError('Screenshot build/scenario deadline exceeded')
                     if (work / 'window.json').exists() and not framed:
-                        app_pid = json.loads((work / 'window.json').read_text())['pid']
-                        command = ['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass',
-                                   '-File', str(capture), '-AppPid', str(app_pid),
-                                   '-Width', str(args.width), '-Height', str(args.height)]
-                        subprocess.run(command, check=True, timeout=30)
+                        if os.name == 'nt':
+                            app_pid = json.loads((work / 'window.json').read_text())['pid']
+                            command = ['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass',
+                                       '-File', str(capture), '-AppPid', str(app_pid),
+                                       '-Width', str(args.width), '-Height', str(args.height)]
+                            subprocess.run(command, check=True, timeout=30)
                         (work / 'framed').touch()
                         framed = True
                     if (work / 'ready').exists() and not captured:
-                        subprocess.run(command + ['-Output', str(staged)], check=True, timeout=30)
+                        if os.name == 'nt':
+                            subprocess.run(command + ['-Output', str(staged)], check=True, timeout=30)
+                        else:
+                            shutil.copyfile(work / 'capture.png', staged)
                         (work / 'captured').touch()
                         captured = True
                     time.sleep(0.1)
@@ -133,8 +144,11 @@ def main() -> None:
                       f'{args.language}, {args.theme}, demo data, no hardware)')
             except BaseException:
                 if process.poll() is None:
-                    subprocess.run(['taskkill', '/PID', str(process.pid), '/T', '/F'],
-                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    if os.name == 'nt':
+                        subprocess.run(['taskkill', '/PID', str(process.pid), '/T', '/F'],
+                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    else:
+                        os.killpg(process.pid, signal.SIGTERM)
                     process.wait(timeout=30)
                 log.flush()
                 log.seek(0)

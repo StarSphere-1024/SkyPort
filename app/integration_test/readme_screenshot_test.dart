@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -105,6 +107,16 @@ void main() {
   testWidgets(
     'render README demo fixture',
     (tester) async {
+      final screenshotKey = GlobalKey();
+      if (Platform.isLinux) {
+        await binding.setSurfaceSize(
+          Size(
+            double.parse(env['SKYPORT_SCREENSHOT_WIDTH']!),
+            double.parse(env['SKYPORT_SCREENSHOT_HEIGHT']!),
+          ),
+        );
+        addTearDown(() => binding.setSurfaceSize(null));
+      }
       SharedPreferences.setMockInitialValues({
         'ui_enable_ansi': true,
         'ui_show_timestamp': true,
@@ -126,9 +138,12 @@ void main() {
       addTearDown(binding.platformDispatcher.clearLocalesTestValue);
       try {
         await tester.pumpWidget(
-          UncontrolledProviderScope(
-            container: container,
-            child: const SerialDebuggerApp(),
+          RepaintBoundary(
+            key: screenshotKey,
+            child: UncontrolledProviderScope(
+              container: container,
+              child: const SerialDebuggerApp(),
+            ),
           ),
         );
         await tester.pumpAndSettle();
@@ -141,6 +156,24 @@ void main() {
         await tester.pumpAndSettle();
         FocusManager.instance.primaryFocus?.unfocus();
         await tester.pumpAndSettle();
+        if (Platform.isLinux) {
+          final boundary =
+              screenshotKey.currentContext!.findRenderObject()!
+                  as RenderRepaintBoundary;
+          final image = await boundary.toImage();
+          try {
+            final bytes = await image.toByteData(
+              format: ui.ImageByteFormat.png,
+            );
+            await tester.runAsync(
+              () => File(
+                '$work/capture.png',
+              ).writeAsBytes(bytes!.buffer.asUint8List()),
+            );
+          } finally {
+            image.dispose();
+          }
+        }
         await tester.runAsync(
           () => File('$work/ready').writeAsString('ready', flush: true),
         );
@@ -150,7 +183,7 @@ void main() {
         container.dispose();
       }
     },
-    skip: work == null || !Platform.isWindows,
+    skip: work == null || !(Platform.isWindows || Platform.isLinux),
     timeout: const Timeout(Duration(minutes: 2)),
   );
 }
