@@ -794,17 +794,30 @@ Future<void> _exerciseSnapshotSearch(
     tester,
     () => container.read(searchControllerProvider).selectedIndex == 1,
   );
+  // Desktop navigation buttons take focus; enterText alone does not restore it.
+  await tester.tap(input);
   await tester.enterText(input, 'GG');
   await tester.pump();
+  expect(container.read(searchControllerProvider).draft, 'GG');
   expect(container.read(searchControllerProvider).activeQuery, '00');
   await tester.tap(find.byKey(const ValueKey('search-submit')));
   await _until(
     tester,
     () => container.read(searchControllerProvider).error != null,
   );
+  expect(
+    container.read(searchControllerProvider).error,
+    isA<rust.CoreError>().having(
+      (error) => error.code,
+      'code',
+      rust.ErrorCode.invalidHexCharacter,
+    ),
+  );
   expect(container.read(searchControllerProvider).activeQuery, '00');
   expect(container.read(searchControllerProvider).total, 2);
+  await tester.tap(input);
   await tester.enterText(input, '');
+  expect(container.read(searchControllerProvider).draft, isEmpty);
   await tester.tap(find.byKey(const ValueKey('search-submit')));
   await tester.pump();
   expect(container.read(searchControllerProvider).activeQuery, isNull);
