@@ -17,10 +17,10 @@ class LogExportService {
     final safePortName = portName.isEmpty
         ? 'serial'
         : portName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
-    final date = DateFormat('yyyyMMdd').format(DateTime.now());
+    final date = DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
     try {
       final destination = await getSaveLocation(
-        suggestedName: '${safePortName}_$date.txt',
+        suggestedName: '${date}_$safePortName.txt',
         initialDirectory: defaultPath.isEmpty ? null : defaultPath,
         acceptedTypeGroups: [
           XTypeGroup(label: l10n.exportLogs, extensions: const ['txt']),
