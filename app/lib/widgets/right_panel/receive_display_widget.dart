@@ -13,6 +13,7 @@ import '../../src/rust/api.dart' as rust;
 import '../../providers/search_controller.dart';
 import 'log_search_bar.dart';
 import 'search_results_list.dart';
+import 'log_follow_scroll_physics.dart';
 
 class LogIndexMapper {
   final List<LogChunk> chunks;
@@ -86,9 +87,7 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
   final ScrollController _scrollController = ScrollController();
   bool _isAtBottom = true;
   bool _stickToBottom = true;
-  bool _programmaticScroll = false;
   bool _hasActiveSelection = false;
-  bool _scrollScheduled = false;
   bool _hasUsedSearchList = false;
   LogIndexMapper? _mapper;
   final FocusNode _searchFocus = FocusNode();
@@ -158,25 +157,11 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
     super.dispose();
   }
 
-  void _scrollToBottom({bool force = false}) {
-    if (force) {
-      _stickToBottom = true;
-      if (mounted) setState(() {});
+  void _scrollToBottom() {
+    setState(() => _stickToBottom = true);
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
     }
-
-    if (!_stickToBottom || _scrollScheduled) return;
-    _scrollScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollScheduled = false;
-      if (!mounted || !_stickToBottom || !_scrollController.hasClients) return;
-      _programmaticScroll = true;
-      try {
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-      } finally {
-        _programmaticScroll = false;
-      }
-    });
-    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   Future<void> _exportLogs() async {
@@ -216,17 +201,6 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
         ),
       ),
     );
-
-    ref.listen(uiControllerProvider.select((state) => state.logs), (
-      previous,
-      next,
-    ) {
-      if (next.chunks.isNotEmpty &&
-          !_hasActiveSelection &&
-          !_hasUsedSearchList) {
-        _scrollToBottom();
-      }
-    });
 
     return Expanded(
       child: Card.outlined(
@@ -331,22 +305,8 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                               thickness: 6,
                               radius: const Radius.circular(4),
                               controller: _scrollController,
-                              child: NotificationListener<Notification>(
+                              child: NotificationListener<ScrollNotification>(
                                 onNotification: (notification) {
-                                  if (notification
-                                      is ScrollMetricsNotification) {
-                                    // Lazy variable-height rows refine the estimated end after a jump.
-                                    if (!_hasActiveSelection &&
-                                        notification.metrics.extentAfter > 0) {
-                                      _scrollToBottom();
-                                    }
-                                    return false;
-                                  }
-                                  if (notification is! ScrollNotification ||
-                                      _programmaticScroll) {
-                                    return false;
-                                  }
-
                                   // 只有当用户确实开始拖动时，才认为可能需要取消吸附
                                   // 避免 SelectionArea 或其他微小抖动误触发 UserScrollNotification
                                   if (notification is ScrollStartNotification) {
@@ -382,6 +342,11 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                                   },
                                   child: ListView.builder(
                                     controller: _scrollController,
+                                    physics: LogFollowScrollPhysics(
+                                      shouldFollow: () =>
+                                          _stickToBottom &&
+                                          !_hasActiveSelection,
+                                    ),
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 12,
                                       vertical: 8,
@@ -432,7 +397,7 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                             right: 16,
                             bottom: 16,
                             child: FloatingActionButton.small(
-                              onPressed: () => _scrollToBottom(force: true),
+                              onPressed: _scrollToBottom,
                               child: const Icon(Icons.arrow_downward),
                             ),
                           ),

@@ -336,6 +336,57 @@ void main() {
     expect(find.byType(FloatingActionButton), findsOneWidget);
   });
 
+  testWidgets('variable-height follow never renders beyond the end', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(550, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final controller = ReceiveController();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          uiControllerProvider.overrideWith(() => controller),
+          uiSettingsProvider.overrideWith(ReceiveSettings.new),
+        ],
+        child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: Column(children: [ReceiveDisplayWidget()])),
+        ),
+      ),
+    );
+    String text(int id) =>
+        'row $id ${id % 30 < 15 ? 'wrapped MQTT data ' * 12 : 'short'}';
+    for (var last = 150; last <= 185; last++) {
+      controller.receiveThrough(last, first: 1, textForId: text);
+      for (var frame = 0; frame < 8; frame++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        final position = tester
+            .state<ScrollableState>(
+              find.descendant(
+                of: find.byType(ListView),
+                matching: find.byType(Scrollable),
+              ),
+            )
+            .position;
+        expect(
+          position.pixels,
+          inInclusiveRange(
+            position.minScrollExtent - 1,
+            position.maxScrollExtent + 1,
+          ),
+          reason: 'row $last, frame $frame must not overscroll and rebound',
+        );
+      }
+      final latest = find.textContaining('row $last ', findRichText: true);
+      expect(latest, findsOneWidget);
+      expect(
+        tester.getBottomRight(latest).dy,
+        closeTo(tester.getBottomRight(find.byType(ListView)).dy - 8, 1),
+      );
+    }
+  });
+
   testWidgets(
     'follow remains current at capacity and yields to user scrolling',
     (tester) async {

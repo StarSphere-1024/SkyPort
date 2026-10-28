@@ -10,9 +10,10 @@ import '../../providers/ui_controller.dart';
 import '../../providers/ui_settings_provider.dart';
 import '../../src/rust/api.dart' as rust;
 import 'receive_display_widget.dart';
+import 'log_follow_scroll_physics.dart';
 
-/// Index-aware lazy layout is necessary: pixel estimates cannot locate a record
-/// among arbitrary variable-height rows. Only the selected row has a GlobalKey.
+/// Index-aware lazy layout locates search hits among variable-height rows.
+/// Only the selected text needs a GlobalKey.
 class SearchResultsList extends ConsumerStatefulWidget {
   const SearchResultsList({super.key});
 
@@ -26,6 +27,9 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
   final _positions = ItemPositionsListener.create();
   bool _followLatest = false;
   bool _bottomScheduled = false;
+  BuildContext? _tailContext;
+  LogEntry? _tailEntry;
+  bool _hasActiveSelection = false;
 
   @override
   void initState() {
@@ -40,12 +44,9 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
   }
 
   void _refineBottom() {
-    if (!_followLatest || ref.read(searchControllerProvider).hasResults) return;
-    final last = (_mapper?.totalCount ?? 0) - 1;
-    final position = _positions.itemPositions.value
-        .where((item) => item.index == last)
-        .firstOrNull;
-    if (position == null || position.itemTrailingEdge > 1.001) {
+    if (_followLatest &&
+        !_hasActiveSelection &&
+        !ref.read(searchControllerProvider).hasResults) {
       _scheduleBottom();
     }
   }
@@ -55,23 +56,31 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
     _bottomScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _bottomScheduled = false;
-      if (!mounted || !_followLatest || !_items.isAttached) return;
+      if (!mounted ||
+          !_followLatest ||
+          _hasActiveSelection ||
+          ref.read(searchControllerProvider).hasResults ||
+          !_items.isAttached) {
+        return;
+      }
       final last = (_mapper?.totalCount ?? 0) - 1;
       if (last < 0) return;
-      final position = _positions.itemPositions.value
-          .where((item) => item.index == last)
-          .firstOrNull;
-      if (position == null) {
-        _items.jumpTo(index: last);
+      final tail = _tailContext;
+      if (tail == null ||
+          !tail.mounted ||
+          !identical(_tailEntry, _mapper![last])) {
+        // Never align a newly appended row's top with the viewport's top.
+        _items.jumpTo(index: last, alignment: 1);
       } else {
-        final delta =
-            (position.itemTrailingEdge - 1) * (context.size?.height ?? 0);
-        if (delta > 1) {
-          _offset.animateScroll(
-            offset: delta,
-            duration: const Duration(milliseconds: 1),
-          );
-        }
+        final render = tail.findRenderObject() as RenderBox;
+        final viewport = RenderAbstractViewport.of(render) as RenderBox;
+        final position = Scrollable.of(tail).position;
+        final bottom = render
+            .localToGlobal(Offset(0, render.size.height), ancestor: viewport)
+            .dy;
+        final target = (position.pixels + bottom + 8 - viewport.size.height)
+            .clamp(position.minScrollExtent, position.maxScrollExtent);
+        if ((target - position.pixels).abs() > 0.5) position.jumpTo(target);
       }
     });
     WidgetsBinding.instance.ensureVisualUpdate();
@@ -132,11 +141,6 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
     final options = search.hasResults
         ? search.options!
         : ref.read(searchControllerProvider.notifier).currentOptions;
-    ref.listen(uiControllerProvider.select((state) => state.logs), (_, next) {
-      if (_followLatest && !ref.read(searchControllerProvider).hasResults) {
-        _scheduleBottom();
-      }
-    });
     final cached = _mapper;
     final mapper =
         cached != null &&
@@ -152,23 +156,41 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
       fontSize: 18,
       height: 1.3,
     );
-    if (mapper.totalCount == 0) return const SizedBox.shrink();
+    if (mapper.totalCount == 0) {
+      _tailContext = null;
+      _tailEntry = null;
+      return const SizedBox.shrink();
+    }
     return Stack(
       children: [
-        NotificationListener<UserScrollNotification>(
+        NotificationListener<ScrollNotification>(
           onNotification: (notification) {
-            if (notification.direction != ScrollDirection.idle &&
-                _followLatest) {
+            final dragging =
+                notification is ScrollStartNotification &&
+                notification.dragDetails != null;
+            final scrollingUp =
+                notification is UserScrollNotification &&
+                notification.direction == ScrollDirection.forward;
+            if (_followLatest && (dragging || scrollingUp)) {
               setState(() => _followLatest = false);
             }
             return false;
           },
           child: SelectionArea(
+            onSelectionChanged: (selection) {
+              _hasActiveSelection = selection?.plainText.isNotEmpty ?? false;
+            },
             child: ScrollablePositionedList.builder(
               key: const ValueKey('search-results'),
               itemScrollController: _items,
               scrollOffsetController: _offset,
               itemPositionsListener: _positions,
+              physics: LogFollowScrollPhysics(
+                shouldFollow: () =>
+                    _followLatest &&
+                    !_hasActiveSelection &&
+                    !ref.read(searchControllerProvider).hasResults,
+              ),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               itemCount: mapper.totalCount,
               itemBuilder: (context, index) {
@@ -177,6 +199,12 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
                 return _SearchResultRow(
                   key: ValueKey((search.generation, entry)),
                   entry: entry,
+                  onTailBuilt: index == mapper.totalCount - 1
+                      ? (context) {
+                          _tailContext = context;
+                          _tailEntry = entry;
+                        }
+                      : null,
                   generation: search.generation,
                   showHighlights: search.visible && search.hasResults,
                   focusIndex: selected ? search.selectedIndex : null,
@@ -213,6 +241,7 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
 
 class _SearchResultRow extends ConsumerStatefulWidget {
   final LogEntry entry;
+  final ValueChanged<BuildContext>? onTailBuilt;
   final int generation;
   final int? focusIndex;
   final rust.SearchRecordView? selectedView;
@@ -226,6 +255,7 @@ class _SearchResultRow extends ConsumerStatefulWidget {
   const _SearchResultRow({
     super.key,
     required this.entry,
+    this.onTailBuilt,
     required this.generation,
     required this.focusIndex,
     required this.selectedView,
@@ -275,6 +305,7 @@ class _SearchResultRowState extends ConsumerState<_SearchResultRow> {
 
   @override
   Widget build(BuildContext context) {
+    widget.onTailBuilt?.call(context);
     final colors = Theme.of(context).colorScheme;
     final timestampStyle = widget.style.copyWith(
       color: Theme.of(context).disabledColor,

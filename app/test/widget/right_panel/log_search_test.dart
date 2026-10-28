@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -237,6 +239,138 @@ void main() {
         same(listBefore),
       );
       expect(find.byKey(const ValueKey('search-row-900')), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'following after search keeps every frame in bounds and yields to scrolling',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(550, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final logs = SearchFixtureController();
+      String text(int id) =>
+          'row $id ${id % 30 < 15 ? 'wrapped MQTT data ' * 12 : 'short'}';
+      final session = FixtureSearchSession(
+        hits: [fixtureHit(1, 0, text(1).length)],
+        views: {1: fixtureView(1, text(1))},
+      );
+      await mount(tester, logs, FixtureSearchBackend(logs, [session]));
+      logs.upsert([
+        for (var id = 1; id <= 150; id++) fixtureRecord(id, text(id)),
+      ]);
+      await tester.pumpAndSettle();
+      final search = container(tester).read(searchControllerProvider.notifier);
+      search.open();
+      search.setDraft('row');
+      await search.submit();
+      await tester.pumpAndSettle();
+      search.close();
+      search.clear();
+      await tester.pumpAndSettle();
+
+      final list = find.byKey(const ValueKey('search-results'));
+      Future<void> pumpBoundedFrames() async {
+        for (var frame = 0; frame < 8; frame++) {
+          await tester.pump(const Duration(milliseconds: 16));
+          for (final scrollable in tester.stateList<ScrollableState>(
+            find.descendant(of: list, matching: find.byType(Scrollable)),
+          )) {
+            final position = scrollable.position;
+            expect(
+              position.pixels,
+              inInclusiveRange(
+                position.minScrollExtent - 1,
+                position.maxScrollExtent + 1,
+              ),
+              reason: 'frame $frame must not overscroll and rebound',
+            );
+          }
+        }
+      }
+
+      await tester.tap(find.byType(FloatingActionButton));
+      await pumpBoundedFrames();
+      for (var id = 151; id <= 185; id++) {
+        logs.upsert([fixtureRecord(id, text(id))]);
+        await pumpBoundedFrames();
+        final latest = find.byKey(ValueKey('search-row-$id'));
+        expect(latest, findsOneWidget);
+        expect(
+          tester.getBottomRight(latest).dy,
+          closeTo(tester.getBottomRight(list).dy - 8, 1),
+        );
+      }
+
+      await tester.sendEventToBinding(
+        PointerScrollEvent(
+          position: tester.getCenter(list),
+          scrollDelta: const Offset(0, -200),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(FloatingActionButton), findsOneWidget);
+      final anchor = find.byKey(const ValueKey('search-row-185'));
+      final readingPosition = tester.getTopLeft(anchor);
+      logs.upsert([fixtureRecord(186, text(186))]);
+      await pumpBoundedFrames();
+      expect(tester.getTopLeft(anchor), readingPosition);
+      await tester.tap(find.byType(FloatingActionButton));
+      await pumpBoundedFrames();
+      expect(
+        tester.getBottomRight(find.byKey(const ValueKey('search-row-186'))).dy,
+        closeTo(tester.getBottomRight(list).dy - 8, 1),
+      );
+
+      final tail = find.byKey(const ValueKey('search-row-186'));
+      final paragraph = tester.renderObject<RenderParagraph>(
+        find.descendant(of: tail, matching: find.byType(RichText)).first,
+      );
+      final start = paragraph.text.toPlainText().indexOf('row 186');
+      final box = paragraph
+          .getBoxesForSelection(
+            TextSelection(baseOffset: start, extentOffset: start + 7),
+          )
+          .first
+          .toRect();
+      final selection = await tester.startGesture(
+        paragraph.localToGlobal(box.centerLeft + const Offset(0.1, 0)),
+        kind: PointerDeviceKind.mouse,
+      );
+      await selection.moveTo(
+        paragraph.localToGlobal(box.centerRight - const Offset(0.1, 0)),
+      );
+      await selection.up();
+      await tester.pumpAndSettle();
+      final selectedPosition = tester.getTopLeft(tail);
+      logs.upsert([fixtureRecord(187, text(187))]);
+      await pumpBoundedFrames();
+      expect(tester.getTopLeft(tail), selectedPosition);
+
+      String? copied;
+      final messenger = tester.binding.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied = (call.arguments as Map)['text'] as String;
+        }
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+      expect(copied, 'row 186');
+
+      await logs.clearLog();
+      await tester.pumpAndSettle();
+      logs.upsert([fixtureRecord(1, 'short output')]);
+      await pumpBoundedFrames();
+      expect(
+        tester.getTopLeft(find.byKey(const ValueKey('search-row-1'))).dy,
+        closeTo(tester.getTopLeft(list).dy + 8, 1),
+      );
     },
   );
 
