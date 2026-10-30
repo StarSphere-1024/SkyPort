@@ -1,16 +1,18 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart' hide SearchController;
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/log_model.dart';
+import '../../models/search_model.dart';
 import '../../providers/search_controller.dart';
 import '../../providers/ui_controller.dart';
 import '../../providers/ui_settings_provider.dart';
 import '../../src/rust/api.dart' as rust;
+import '../../utils/constants.dart';
 import 'receive_display_widget.dart';
-import 'log_follow_scroll_physics.dart';
 
 /// Index-aware lazy layout locates search hits among variable-height rows.
 /// Only the selected text needs a GlobalKey.
@@ -25,28 +27,65 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
   final _items = ItemScrollController();
   final _offset = ScrollOffsetController();
   final _positions = ItemPositionsListener.create();
-  bool _followLatest = false;
+  bool _followLatest = true;
   bool _bottomScheduled = false;
+  bool _manualScrolling = false;
   BuildContext? _tailContext;
   LogEntry? _tailEntry;
   bool _hasActiveSelection = false;
+  final _rowContexts = <int, _SearchResultRowState>{};
+  late final SearchController _searchController;
 
   @override
   void initState() {
     super.initState();
     _positions.itemPositions.addListener(_refineBottom);
+    _searchController = ref.read(searchControllerProvider.notifier);
+    _searchController.setPositionReader(_readPosition);
   }
 
   @override
   void dispose() {
+    _searchController.setPositionReader(null);
     _positions.itemPositions.removeListener(_refineBottom);
     super.dispose();
+  }
+
+  SearchReadingPosition? _readPosition() {
+    final mapper = _mapper;
+    if (mapper == null) return null;
+    final visible =
+        _positions.itemPositions.value
+            .where((position) => position.itemTrailingEdge > 0)
+            .toList()
+          ..sort((a, b) => a.itemLeadingEdge.compareTo(b.itemLeadingEdge));
+    for (final position in visible) {
+      if (position.index >= mapper.totalCount) continue;
+      final entry = mapper[position.index];
+      final row = _rowContexts[entry.id];
+      if (row == null || !row.context.mounted) continue;
+      final offset = row.readingOffset();
+      if (offset != null) {
+        return (recordId: entry.id, offset: offset);
+      }
+    }
+    return null;
+  }
+
+  void _manualScroll() {
+    _manualScrolling = true;
+    final search = ref.read(searchControllerProvider);
+    ref.read(searchControllerProvider.notifier).userScrolled();
+    _suppressedNavigation = search.navigation;
+    _scheduledNavigation = search.navigation;
+    _revealRevision++;
+    if (_followLatest) setState(() => _followLatest = false);
   }
 
   void _refineBottom() {
     if (_followLatest &&
         !_hasActiveSelection &&
-        !ref.read(searchControllerProvider).hasResults) {
+        !ref.read(searchControllerProvider).visible) {
       _scheduleBottom();
     }
   }
@@ -59,7 +98,7 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
       if (!mounted ||
           !_followLatest ||
           _hasActiveSelection ||
-          ref.read(searchControllerProvider).hasResults ||
+          ref.read(searchControllerProvider).visible ||
           !_items.isAttached) {
         return;
       }
@@ -88,23 +127,34 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
 
   final _focusText = GlobalKey();
   int _scheduledNavigation = -1;
+  int _suppressedNavigation = -1;
+  int _revealRevision = 0;
   LogIndexMapper? _mapper;
 
   void _reveal(int navigation, int recordId) {
-    if (_scheduledNavigation == navigation) return;
+    if (_scheduledNavigation == navigation ||
+        _suppressedNavigation == navigation) {
+      return;
+    }
     _scheduledNavigation = navigation;
     _followLatest = false;
+    final revision = _revealRevision;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted ||
           !_items.isAttached ||
-          _scheduledNavigation != navigation) {
+          _scheduledNavigation != navigation ||
+          _revealRevision != revision) {
         return;
       }
       final index = _mapper?.indexForId(recordId);
       if (index == null) return;
       _items.jumpTo(index: index);
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || _scheduledNavigation != navigation) return;
+        if (!mounted ||
+            _scheduledNavigation != navigation ||
+            _revealRevision != revision) {
+          return;
+        }
         if (!ref.read(searchControllerProvider).visible) return;
         final render = _focusText.currentContext?.findRenderObject();
         final view = ref.read(searchControllerProvider).selectedView;
@@ -163,66 +213,85 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
     }
     return Stack(
       children: [
-        NotificationListener<ScrollNotification>(
-          onNotification: (notification) {
-            final dragging =
-                notification is ScrollStartNotification &&
-                notification.dragDetails != null;
-            final scrollingUp =
-                notification is UserScrollNotification &&
-                notification.direction == ScrollDirection.forward;
-            if (_followLatest && (dragging || scrollingUp)) {
-              setState(() => _followLatest = false);
-            }
-            return false;
+        Listener(
+          onPointerSignal: (event) {
+            if (event is PointerScrollEvent) _manualScroll();
           },
-          child: SelectionArea(
-            onSelectionChanged: (selection) {
-              _hasActiveSelection = selection?.plainText.isNotEmpty ?? false;
-            },
-            child: ScrollablePositionedList.builder(
-              key: const ValueKey('search-results'),
-              itemScrollController: _items,
-              scrollOffsetController: _offset,
-              itemPositionsListener: _positions,
-              physics: LogFollowScrollPhysics(
-                shouldFollow: () =>
-                    _followLatest &&
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              final dragging =
+                  notification is ScrollStartNotification &&
+                  notification.dragDetails != null;
+              final scrollingUp =
+                  notification is UserScrollNotification &&
+                  notification.direction == ScrollDirection.forward;
+              if (dragging) _manualScroll();
+              if (_followLatest && (dragging || scrollingUp)) {
+                setState(() => _followLatest = false);
+              }
+              if (notification is ScrollEndNotification && _manualScrolling) {
+                _manualScrolling = false;
+                if (!ref.read(searchControllerProvider).visible &&
                     !_hasActiveSelection &&
-                    !ref.read(searchControllerProvider).hasResults,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              itemCount: mapper.totalCount,
-              itemBuilder: (context, index) {
-                final entry = mapper[index];
-                final selected = hit?.recordId == entry.id;
-                return _SearchResultRow(
-                  key: ValueKey((search.generation, entry)),
-                  entry: entry,
-                  onTailBuilt: index == mapper.totalCount - 1
-                      ? (context) {
-                          _tailContext = context;
-                          _tailEntry = entry;
-                        }
-                      : null,
-                  generation: search.generation,
-                  showHighlights: search.visible && search.hasResults,
-                  focusIndex: selected ? search.selectedIndex : null,
-                  selectedView: selected && search.visible
-                      ? search.selectedView
-                      : null,
-                  focusTextKey: selected ? _focusText : null,
-                  style: style,
-                  showTimestamp: settings.showTimestamp,
-                  showSent: options.showSent,
-                  hex: options.hex,
-                  ansi: options.stripAnsi,
-                );
+                    notification.metrics.extentAfter <=
+                        SkyPortConstants.scrollBottomThreshold) {
+                  setState(() => _followLatest = true);
+                  _scheduleBottom();
+                }
+              }
+              return false;
+            },
+            child: SelectionArea(
+              onSelectionChanged: (selection) {
+                _hasActiveSelection = selection?.plainText.isNotEmpty ?? false;
               },
+              child: ScrollablePositionedList.builder(
+                key: const ValueKey('search-results'),
+                itemScrollController: _items,
+                scrollOffsetController: _offset,
+                itemPositionsListener: _positions,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                itemCount: mapper.totalCount,
+                itemBuilder: (context, index) {
+                  final entry = mapper[index];
+                  final selected = hit?.recordId == entry.id;
+                  return _SearchResultRow(
+                    key: ValueKey((search.generation, entry)),
+                    entry: entry,
+                    onTailBuilt: index == mapper.totalCount - 1
+                        ? (context) {
+                            _tailContext = context;
+                            _tailEntry = entry;
+                          }
+                        : null,
+                    onRowBuilt: (row) => _rowContexts[entry.id] = row,
+                    onRowDisposed: (row) {
+                      if (identical(_rowContexts[entry.id], row)) {
+                        _rowContexts.remove(entry.id);
+                      }
+                    },
+                    generation: search.generation,
+                    showHighlights: search.visible && search.hasResults,
+                    focusIndex: selected ? search.selectedIndex : null,
+                    selectedView: selected && search.visible
+                        ? search.selectedView
+                        : null,
+                    focusTextKey: selected ? _focusText : null,
+                    style: style,
+                    showTimestamp: settings.showTimestamp,
+                    showSent: options.showSent,
+                    hex: options.hex,
+                    ansi: options.stripAnsi,
+                  );
+                },
+              ),
             ),
           ),
         ),
-        if (!search.hasResults && !_followLatest)
+        if (!search.visible && !search.hasResults && !_followLatest)
           Positioned(
             right: 16,
             bottom: 16,
@@ -242,6 +311,8 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
 class _SearchResultRow extends ConsumerStatefulWidget {
   final LogEntry entry;
   final ValueChanged<BuildContext>? onTailBuilt;
+  final ValueChanged<_SearchResultRowState> onRowBuilt;
+  final ValueChanged<_SearchResultRowState> onRowDisposed;
   final int generation;
   final int? focusIndex;
   final rust.SearchRecordView? selectedView;
@@ -257,6 +328,8 @@ class _SearchResultRow extends ConsumerStatefulWidget {
     required this.entry,
     this.onTailBuilt,
     required this.generation,
+    required this.onRowBuilt,
+    required this.onRowDisposed,
     required this.focusIndex,
     required this.selectedView,
     required this.focusTextKey,
@@ -274,6 +347,62 @@ class _SearchResultRow extends ConsumerStatefulWidget {
 
 class _SearchResultRowState extends ConsumerState<_SearchResultRow> {
   late Future<rust.SearchRecordView?> _view;
+  rust.SearchRecordView? _renderedView;
+  String? _renderedText;
+
+  int? readingOffset() {
+    final root = context.findRenderObject();
+    final text = _renderedText;
+    if (root == null || text == null) return null;
+    RenderParagraph? paragraph;
+    RenderParagraph? longestParagraph;
+    void visit(RenderObject object) {
+      if (paragraph != null) return;
+      if (object is RenderParagraph) {
+        longestParagraph ??= object;
+        if (object.text
+            .toPlainText()
+            .replaceAll('\uFFFC', '\n')
+            .contains(text)) {
+          paragraph = object;
+          return;
+        }
+        if (longestParagraph!.text.toPlainText().length <
+            object.text.toPlainText().length) {
+          longestParagraph = object;
+        }
+      }
+      object.visitChildren(visit);
+    }
+
+    visit(root);
+    final textRender = paragraph ?? longestParagraph;
+    if (textRender == null || !textRender.hasSize) return null;
+    final viewport = RenderAbstractViewport.of(textRender) as RenderBox?;
+    if (viewport == null) return null;
+    final top = textRender.globalToLocal(viewport.localToGlobal(Offset.zero));
+    final rawOffset = textRender.getPositionForOffset(Offset(0, top.dy)).offset;
+    final plainText = textRender.text.toPlainText();
+    final suffix =
+        _renderedView == null &&
+            widget.entry.getDisplayTextPreview(widget.hex).truncated
+        ? ' ... [TRUNCATED]'.length
+        : 0;
+    final prefix = _renderedView == null
+        ? (widget.showTimestamp ? 13 : 0) + (widget.showSent ? 5 : 0)
+        : plainText.length - _renderedView!.text.length;
+    final textLength = (plainText.length - prefix - suffix)
+        .clamp(0, plainText.length)
+        .toInt();
+    final localOffset = (rawOffset - prefix).clamp(0, textLength).toInt();
+    return (_renderedView?.startOffset ?? 0) + localOffset;
+  }
+
+  @override
+  void dispose() {
+    widget.onRowDisposed(this);
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -306,6 +435,7 @@ class _SearchResultRowState extends ConsumerState<_SearchResultRow> {
   @override
   Widget build(BuildContext context) {
     widget.onTailBuilt?.call(context);
+    widget.onRowBuilt(this);
     final colors = Theme.of(context).colorScheme;
     final timestampStyle = widget.style.copyWith(
       color: Theme.of(context).disabledColor,
@@ -333,6 +463,10 @@ class _SearchResultRowState extends ConsumerState<_SearchResultRow> {
             (view.ranges.isNotEmpty ||
                 view.leadingClipped ||
                 view.trailingClipped);
+        _renderedView = useCanonical ? view : null;
+        _renderedText = useCanonical
+            ? view.text
+            : entry.getDisplayTextPreview(widget.hex).text;
         final spans = useCanonical
             ? entry.getSearchSpans(
                 text: view.text,

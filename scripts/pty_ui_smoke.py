@@ -54,6 +54,11 @@ def main() -> None:
                                     temporary_link = symlink.with_suffix(".new")
                                     os.symlink(os.ttyname(current_slave), temporary_link)
                                     temporary_link.replace(symlink)
+                                elif command == "search-anchor-data":
+                                    os.write(current_master, b"".join(
+                                        f"ANCHOR-{index:03d} reading position\r\n".encode()
+                                        for index in range(120)
+                                    ))
                                 else:
                                     raise ValueError(f"Unknown PTY control: {command}")
                                 acknowledgement.write_text(command)

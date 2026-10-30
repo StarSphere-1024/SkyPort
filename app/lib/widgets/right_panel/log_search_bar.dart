@@ -40,8 +40,7 @@ class _LogSearchBarState extends ConsumerState<LogSearchBar> {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final options = controller.currentOptions;
-    final canNavigate =
-        state.total > 0 && !state.invalidated && !state.submitting;
+    final canNavigate = !state.submitting;
     final busy = state.submitting || !state.complete;
     final dirty = state.dirty(options);
     final status = <String>[

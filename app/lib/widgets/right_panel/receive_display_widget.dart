@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/ui_settings_provider.dart';
 import '../../providers/ui_controller.dart';
 import '../../models/log_model.dart';
-import '../../utils/constants.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/log_export_service.dart';
 import '../../src/rust/api.dart' as rust;
 import '../../providers/search_controller.dart';
 import 'log_search_bar.dart';
 import 'search_results_list.dart';
-import 'log_follow_scroll_physics.dart';
 
 class LogIndexMapper {
   final List<LogChunk> chunks;
@@ -84,12 +81,6 @@ class ReceiveDisplayWidget extends ConsumerStatefulWidget {
 }
 
 class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
-  final ScrollController _scrollController = ScrollController();
-  bool _isAtBottom = true;
-  bool _stickToBottom = true;
-  bool _hasActiveSelection = false;
-  bool _hasUsedSearchList = false;
-  LogIndexMapper? _mapper;
   final FocusNode _searchFocus = FocusNode();
 
   KeyEventResult _onKey(KeyEvent event) {
@@ -125,43 +116,13 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
   void initState() {
     super.initState();
     FocusManager.instance.addEarlyKeyEventHandler(_onKey);
-    _scrollController.addListener(() {
-      if (!_scrollController.hasClients) return;
-
-      // Use a more lenient threshold to determine if at bottom, to avoid floating point precision issues
-      final isBottom =
-          _scrollController.position.extentAfter <=
-          SkyPortConstants.scrollBottomThreshold;
-
-      if (_isAtBottom != isBottom) {
-        // Only setState when the state actually changes
-        // Avoid unnecessary redraws during high-frequency data refreshes
-        if (mounted) {
-          setState(() {
-            _isAtBottom = isBottom;
-            // If the user scrolls to the bottom, auto-stick
-            if (isBottom) {
-              _stickToBottom = true;
-            }
-          });
-        }
-      }
-    });
   }
 
   @override
   void dispose() {
     FocusManager.instance.removeEarlyKeyEventHandler(_onKey);
     _searchFocus.dispose();
-    _scrollController.dispose();
     super.dispose();
-  }
-
-  void _scrollToBottom() {
-    setState(() => _stickToBottom = true);
-    if (_scrollController.hasClients) {
-      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-    }
   }
 
   Future<void> _exportLogs() async {
@@ -187,11 +148,9 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
     final settings = ref.watch(uiSettingsProvider);
     final search = ref.watch(searchControllerProvider);
-    if (search.hasResults) _hasUsedSearchList = true;
     final hasVisibleLogs = ref.watch(
       uiControllerProvider.select(
         (state) => state.logs.chunks.any(
@@ -266,145 +225,7 @@ class _ReceiveDisplayWidgetState extends ConsumerState<ReceiveDisplayWidget> {
                   color: colorScheme.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Stack(
-                      children: [
-                        Consumer(
-                          builder: (context, ref, child) {
-                            if (_hasUsedSearchList) {
-                              return const SearchResultsList();
-                            }
-                            final logState = ref.watch(
-                              uiControllerProvider.select(
-                                (state) => state.logs,
-                              ),
-                            );
-                            final cached = _mapper;
-                            final mapper =
-                                cached != null &&
-                                    identical(cached.chunks, logState.chunks) &&
-                                    cached.showSent == settings.showSent
-                                ? cached
-                                : (_mapper = LogIndexMapper(
-                                    logState.chunks,
-                                    showSent: settings.showSent,
-                                  ));
-                            final int listLength = mapper.totalCount;
-
-                            final monoStyle = theme.textTheme.bodyMedium!
-                                .copyWith(
-                                  fontFamily: 'monospace',
-                                  fontSize: 18.0,
-                                  height: 1.3,
-                                );
-                            final dataTextStyle = monoStyle;
-
-                            return Scrollbar(
-                              thumbVisibility: true,
-                              thickness: 6,
-                              radius: const Radius.circular(4),
-                              controller: _scrollController,
-                              child: NotificationListener<ScrollNotification>(
-                                onNotification: (notification) {
-                                  // 只有当用户确实开始拖动时，才认为可能需要取消吸附
-                                  // 避免 SelectionArea 或其他微小抖动误触发 UserScrollNotification
-                                  if (notification is ScrollStartNotification) {
-                                    if (notification.dragDetails != null) {
-                                      // 用户开始拖拽
-                                      if (_stickToBottom) {
-                                        setState(() => _stickToBottom = false);
-                                      }
-                                    }
-                                  }
-
-                                  // Wheel scrolling has no dragDetails; only user input cancels follow.
-                                  if (notification is UserScrollNotification) {
-                                    // Decreasing offset moves toward older rows.
-                                    if (notification.direction ==
-                                        ScrollDirection.forward) {
-                                      if (_stickToBottom) {
-                                        setState(() {
-                                          _stickToBottom = false;
-                                        });
-                                      }
-                                    }
-                                  }
-                                  return false;
-                                },
-                                child: SelectionArea(
-                                  onSelectionChanged: (content) {
-                                    final hasSelection =
-                                        content?.plainText.isNotEmpty ?? false;
-                                    if (_hasActiveSelection != hasSelection) {
-                                      _hasActiveSelection = hasSelection;
-                                    }
-                                  },
-                                  child: ListView.builder(
-                                    controller: _scrollController,
-                                    physics: LogFollowScrollPhysics(
-                                      shouldFollow: () =>
-                                          _stickToBottom &&
-                                          !_hasActiveSelection,
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 8,
-                                    ),
-                                    itemCount: listLength,
-                                    findChildIndexCallback: (key) {
-                                      return mapper.indexForId(
-                                        (key as ValueKey<int>).value,
-                                      );
-                                    },
-                                    itemBuilder: (context, index) {
-                                      final entry = mapper[index];
-                                      final spans = entry.getSpans(
-                                        hexDisplay: settings.hexDisplay,
-                                        showTimestamp: settings.showTimestamp,
-                                        showSent: settings.showSent,
-                                        enableAnsi: settings.enableAnsi,
-                                        baseStyle: dataTextStyle,
-                                        timestampStyle: monoStyle.copyWith(
-                                          color: theme.disabledColor,
-                                        ),
-                                        primaryColor: colorScheme.primary,
-                                        onSurfaceColor: colorScheme.onSurface,
-                                      );
-
-                                      return SizedBox(
-                                        key: ValueKey(entry.id),
-                                        width: constraints.maxWidth - 24,
-                                        child: Text.rich(
-                                          TextSpan(
-                                            style: monoStyle,
-                                            children: spans,
-                                          ),
-                                          textAlign: TextAlign.left,
-                                          softWrap: true,
-                                          overflow: TextOverflow.visible,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        if (!_stickToBottom && !_hasUsedSearchList)
-                          Positioned(
-                            right: 16,
-                            bottom: 16,
-                            child: FloatingActionButton.small(
-                              onPressed: _scrollToBottom,
-                              child: const Icon(Icons.arrow_downward),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
+                child: const SearchResultsList(),
               ),
             ),
           ],

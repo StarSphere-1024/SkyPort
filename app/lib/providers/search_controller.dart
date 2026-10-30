@@ -17,6 +17,10 @@ abstract interface class SearchSession {
   rust.SearchSnapshotInfo get snapshotInfo;
   Future<rust.SearchProgress> poll();
   Future<rust.SearchHit?> match(int index);
+  Future<rust.SearchSeekReply> seek(
+    SearchReadingPosition position, {
+    required bool backwards,
+  });
   Future<rust.SearchRecordView?> record(int id, {int? focusIndex});
   Future<void> cancel();
 }
@@ -54,6 +58,21 @@ class _NativeSearchSession implements SearchSession {
   }
 
   @override
+  Future<rust.SearchSeekReply> seek(
+    SearchReadingPosition position, {
+    required bool backwards,
+  }) async {
+    final reply = await rust.searchSeek(
+      search: handle,
+      recordId: position.recordId,
+      offset: position.offset,
+      backwards: backwards,
+    );
+    if (reply.error != null) throw reply.error!;
+    return reply;
+  }
+
+  @override
   Future<rust.SearchRecordView?> record(int id, {int? focusIndex}) async {
     final reply = await rust.searchRecord(
       search: handle,
@@ -78,6 +97,11 @@ class SearchController extends Notifier<SearchState> {
   int _generation = 0;
   int _navigation = 0;
   int? _requestedIndex;
+  SearchReadingPosition? Function()? _positionReader;
+  bool _useReadingPosition = true;
+  int _readingRevision = 0;
+  ({SearchReadingPosition position, int direction})? _pendingSeek;
+  bool _pendingNavigation = false;
   int _submission = 0;
   int _lifecycle = 0;
   int _acceptedSubmission = 0;
@@ -135,17 +159,45 @@ class SearchController extends Notifier<SearchState> {
     );
   }
 
+  void setPositionReader(SearchReadingPosition? Function()? reader) {
+    _positionReader = reader;
+  }
+
+  void userScrolled() {
+    _navigation++;
+    _readingRevision++;
+    _useReadingPosition = true;
+    _pendingSeek = null;
+    _pendingNavigation = false;
+    _requestedIndex = null;
+  }
+
+  SearchReadingPosition _readingPosition(int direction) =>
+      _positionReader?.call() ??
+      (
+        recordId: direction < 0 ? 0xFFFFFFFFFFFFFFFF : 0,
+        offset: direction < 0 ? 0x7FFFFFFFFFFFFFFF : 0,
+      );
+
   void open() => state = state.copyWith(visible: true);
   void close() => state = state.copyWith(visible: false);
   void setDraft(String value) => state = state.copyWith(draft: value);
   void setCaseSensitive(bool value) =>
       state = state.copyWith(caseSensitive: value);
 
-  Future<void> submit() async {
+  Future<void> submit({int direction = 1}) async {
     if (state.draft.isEmpty) {
       clear();
       return;
     }
+    if (_session != null &&
+        !state.invalidated &&
+        !state.dirty(currentOptions) &&
+        !state.submitting) {
+      await navigate(direction);
+      return;
+    }
+    final position = _readingPosition(direction);
     final query = state.draft;
     final options = currentOptions;
     final submission = ++_submission;
@@ -159,6 +211,9 @@ class SearchController extends Notifier<SearchState> {
       options,
       submission,
       lifecycle,
+      position,
+      direction,
+      _readingRevision,
     );
     if (generation != null) await _poll(generation);
   }
@@ -168,6 +223,9 @@ class SearchController extends Notifier<SearchState> {
     SearchConfiguration options,
     int submission,
     int lifecycle,
+    SearchReadingPosition position,
+    int direction,
+    int readingRevision,
   ) async {
     if (_disposed || lifecycle != _lifecycle) return null;
     try {
@@ -191,6 +249,12 @@ class SearchController extends Notifier<SearchState> {
       _snapshotReady = false;
       _session = session;
       _requestedIndex = null;
+      _useReadingPosition = true;
+      _pendingNavigation = readingRevision == _readingRevision;
+      _pendingSeek = _pendingNavigation
+          ? (position: position, direction: direction)
+          : null;
+      _navigation++;
       if (old != null) unawaited(old.cancel());
       _views.clear();
       _requests.clear();
@@ -227,8 +291,8 @@ class SearchController extends Notifier<SearchState> {
           const Duration(milliseconds: 100),
           () => _poll(_generation),
         );
-      } else if (state.selectedIndex == null && state.total > 0) {
-        await navigate(0);
+      } else if (_pendingNavigation) {
+        await _resolveNavigation();
       }
       return null;
     }
@@ -261,7 +325,7 @@ class SearchController extends Notifier<SearchState> {
         _timer?.cancel();
         _timer = null;
       }
-      if (state.selectedIndex == null && state.total > 0) await navigate(0);
+      if (_pendingNavigation) await _resolveNavigation();
       if (!_disposed && generation == _generation && !progress.complete) {
         _timer = Timer(
           const Duration(milliseconds: 100),
@@ -280,22 +344,66 @@ class SearchController extends Notifier<SearchState> {
   }
 
   Future<void> navigate(int direction) async {
-    final session = _session;
-    if (session == null ||
-        state.total == 0 ||
-        state.invalidated ||
-        state.submitting ||
-        !_snapshotReady) {
+    if (_session == null || state.invalidated || state.dirty(currentOptions)) {
+      await submit(direction: direction);
       return;
     }
+    if (state.submitting || !_snapshotReady) return;
+    if (state.total == 0 && state.complete) return;
+    _navigation++;
+    _pendingNavigation = true;
+    if (_useReadingPosition) {
+      _pendingSeek = (
+        position: _pendingSeek?.position ?? _readingPosition(direction),
+        direction: direction,
+      );
+    } else {
+      _requestedIndex =
+          (_requestedIndex ?? state.selectedIndex ?? 0) + direction;
+    }
+    await _resolveNavigation();
+  }
+
+  Future<void> _resolveNavigation() async {
+    final session = _session;
+    if (session == null || !_snapshotReady || state.submitting) return;
     final generation = _generation;
-    final navigation = ++_navigation;
-    final base = _requestedIndex ?? state.selectedIndex;
-    final raw = base == null ? 0 : base + direction;
-    final index = raw % state.total;
-    _requestedIndex = index;
+    final navigation = _navigation;
     try {
-      final hit = await session.match(index);
+      rust.SearchHit? hit;
+      bool wrapped;
+      int index;
+      final seek = _pendingSeek;
+      if (seek != null) {
+        final reply = await session.seek(
+          seek.position,
+          backwards: seek.direction < 0,
+        );
+        if (_disposed ||
+            generation != _generation ||
+            navigation != _navigation) {
+          return;
+        }
+        if (reply.pending) return;
+        hit = reply.hit;
+        if (hit == null) {
+          _pendingNavigation = false;
+          _pendingSeek = null;
+          return;
+        }
+        index = hit.index;
+        wrapped = reply.wrapped;
+      } else {
+        final raw = _requestedIndex!;
+        if (!state.complete && (raw < 0 || raw >= state.total)) return;
+        if (state.total == 0) {
+          _pendingNavigation = false;
+          return;
+        }
+        index = raw % state.total;
+        wrapped = raw < 0 || raw >= state.total;
+        hit = await session.match(index);
+      }
       if (_disposed || generation != _generation || navigation != _navigation) {
         return;
       }
@@ -304,6 +412,9 @@ class SearchController extends Notifier<SearchState> {
         invalidate();
         return;
       }
+      _requestedIndex = index;
+      _useReadingPosition = false;
+      _pendingSeek = null;
       final view = await recordView(hit.recordId, focusIndex: index);
       if (_disposed || generation != _generation || navigation != _navigation) {
         return;
@@ -312,17 +423,20 @@ class SearchController extends Notifier<SearchState> {
         invalidate();
         return;
       }
+      _pendingNavigation = false;
       state = state.copyWith(
+        total: index >= state.total ? index + 1 : state.total,
         selectedIndex: index,
         selectedHit: hit,
         selectedView: view,
-        wrapped: raw < 0 || raw >= state.total,
+        wrapped: wrapped,
         navigation: navigation,
       );
     } catch (error) {
       if (!_disposed &&
           generation == _generation &&
           navigation == _navigation) {
+        _pendingNavigation = false;
         state = state.copyWith(error: error);
       }
     }
@@ -484,6 +598,9 @@ class SearchController extends Notifier<SearchState> {
     _lifecycle++;
     _navigation++;
     _requestedIndex = null;
+    _useReadingPosition = true;
+    _pendingSeek = null;
+    _pendingNavigation = false;
     _releaseSnapshotWaiter();
     _snapshotInfo = null;
     _snapshotReady = false;

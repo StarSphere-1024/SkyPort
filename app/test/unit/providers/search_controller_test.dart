@@ -119,6 +119,134 @@ void main() {
   });
 
   test(
+    'first direction and manual scrolling use the visible text offset',
+    () async {
+      logs.upsert([fixtureRecord(1, 'x---x---x')]);
+      backend.sessions.add(
+        FixtureSearchSession(
+          hits: [fixtureHit(1, 0, 9), fixtureHit(1, 1, 9), fixtureHit(1, 2, 9)],
+          views: {
+            1: fixtureView(
+              1,
+              'x---x---x',
+              ranges: [
+                const rust.SearchRange(start: 0, end: 1),
+                const rust.SearchRange(start: 4, end: 5),
+                const rust.SearchRange(start: 8, end: 9),
+              ],
+            ),
+          },
+        ),
+      );
+      var offset = 4;
+      search.setPositionReader(() => (recordId: 1, offset: offset));
+      search.setDraft('x');
+      await search.navigate(-1);
+      expect(container.read(searchControllerProvider).selectedIndex, 0);
+      await search.navigate(1);
+      expect(container.read(searchControllerProvider).selectedIndex, 1);
+      offset = 7;
+      search.userScrolled();
+      await search.navigate(1);
+      expect(container.read(searchControllerProvider).selectedIndex, 2);
+      offset = 4;
+      search.userScrolled();
+      await search.submit();
+      expect(container.read(searchControllerProvider).selectedIndex, 1);
+      expect(backend.submissions, hasLength(1));
+    },
+  );
+
+  testWidgets('pending anchor waits for the nearest hit rather than wrapping', (
+    tester,
+  ) async {
+    logs.upsert([fixtureRecord(1, 'x'), fixtureRecord(3, 'x')]);
+    final hits = [fixtureHit(1, 0, 1)];
+    final session = FixtureSearchSession(
+      hits: hits,
+      views: {1: fixtureView(1, 'x'), 3: fixtureView(3, 'x')},
+      complete: false,
+    );
+    backend.sessions.add(session);
+    search.setPositionReader(() => (recordId: 2, offset: 0));
+    search.setDraft('x');
+    await search.submit();
+    expect(container.read(searchControllerProvider).selectedHit, isNull);
+    expect(container.read(searchControllerProvider).wrapped, isFalse);
+    hits.add(fixtureHit(3, 1, 1));
+    session.complete = true;
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(container.read(searchControllerProvider).selectedHit!.recordId, 3);
+    expect(container.read(searchControllerProvider).wrapped, isFalse);
+  });
+
+  testWidgets('rank navigation waits for a growing index before wrapping', (
+    tester,
+  ) async {
+    logs.upsert([fixtureRecord(1, 'xx')]);
+    final hits = [fixtureHit(1, 0, 2)];
+    final session = FixtureSearchSession(
+      hits: hits,
+      views: {1: fixtureView(1, 'xx')},
+      complete: false,
+    );
+    backend.sessions.add(session);
+    search.setDraft('x');
+    await search.submit();
+    await search.navigate(1);
+    expect(container.read(searchControllerProvider).selectedIndex, 0);
+    expect(container.read(searchControllerProvider).wrapped, isFalse);
+    hits.add(fixtureHit(1, 1, 2));
+    session.complete = true;
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(container.read(searchControllerProvider).selectedIndex, 1);
+    expect(container.read(searchControllerProvider).wrapped, isFalse);
+  });
+
+  test('manual scrolling cancels an in-flight reveal', () async {
+    logs.upsert([fixtureRecord(1, 'xx')]);
+    final session = FixtureSearchSession(
+      hits: [fixtureHit(1, 0, 2), fixtureHit(1, 1, 2)],
+      views: {1: fixtureView(1, 'xx')},
+    );
+    backend.sessions.add(session);
+    search.setDraft('x');
+    await search.submit();
+    session.pendingRecord = Completer<rust.SearchRecordView?>();
+    final next = search.navigate(1);
+    await Future<void>.delayed(Duration.zero);
+    search.userScrolled();
+    session.pendingRecord!.complete(fixtureView(1, 'xx'));
+    await next;
+    expect(container.read(searchControllerProvider).selectedIndex, 0);
+  });
+
+  test(
+    'scrolling during submission prevents its captured position jumping back',
+    () async {
+      logs.upsert([fixtureRecord(1, 'x'), fixtureRecord(2, 'x')]);
+      final accepted = Completer<FixtureSearchSession>();
+      backend.onStart = (_, _) => accepted.future;
+      var recordId = 1;
+      search.setPositionReader(() => (recordId: recordId, offset: 0));
+      search.setDraft('x');
+      final submission = search.submit();
+      recordId = 2;
+      search.userScrolled();
+      accepted.complete(
+        FixtureSearchSession(
+          hits: [fixtureHit(1, 0, 1), fixtureHit(2, 1, 1)],
+          views: {1: fixtureView(1, 'x'), 2: fixtureView(2, 'x')},
+        ),
+      );
+      await submission;
+      expect(container.read(searchControllerProvider).selectedHit, isNull);
+      await search.navigate(1);
+      expect(container.read(searchControllerProvider).selectedHit!.recordId, 2);
+    },
+  );
+
+  test(
     'invalid submit preserves active session and in-flight view request',
     () async {
       logs.upsert([fixtureRecord(1, 'x')]);

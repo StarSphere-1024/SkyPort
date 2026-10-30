@@ -131,11 +131,16 @@ void main() {
       expect(button.onPressed, isNotNull);
       expect(
         tester.getRect(find.byWidget(button)).bottom,
-        lessThan(tester.getRect(find.byType(ListView)).top),
+        lessThan(
+          tester.getRect(find.byKey(const ValueKey('search-results'))).top,
+        ),
       );
     }
     final headerPosition = tester.getTopLeft(buttons.first);
-    await tester.drag(find.byType(ListView), const Offset(0, 300));
+    await tester.drag(
+      find.byKey(const ValueKey('search-results')),
+      const Offset(0, 300),
+    );
     await tester.pumpAndSettle();
     expect(tester.getTopLeft(buttons.first), headerPosition);
     expect(tester.takeException(), isNull);
@@ -200,7 +205,9 @@ void main() {
           await tester.binding.setSurfaceSize(Size(width, 700));
           await tester.pumpAndSettle();
           final panel = tester.getRect(find.byType(Card));
-          final logs = tester.getRect(find.byType(ListView));
+          final logs = tester.getRect(
+            find.byKey(const ValueKey('search-results')),
+          );
           for (final tooltip in [
             l10n.searchOpen,
             l10n.exportLogs,
@@ -260,7 +267,9 @@ void main() {
     );
     controller.receiveThrough(2, first: 1);
     await tester.pumpAndSettle();
-    final top = tester.getTopLeft(find.byType(ListView)).dy;
+    final top = tester
+        .getTopLeft(find.byKey(const ValueKey('search-results')))
+        .dy;
     final row1 = tester
         .getTopLeft(find.textContaining('row 001', findRichText: true))
         .dy;
@@ -290,12 +299,15 @@ void main() {
     );
     controller.receiveThrough(100);
     await tester.pumpAndSettle();
-    await tester.drag(find.byType(ListView), const Offset(0, 1600));
+    await tester.drag(
+      find.byKey(const ValueKey('search-results')),
+      const Offset(0, 1600),
+    );
     await tester.pumpAndSettle();
     final position = tester
         .state<ScrollableState>(
           find.descendant(
-            of: find.byType(ListView),
+            of: find.byKey(const ValueKey('search-results')),
             matching: find.byType(Scrollable),
           ),
         )
@@ -315,7 +327,9 @@ void main() {
     expect(latest, findsOneWidget);
     expect(
       tester.getBottomRight(latest).dy,
-      lessThanOrEqualTo(tester.getBottomRight(find.byType(ListView)).dy),
+      lessThanOrEqualTo(
+        tester.getBottomRight(find.byKey(const ValueKey('search-results'))).dy,
+      ),
     );
     controller.receiveThrough(
       201,
@@ -327,7 +341,9 @@ void main() {
     expect(find.textContaining('row 201', findRichText: true), findsOneWidget);
     await tester.sendEventToBinding(
       PointerScrollEvent(
-        position: tester.getCenter(find.byType(ListView)),
+        position: tester.getCenter(
+          find.byKey(const ValueKey('search-results')),
+        ),
         scrollDelta: const Offset(0, -200),
       ),
     );
@@ -364,7 +380,7 @@ void main() {
         final position = tester
             .state<ScrollableState>(
               find.descendant(
-                of: find.byType(ListView),
+                of: find.byKey(const ValueKey('search-results')),
                 matching: find.byType(Scrollable),
               ),
             )
@@ -382,7 +398,13 @@ void main() {
       expect(latest, findsOneWidget);
       expect(
         tester.getBottomRight(latest).dy,
-        closeTo(tester.getBottomRight(find.byType(ListView)).dy - 8, 1),
+        closeTo(
+          tester
+                  .getBottomRight(find.byKey(const ValueKey('search-results')))
+                  .dy -
+              8,
+          1,
+        ),
       );
     }
   });
@@ -409,7 +431,7 @@ void main() {
       final position = tester
           .state<ScrollableState>(
             find.descendant(
-              of: find.byType(ListView),
+              of: find.byKey(const ValueKey('search-results')),
               matching: find.byType(Scrollable),
             ),
           )
@@ -447,13 +469,28 @@ void main() {
       settings.setHexDisplay(false);
       await tester.pumpAndSettle();
 
-      await tester.drag(find.byType(ListView), const Offset(0, 200));
+      await tester.drag(
+        find.byKey(const ValueKey('search-results')),
+        const Offset(0, 200),
+      );
       await tester.pumpAndSettle();
       final readingPosition = position.pixels;
       expect(position.extentAfter, greaterThan(0));
       controller.receiveThrough(103);
       await tester.pumpAndSettle();
       expect(position.pixels, closeTo(readingPosition, 1));
+      await tester.drag(
+        find.byKey(const ValueKey('search-results')),
+        const Offset(0, -1000),
+      );
+      await tester.pumpAndSettle();
+      controller.receiveThrough(104);
+      await tester.pumpAndSettle();
+      expect(position.extentAfter, closeTo(0, 1));
+      expect(
+        find.textContaining('row 104', findRichText: true),
+        findsOneWidget,
+      );
       controller.resetLogs();
       await tester.pumpAndSettle();
       controller.receiveThrough(100);

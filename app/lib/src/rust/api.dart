@@ -48,6 +48,18 @@ Future<SearchRecordReply> searchRecord({
   focusIndex: focusIndex,
 );
 
+Future<SearchSeekReply> searchSeek({
+  required SearchHandle search,
+  required int recordId,
+  required int offset,
+  required bool backwards,
+}) => RustLib.instance.api.crateApiSearchSeek(
+  search: search,
+  recordId: recordId,
+  offset: offset,
+  backwards: backwards,
+);
+
 Future<void> cancelSearch({required SearchHandle search}) =>
     RustLib.instance.api.crateApiCancelSearch(search: search);
 
@@ -994,6 +1006,7 @@ class SearchRecordView {
   final int recordId;
   final int timestampMs;
   final int sourceLength;
+  final int startOffset;
   final String text;
   final List<SearchRange> ranges;
   final SearchRange? focusRange;
@@ -1004,6 +1017,7 @@ class SearchRecordView {
     required this.recordId,
     required this.timestampMs,
     required this.sourceLength,
+    required this.startOffset,
     required this.text,
     required this.ranges,
     this.focusRange,
@@ -1016,6 +1030,7 @@ class SearchRecordView {
       recordId.hashCode ^
       timestampMs.hashCode ^
       sourceLength.hashCode ^
+      startOffset.hashCode ^
       text.hashCode ^
       ranges.hashCode ^
       focusRange.hashCode ^
@@ -1030,11 +1045,40 @@ class SearchRecordView {
           recordId == other.recordId &&
           timestampMs == other.timestampMs &&
           sourceLength == other.sourceLength &&
+          startOffset == other.startOffset &&
           text == other.text &&
           ranges == other.ranges &&
           focusRange == other.focusRange &&
           leadingClipped == other.leadingClipped &&
           trailingClipped == other.trailingClipped;
+}
+
+class SearchSeekReply {
+  final SearchHit? hit;
+  final bool pending;
+  final bool wrapped;
+  final CoreError? error;
+
+  const SearchSeekReply({
+    this.hit,
+    required this.pending,
+    required this.wrapped,
+    this.error,
+  });
+
+  @override
+  int get hashCode =>
+      hit.hashCode ^ pending.hashCode ^ wrapped.hashCode ^ error.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SearchSeekReply &&
+          runtimeType == other.runtimeType &&
+          hit == other.hit &&
+          pending == other.pending &&
+          wrapped == other.wrapped &&
+          error == other.error;
 }
 
 class SearchSnapshotInfo {

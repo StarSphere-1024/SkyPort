@@ -1,5 +1,7 @@
 import '../src/rust/api.dart' as rust;
 
+typedef SearchReadingPosition = ({int recordId, int offset});
+
 class SearchConfiguration {
   final bool hex;
   final bool caseSensitive;

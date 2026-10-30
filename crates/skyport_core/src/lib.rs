@@ -10,8 +10,8 @@ pub use config::{
 };
 pub use logging::{Direction, ExportOptions, LogDelta, LogRecord, LogSnapshot, LogStore};
 pub use search::{
-    SearchHit, SearchOptions, SearchProgress, SearchRange, SearchRecordView, SearchSession,
-    SearchSnapshotInfo,
+    SearchHit, SearchOptions, SearchProgress, SearchRange, SearchRecordView, SearchSeek,
+    SearchSession, SearchSnapshotInfo,
 };
 use serde::{Deserialize, Serialize};
 use std::{error::Error, fmt, path::PathBuf, time::Duration};

@@ -49,14 +49,29 @@ void main() {
   );
 
   testWidgets(
-    'typing never searches; Enter always submits; Esc preserves draft',
+    'typing preserves reading; Enter advances matches; Esc preserves draft',
     (tester) async {
       final logs = SearchFixtureController();
+      const query = '  literal  ';
+      final text = query * 2;
       final backend = FixtureSearchBackend(logs, [
-        FixtureSearchSession(),
-        FixtureSearchSession(),
+        FixtureSearchSession(
+          hits: [fixtureHit(1, 0, text.length), fixtureHit(1, 1, text.length)],
+          views: {
+            1: fixtureView(
+              1,
+              text,
+              ranges: [
+                rust.SearchRange(start: 0, end: query.length),
+                rust.SearchRange(start: query.length, end: text.length),
+              ],
+            ),
+          },
+        ),
       ]);
       await mount(tester, logs, backend);
+      logs.upsert([fixtureRecord(1, text)]);
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('send-draft')));
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
       await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
@@ -70,9 +85,10 @@ void main() {
       await tester.testTextInput.receiveAction(TextInputAction.search);
       await tester.pumpAndSettle();
       expect(backend.submissions.single.$1, '  literal  ');
+      expect(container(tester).read(searchControllerProvider).selectedIndex, 0);
       await tester.testTextInput.receiveAction(TextInputAction.search);
       await tester.pumpAndSettle();
-      expect(backend.submissions, hasLength(2));
+      expect(container(tester).read(searchControllerProvider).selectedIndex, 1);
       await tester.enterText(input, 'new draft');
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
@@ -80,24 +96,20 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('search-open')));
       await tester.pumpAndSettle();
       expect(tester.widget<TextField>(input).controller!.text, 'new draft');
-      expect(backend.submissions, hasLength(2));
+      expect(backend.submissions, hasLength(1));
       final toggle = find.byKey(const ValueKey('search-open'));
-      expect(
-        find.descendant(of: toggle, matching: find.text('Search')),
-        findsOneWidget,
-      );
       await tester.tap(toggle);
       await tester.pumpAndSettle();
       expect(input, findsNothing);
       await tester.tap(toggle);
       await tester.pumpAndSettle();
       expect(tester.widget<TextField>(input).controller!.text, 'new draft');
-      expect(backend.submissions, hasLength(2));
+      expect(backend.submissions, hasLength(1));
     },
   );
 
   testWidgets(
-    'narrow attached bar has usable submit and options apply only on submit',
+    'narrow attached bar submits through navigation and applies dirty options',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(360, 600));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -123,7 +135,7 @@ void main() {
         expect(bounds.center.dy, closeTo(fieldBounds.center.dy, 1));
         expect(bounds.right, lessThanOrEqualTo(360));
       }
-      await tester.tap(find.byKey(const ValueKey('search-submit')));
+      await tester.tap(find.byKey(const ValueKey('search-next')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('search-case')));
       final settings = container(tester).read(uiSettingsProvider.notifier);
@@ -137,7 +149,7 @@ void main() {
         container(tester).read(searchControllerProvider).options!.hex,
         isFalse,
       );
-      await tester.tap(find.byKey(const ValueKey('search-submit')));
+      await tester.tap(find.byKey(const ValueKey('search-previous')));
       await tester.pumpAndSettle();
       final options = backend.submissions.last.$2;
       expect(options.hex, isTrue);
@@ -370,6 +382,84 @@ void main() {
       expect(
         tester.getTopLeft(find.byKey(const ValueKey('search-row-1'))).dy,
         closeTo(tester.getTopLeft(list).dy + 8, 1),
+      );
+    },
+  );
+
+  testWidgets(
+    'navigation anchors in the middle of a wrapped row and reanchors after scrolling',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(420, 520));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final logs = SearchFixtureController();
+      final text = List.generate(
+        40,
+        (index) => 'needle$index ${'payload ' * 5}',
+      ).join('\n');
+      final starts = [
+        for (var index = 0; index < 40; index++) text.indexOf('needle$index'),
+      ];
+      final ranges = [
+        for (final start in starts)
+          rust.SearchRange(start: start, end: start + 8),
+      ];
+      final session = FixtureSearchSession(
+        hits: [
+          for (var index = 0; index < starts.length; index++)
+            fixtureHit(2, index, text.length),
+        ],
+        views: {2: fixtureView(2, text, ranges: ranges, focus: ranges.first)},
+      );
+      await mount(tester, logs, FixtureSearchBackend(logs, [session]));
+      logs.upsert([fixtureRecord(1, 'before'), fixtureRecord(2, text)]);
+      await tester.pumpAndSettle();
+      final list = find.byKey(const ValueKey('search-results'));
+      await tester.drag(list, const Offset(0, 220));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('search-open')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('search-input')),
+        'needle',
+      );
+      await tester.pump();
+
+      int visibleOffset() {
+        final row = find.byKey(const ValueKey('search-row-2'));
+        final paragraph = tester.renderObject<RenderParagraph>(
+          find.descendant(of: row, matching: find.byType(RichText)).first,
+        );
+        final viewport = RenderAbstractViewport.of(paragraph) as RenderBox;
+        final top = paragraph.globalToLocal(
+          viewport.localToGlobal(Offset.zero),
+        );
+        final offset = paragraph.getPositionForOffset(Offset(0, top.dy)).offset;
+        return (offset - 18).clamp(0, text.length).toInt();
+      }
+
+      int nextMatch(int offset) {
+        final index = starts.indexWhere((start) => start >= offset);
+        return index < 0 ? 0 : index;
+      }
+
+      int anchor = visibleOffset();
+      expect(anchor, inInclusiveRange(0, text.length));
+      await tester.tap(find.byKey(const ValueKey('search-next')));
+      await tester.pumpAndSettle();
+      expect(
+        container(tester).read(searchControllerProvider).selectedIndex,
+        nextMatch(anchor),
+      );
+
+      await tester.drag(list, const Offset(0, 140));
+      await tester.pumpAndSettle();
+      anchor = visibleOffset();
+      expect(anchor, inInclusiveRange(0, text.length));
+      await tester.tap(find.byKey(const ValueKey('search-next')));
+      await tester.pumpAndSettle();
+      expect(
+        container(tester).read(searchControllerProvider).selectedIndex,
+        nextMatch(anchor),
       );
     },
   );

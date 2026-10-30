@@ -165,6 +165,52 @@ class FixtureSearchSession implements SearchSession {
       index >= 0 && index < hits.length ? hits[index] : null;
 
   @override
+  Future<rust.SearchSeekReply> seek(
+    SearchReadingPosition position, {
+    required bool backwards,
+  }) async {
+    int unsignedCompare(int left, int right) {
+      if ((left < 0) != (right < 0)) return left < 0 ? 1 : -1;
+      return left.compareTo(right);
+    }
+
+    rust.SearchHit? candidate;
+    final localRanks = <int, int>{};
+    for (final hit in hits) {
+      final local = localRanks.update(
+        hit.recordId,
+        (rank) => rank + 1,
+        ifAbsent: () => 0,
+      );
+      final view = views[hit.recordId];
+      final offset = view != null && local < view.ranges.length
+          ? view.startOffset + view.ranges[local].start
+          : local;
+      final recordOrder = unsignedCompare(hit.recordId, position.recordId);
+      final eligible = backwards
+          ? recordOrder < 0 || recordOrder == 0 && offset < position.offset
+          : recordOrder > 0 || recordOrder == 0 && offset >= position.offset;
+      if (eligible) {
+        candidate = hit;
+        if (!backwards) break;
+      }
+    }
+    final pending = candidate == null && !complete;
+    return rust.SearchSeekReply(
+      hit:
+          candidate ??
+          (complete && hits.isNotEmpty
+              ? backwards
+                    ? hits.last
+                    : hits.first
+              : null),
+      pending: pending,
+      wrapped: candidate == null && complete && hits.isNotEmpty,
+      error: null,
+    );
+  }
+
+  @override
   Future<rust.SearchRecordView?> record(int id, {int? focusIndex}) async {
     requestedViews.add((id, focusIndex));
     if (pendingRecord != null) return pendingRecord!.future;
@@ -210,10 +256,12 @@ rust.SearchRecordView fixtureView(
   rust.SearchRange? focus,
   bool leadingClipped = false,
   bool trailingClipped = false,
+  int startOffset = 0,
 }) => rust.SearchRecordView(
   recordId: id,
   timestampMs: timestamp,
   sourceLength: sourceLength ?? utf8.encode(text).length,
+  startOffset: startOffset,
   text: text,
   ranges: ranges,
   focusRange: focus,

@@ -1,11 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:skyport/host_core.dart';
 import 'package:skyport/main.dart';
 import 'package:skyport/l10n/app_localizations.dart';
@@ -456,6 +460,7 @@ void main() {
       expect(state.rxBytes, 0);
       expect(state.logs.chunks, isEmpty);
       expect(state.dataGap, isFalse);
+      await _exerciseReadingAnchor(tester, container);
 
       // Persist every selection through a real core shutdown/recreation, then
       // render and connect from the restored configuration in both locales.
@@ -829,6 +834,83 @@ Future<void> _exerciseSnapshotSearch(
   settings.setHexDisplay(wasHex);
   settings.setShowSent(showedSent);
   await tester.pumpAndSettle();
+}
+
+Future<void> _exerciseReadingAnchor(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  final settings = container.read(uiSettingsProvider.notifier);
+  settings.setHexDisplay(false);
+  settings.setShowSent(true);
+  await tester.runAsync(() => _ptyControl('search-anchor-data'));
+  await _until(
+    tester,
+    () => container.read(uiControllerProvider).logs.chunks.length >= 120,
+  );
+  await tester.pumpAndSettle();
+  final listFinder = find.byKey(const ValueKey('search-results'));
+  await tester.drag(listFinder, const Offset(0, 150));
+  await tester.pumpAndSettle();
+  var list = tester.widget<ScrollablePositionedList>(listFinder);
+  list.itemScrollController!.jumpTo(index: 60);
+  await tester.pumpAndSettle();
+  final readingId = container.read(uiControllerProvider).logs.chunks[60].id;
+  final readingRow = find.byKey(ValueKey('search-row-$readingId'));
+  final before = tester.getTopLeft(readingRow) - tester.getTopLeft(listFinder);
+  await tester.tap(find.byKey(const ValueKey('search-open')));
+  await tester.pumpAndSettle();
+  expect(tester.getTopLeft(readingRow) - tester.getTopLeft(listFinder), before);
+  await tester.enterText(find.byKey(const ValueKey('search-input')), 'ANCHOR-');
+  await tester.tap(find.byKey(const ValueKey('search-previous')));
+  await _until(tester, () {
+    final state = container.read(searchControllerProvider);
+    return state.complete && state.selectedIndex != null;
+  });
+  expect(container.read(searchControllerProvider).selectedIndex, 59);
+  expect(container.read(searchControllerProvider).wrapped, isFalse);
+  await tester.tap(find.byKey(const ValueKey('search-next')));
+  await _until(
+    tester,
+    () => container.read(searchControllerProvider).selectedIndex == 60,
+  );
+  await tester.sendEventToBinding(
+    PointerScrollEvent(
+      position: tester.getCenter(listFinder),
+      scrollDelta: const Offset(0, 100),
+    ),
+  );
+  await tester.pumpAndSettle();
+  list = tester.widget<ScrollablePositionedList>(listFinder);
+  list.itemScrollController!.jumpTo(index: 40);
+  await tester.pumpAndSettle();
+  final navigation = container.read(searchControllerProvider).navigation;
+  await tester.tap(find.byKey(const ValueKey('search-next')));
+  await _until(
+    tester,
+    () => container.read(searchControllerProvider).navigation != navigation,
+  );
+  expect(container.read(searchControllerProvider).selectedIndex, 40);
+  expect(container.read(searchControllerProvider).wrapped, isFalse);
+  final output = Platform.environment['SKYPORT_SEARCH_SCREENSHOT'];
+  if (output != null) {
+    RenderObject? render = tester.renderObject(listFinder);
+    while (render != null && render is! RenderRepaintBoundary) {
+      render = render.parent;
+    }
+    final image = await (render! as RenderRepaintBoundary).toImage();
+    try {
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      await tester.runAsync(
+        () => File(
+          '$output-anchored.png',
+        ).writeAsBytes(bytes!.buffer.asUint8List()),
+      );
+    } finally {
+      image.dispose();
+    }
+  }
+  await tester.tap(find.byKey(const ValueKey('search-close')));
 }
 
 Future<void> _until(WidgetTester tester, bool Function() ready) async {

@@ -45,11 +45,18 @@ pub struct SearchRange {
     pub start: u32,
     pub end: u32,
 }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SearchSeek {
+    pub hit: Option<SearchHit>,
+    pub pending: bool,
+    pub wrapped: bool,
+}
 #[derive(Clone, Debug)]
 pub struct SearchRecordView {
     pub record_id: u64,
     pub timestamp_ms: i64,
     pub source_length: u64,
+    pub start_offset: u64,
     pub text: String,
     pub ranges: Vec<SearchRange>,
     pub focus_range: Option<SearchRange>,
@@ -145,6 +152,7 @@ struct RecordCount {
 struct Index {
     records: Vec<RecordCount>,
     total: u64,
+    completed_records: usize,
     complete: bool,
     error: Option<CoreError>,
 }
@@ -200,6 +208,100 @@ impl SearchSession {
             return Ok(None);
         }
         Ok(Some(hit))
+    }
+    pub fn search_seek(
+        &self,
+        record_id: u64,
+        offset: u64,
+        backwards: bool,
+    ) -> Result<SearchSeek, CoreError> {
+        let _lookup = self.inner.lookup.lock().map_err(lock_error)?;
+        let empty = SearchSeek {
+            hit: None,
+            pending: false,
+            wrapped: false,
+        };
+        let Some(data) = self.data() else {
+            return Ok(empty);
+        };
+        let anchor = data.records.partition_point(|record| record.id < record_id);
+        let exact = data
+            .records
+            .get(anchor)
+            .is_some_and(|record| record.id == record_id);
+        let index = self.inner.index.lock().map_err(lock_error)?;
+        if self.inner.cancelled.load(Ordering::Acquire) {
+            return Ok(empty);
+        }
+        if anchor > index.completed_records || exact && anchor >= index.completed_records {
+            return Ok(SearchSeek {
+                pending: true,
+                ..empty
+            });
+        }
+        let first = index
+            .records
+            .get(anchor)
+            .map_or(index.total, |count| count.first);
+        let count = if exact {
+            index.records[anchor].count
+        } else {
+            0
+        };
+        drop(index);
+        let mut before = 0;
+        if count > 0 {
+            scan(
+                &data.records[anchor],
+                &data.prepared,
+                &self.inner.cancelled,
+                true,
+                |span| {
+                    if span.start >= offset {
+                        return false;
+                    }
+                    before += 1;
+                    true
+                },
+                |_| {},
+            );
+        }
+        let insertion = first.saturating_add(before);
+        let index = self.inner.index.lock().map_err(lock_error)?;
+        if self.inner.cancelled.load(Ordering::Acquire) {
+            return Ok(empty);
+        }
+        let candidate = if backwards {
+            insertion.checked_sub(1)
+        } else {
+            (insertion < index.total).then_some(insertion)
+        };
+        let (rank, wrapped) = if let Some(rank) = candidate {
+            (rank, false)
+        } else if index.completed_records < data.records.len() {
+            return Ok(SearchSeek {
+                pending: true,
+                ..empty
+            });
+        } else if index.total == 0 {
+            return Ok(empty);
+        } else {
+            (if backwards { index.total - 1 } else { 0 }, true)
+        };
+        let Some(count) = find_rank(&index, rank) else {
+            return Ok(empty);
+        };
+        let record = &data.records[count.record];
+        Ok(SearchSeek {
+            hit: Some(SearchHit {
+                record_id: record.id,
+                timestamp_ms: record.timestamp_ms,
+                source_length: record.data.len() as u64,
+                index: rank,
+            }),
+            pending: false,
+            wrapped,
+        })
     }
     pub fn search_record(
         &self,
@@ -288,6 +390,7 @@ impl SearchSession {
             record_id: record.id,
             timestamp_ms: record.timestamp_ms,
             source_length: record.data.len() as u64,
+            start_offset: start,
             text,
             ranges,
             focus_range,
@@ -325,12 +428,12 @@ fn cancel(session: &SessionInner) {
     let mut index = session.index.lock().unwrap_or_else(|e| e.into_inner());
     index.records = Vec::new();
     index.total = 0;
+    index.completed_records = 0;
     index.complete = true;
 }
 fn lock_error<T>(_: T) -> CoreError {
     CoreError::new(ErrorKind::Internal, "search synchronization lock poisoned")
 }
-
 struct WorkerState {
     pending: Option<Arc<SessionInner>>,
     active: Weak<SessionInner>,
@@ -517,6 +620,8 @@ fn run_scan(session: &Arc<SessionInner>) {
             publish,
         );
         publish(0);
+        let mut index = session.index.lock().unwrap_or_else(|e| e.into_inner());
+        index.completed_records = record_index + 1;
     }
     let mut index = session.index.lock().unwrap_or_else(|e| e.into_inner());
     index.complete = true;
@@ -981,6 +1086,185 @@ mod tests {
             .unwrap()
             .unwrap()
     }
+    #[test]
+    fn seek_uses_canonical_offsets_and_wraps_within_records() {
+        let mut store = LogStore::new(1024);
+        store.sent("a😀x😀z\nplain".as_bytes(), 1);
+        let (_worker, session) = start(&store, "😀", options());
+        let record_id = session.search_match(0).unwrap().unwrap().record_id;
+        assert_eq!(
+            session
+                .search_seek(record_id, 1, false)
+                .unwrap()
+                .hit
+                .unwrap()
+                .index,
+            0
+        );
+        assert_eq!(
+            session
+                .search_seek(record_id, 2, false)
+                .unwrap()
+                .hit
+                .unwrap()
+                .index,
+            1
+        );
+        assert_eq!(
+            session
+                .search_seek(record_id, 4, true)
+                .unwrap()
+                .hit
+                .unwrap()
+                .index,
+            0
+        );
+        let wrapped = session.search_seek(record_id, 5, false).unwrap();
+        assert!(wrapped.wrapped);
+        assert_eq!(wrapped.hit.unwrap().index, 0);
+        let wrapped_back = session.search_seek(record_id, 1, true).unwrap();
+        assert!(wrapped_back.wrapped);
+        assert_eq!(wrapped_back.hit.unwrap().index, 1);
+    }
+
+    #[test]
+    fn seek_respects_hex_and_stripped_ansi_canonical_positions() {
+        let mut store = LogStore::new(1024);
+        store.sent(&[0xab, 0xcd], 1);
+        let hex = SearchOptions {
+            hex: true,
+            ..options()
+        };
+        let (_worker, session) = start(&store, "CD", hex);
+        let record_id = session.search_match(0).unwrap().unwrap().record_id;
+        assert_eq!(
+            session
+                .search_seek(record_id, 3, false)
+                .unwrap()
+                .hit
+                .unwrap()
+                .index,
+            0
+        );
+
+        store.sent(b"a\x1b[31mx", 2);
+        let ansi = SearchOptions {
+            strip_ansi: true,
+            ..options()
+        };
+        let (_worker, session) = start(&store, "x", ansi);
+        let record_id = session.search_match(0).unwrap().unwrap().record_id;
+        let view = session.search_record(record_id, Some(0)).unwrap().unwrap();
+        assert_eq!(view.start_offset + view.ranges[0].start as u64, 1);
+        assert_eq!(
+            session
+                .search_seek(record_id, 1, false)
+                .unwrap()
+                .hit
+                .unwrap()
+                .index,
+            0
+        );
+    }
+
+    #[test]
+    fn seek_locates_neighbors_when_the_reading_record_is_filtered_or_outside_snapshot() {
+        let mut store = LogStore::new(1024);
+        store.receive(b"hit\n", 1);
+        store.sent(b"hidden", 2);
+        store.receive(b"hit\n", 3);
+        let hidden = store.search_snapshot(true)[1].id;
+        let (_worker, session) = start(
+            &store,
+            "hit",
+            SearchOptions {
+                show_sent: false,
+                ..options()
+            },
+        );
+        assert_eq!(
+            session
+                .search_seek(hidden, 0, false)
+                .unwrap()
+                .hit
+                .unwrap()
+                .index,
+            1
+        );
+        assert_eq!(
+            session
+                .search_seek(hidden, 0, true)
+                .unwrap()
+                .hit
+                .unwrap()
+                .index,
+            0
+        );
+        let from_start = session.search_seek(0, 0, false).unwrap();
+        assert_eq!(from_start.hit.unwrap().index, 0);
+        assert!(!from_start.wrapped);
+        let from_end = session.search_seek(u64::MAX, u64::MAX, true).unwrap();
+        assert_eq!(from_end.hit.unwrap().index, 1);
+        assert!(!from_end.wrapped);
+    }
+
+    #[test]
+    fn seek_waits_for_unindexed_frontier_and_stops_after_cancel() {
+        let mut store = LogStore::new(1024);
+        store.sent(b"hit", 1);
+        store.sent(b"hit", 2);
+        let records = store.search_snapshot(true);
+        let session = SearchSession {
+            inner: Arc::new(SessionInner {
+                snapshot: SearchSnapshotInfo {
+                    sequence: 0,
+                    first_record_id: Some(records[0].id),
+                    last_record_id: Some(records[0].id),
+                    pending: None,
+                },
+                cancelled: AtomicBool::new(false),
+                data: Mutex::new(Some(Arc::new(SessionData {
+                    records,
+                    prepared: PreparedSearch::new("hit".into(), options()).unwrap(),
+                }))),
+                index: Mutex::new(Index::default()),
+                lookup: Mutex::new(()),
+            }),
+        };
+        assert_eq!(
+            session.search_seek(1, 0, false).unwrap(),
+            SearchSeek {
+                hit: None,
+                pending: true,
+                wrapped: false
+            }
+        );
+        {
+            let mut index = session.inner.index.lock().unwrap();
+            index.records.push(RecordCount {
+                record: 0,
+                first: 0,
+                count: 1,
+            });
+            index.total = 1;
+            index.completed_records = 1;
+        }
+        assert!(session.search_seek(2, 0, true).unwrap().pending);
+        assert!(session.search_seek(1, 0, true).unwrap().pending);
+        assert_eq!(
+            session.search_seek(0, 0, false).unwrap().hit.unwrap().index,
+            0
+        );
+        session.cancel();
+        assert_eq!(
+            session.search_seek(1, 0, false).unwrap(),
+            SearchSeek {
+                hit: None,
+                pending: false,
+                wrapped: false
+            }
+        );
+    }
 
     #[test]
     fn literals_are_nonoverlapping_case_sensitive_and_record_local() {
@@ -1364,6 +1648,7 @@ mod tests {
         assert!(focused.text.encode_utf16().count() <= 4096);
         let focus = focused.focus_range.unwrap();
         assert_eq!(focus.end - focus.start, 6);
+        assert_eq!(focused.start_offset + u64::from(focus.start), 12_000);
         assert!(focused
             .ranges
             .iter()

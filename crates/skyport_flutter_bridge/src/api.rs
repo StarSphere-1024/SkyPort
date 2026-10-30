@@ -32,6 +32,12 @@ pub struct SearchRecordReply {
     pub record: Option<SearchRecordView>,
     pub error: Option<CoreError>,
 }
+pub struct SearchSeekReply {
+    pub hit: Option<SearchHit>,
+    pub pending: bool,
+    pub wrapped: bool,
+    pub error: Option<CoreError>,
+}
 #[derive(Clone, Debug)]
 pub struct SearchHit {
     pub record_id: u64,
@@ -56,6 +62,7 @@ pub struct SearchRecordView {
     pub record_id: u64,
     pub timestamp_ms: i64,
     pub source_length: u64,
+    pub start_offset: u64,
     pub text: String,
     pub ranges: Vec<SearchRange>,
     pub focus_range: Option<SearchRange>,
@@ -107,6 +114,7 @@ impl From<core::SearchRecordView> for SearchRecordView {
             record_id: value.record_id,
             timestamp_ms: value.timestamp_ms,
             source_length: value.source_length,
+            start_offset: value.start_offset,
             text: value.text,
             ranges: value.ranges.into_iter().map(Into::into).collect(),
             focus_range: value.focus_range.map(Into::into),
@@ -858,6 +866,27 @@ pub fn search_record(
         },
         Err(error) => SearchRecordReply {
             record: None,
+            error: Some(error.into()),
+        },
+    }
+}
+pub fn search_seek(
+    search: &SearchHandle,
+    record_id: u64,
+    offset: u64,
+    backwards: bool,
+) -> SearchSeekReply {
+    match search.0.search_seek(record_id, offset, backwards) {
+        Ok(value) => SearchSeekReply {
+            hit: value.hit.map(Into::into),
+            pending: value.pending,
+            wrapped: value.wrapped,
+            error: None,
+        },
+        Err(error) => SearchSeekReply {
+            hit: None,
+            pending: false,
+            wrapped: false,
             error: Some(error.into()),
         },
     }

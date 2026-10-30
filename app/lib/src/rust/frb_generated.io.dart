@@ -381,6 +381,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SearchRecordView dco_decode_search_record_view(dynamic raw);
 
   @protected
+  SearchSeekReply dco_decode_search_seek_reply(dynamic raw);
+
+  @protected
   SearchSnapshotInfo dco_decode_search_snapshot_info(dynamic raw);
 
   @protected
@@ -794,6 +797,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SearchRecordView sse_decode_search_record_view(SseDeserializer deserializer);
+
+  @protected
+  SearchSeekReply sse_decode_search_seek_reply(SseDeserializer deserializer);
 
   @protected
   SearchSnapshotInfo sse_decode_search_snapshot_info(
@@ -1313,6 +1319,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_search_record_view(
     SearchRecordView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_search_seek_reply(
+    SearchSeekReply self,
     SseSerializer serializer,
   );
 

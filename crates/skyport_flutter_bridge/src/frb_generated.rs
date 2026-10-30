@@ -40,7 +40,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1556776806;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -2082707964;
 
 // Section: executor
 
@@ -747,6 +747,65 @@ fn wire__crate__api__search_record_impl(
                         &*api_search_guard,
                         api_record_id,
                         api_focus_index,
+                    ))?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__search_seek_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "search_seek",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_search = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SearchHandle>,
+            >>::sse_decode(&mut deserializer);
+            let api_record_id = <u64>::sse_decode(&mut deserializer);
+            let api_offset = <u64>::sse_decode(&mut deserializer);
+            let api_backwards = <bool>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let mut api_search_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_search,
+                                0,
+                                false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_search_guard = Some(api_search.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_search_guard = api_search_guard.unwrap();
+                    let output_ok = Ok::<_, ()>(crate::api::search_seek(
+                        &*api_search_guard,
+                        api_record_id,
+                        api_offset,
+                        api_backwards,
                     ))?;
                     std::result::Result::Ok(output_ok)
                 })())
@@ -2319,6 +2378,7 @@ impl SseDecode for crate::api::SearchRecordView {
         let mut var_recordId = <u64>::sse_decode(deserializer);
         let mut var_timestampMs = <i64>::sse_decode(deserializer);
         let mut var_sourceLength = <u64>::sse_decode(deserializer);
+        let mut var_startOffset = <u64>::sse_decode(deserializer);
         let mut var_text = <String>::sse_decode(deserializer);
         let mut var_ranges = <Vec<crate::api::SearchRange>>::sse_decode(deserializer);
         let mut var_focusRange = <Option<crate::api::SearchRange>>::sse_decode(deserializer);
@@ -2328,11 +2388,28 @@ impl SseDecode for crate::api::SearchRecordView {
             record_id: var_recordId,
             timestamp_ms: var_timestampMs,
             source_length: var_sourceLength,
+            start_offset: var_startOffset,
             text: var_text,
             ranges: var_ranges,
             focus_range: var_focusRange,
             leading_clipped: var_leadingClipped,
             trailing_clipped: var_trailingClipped,
+        };
+    }
+}
+
+impl SseDecode for crate::api::SearchSeekReply {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_hit = <Option<crate::api::SearchHit>>::sse_decode(deserializer);
+        let mut var_pending = <bool>::sse_decode(deserializer);
+        let mut var_wrapped = <bool>::sse_decode(deserializer);
+        let mut var_error = <Option<crate::api::CoreError>>::sse_decode(deserializer);
+        return crate::api::SearchSeekReply {
+            hit: var_hit,
+            pending: var_pending,
+            wrapped: var_wrapped,
+            error: var_error,
         };
     }
 }
@@ -2489,15 +2566,16 @@ fn pde_ffi_dispatcher_primary_impl(
         12 => wire__crate__api__poll_search_impl(port, ptr, rust_vec_len, data_len),
         13 => wire__crate__api__search_match_impl(port, ptr, rust_vec_len, data_len),
         14 => wire__crate__api__search_record_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__send_hex_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__send_input_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__send_text_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__set_auto_reconnect_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__set_auto_send_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__set_config_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__snapshot_impl(port, ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__subscribe_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__update_config_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__search_seek_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__send_hex_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__send_input_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__send_text_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__set_auto_reconnect_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__set_auto_send_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__set_config_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__snapshot_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__subscribe_impl(port, ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__update_config_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -2510,7 +2588,7 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        22 => wire__crate__api__start_search_impl(ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__start_search_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -3175,6 +3253,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::SearchRecordView {
             self.record_id.into_into_dart().into_dart(),
             self.timestamp_ms.into_into_dart().into_dart(),
             self.source_length.into_into_dart().into_dart(),
+            self.start_offset.into_into_dart().into_dart(),
             self.text.into_into_dart().into_dart(),
             self.ranges.into_into_dart().into_dart(),
             self.focus_range.into_into_dart().into_dart(),
@@ -3189,6 +3268,26 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::SearchRecordView>
     for crate::api::SearchRecordView
 {
     fn into_into_dart(self) -> crate::api::SearchRecordView {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::SearchSeekReply {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.hit.into_into_dart().into_dart(),
+            self.pending.into_into_dart().into_dart(),
+            self.wrapped.into_into_dart().into_dart(),
+            self.error.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::SearchSeekReply {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::SearchSeekReply>
+    for crate::api::SearchSeekReply
+{
+    fn into_into_dart(self) -> crate::api::SearchSeekReply {
         self
     }
 }
@@ -4143,11 +4242,22 @@ impl SseEncode for crate::api::SearchRecordView {
         <u64>::sse_encode(self.record_id, serializer);
         <i64>::sse_encode(self.timestamp_ms, serializer);
         <u64>::sse_encode(self.source_length, serializer);
+        <u64>::sse_encode(self.start_offset, serializer);
         <String>::sse_encode(self.text, serializer);
         <Vec<crate::api::SearchRange>>::sse_encode(self.ranges, serializer);
         <Option<crate::api::SearchRange>>::sse_encode(self.focus_range, serializer);
         <bool>::sse_encode(self.leading_clipped, serializer);
         <bool>::sse_encode(self.trailing_clipped, serializer);
+    }
+}
+
+impl SseEncode for crate::api::SearchSeekReply {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<crate::api::SearchHit>>::sse_encode(self.hit, serializer);
+        <bool>::sse_encode(self.pending, serializer);
+        <bool>::sse_encode(self.wrapped, serializer);
+        <Option<crate::api::CoreError>>::sse_encode(self.error, serializer);
     }
 }
 
