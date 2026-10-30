@@ -25,7 +25,6 @@ class SearchResultsList extends ConsumerStatefulWidget {
 
 class _SearchResultsListState extends ConsumerState<SearchResultsList> {
   final _items = ItemScrollController();
-  final _offset = ScrollOffsetController();
   final _positions = ItemPositionsListener.create();
   bool _followLatest = true;
   bool _bottomScheduled = false;
@@ -146,41 +145,68 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
           _revealRevision != revision) {
         return;
       }
+      if (!ref.read(searchControllerProvider).visible || _revealFocus()) return;
       final index = _mapper?.indexForId(recordId);
       if (index == null) return;
-      _items.jumpTo(index: index);
+      final below = _positions.itemPositions.value.any(
+        (position) =>
+            position.itemLeadingEdge < 1 &&
+            position.itemTrailingEdge > 0 &&
+            position.index < index,
+      );
+      _items.jumpTo(index: index, alignment: below ? 1 : 0);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted ||
             _scheduledNavigation != navigation ||
             _revealRevision != revision) {
           return;
         }
-        if (!ref.read(searchControllerProvider).visible) return;
-        final render = _focusText.currentContext?.findRenderObject();
-        final view = ref.read(searchControllerProvider).selectedView;
-        final focus = view?.focusRange;
-        if (render is! RenderParagraph || focus == null) return;
-        // Prefix labels and clipping indicators precede the canonical UTF-16 view.
-        final text = render.text.toPlainText();
-        final prefixLength = text.length - view!.text.length;
-        final boxes = render.getBoxesForSelection(
-          TextSelection(
-            baseOffset: prefixLength + focus.start,
-            extentOffset: prefixLength + focus.end,
-          ),
-        );
-        if (boxes.isEmpty) return;
-        final viewport = context.size?.height ?? 0;
-        final delta = boxes.first.top - viewport * .25;
-        if (delta > 0) {
-          _offset.animateScroll(
-            offset: delta,
-            duration: const Duration(milliseconds: 1),
-          );
-        }
+        if (ref.read(searchControllerProvider).visible) _revealFocus();
       });
       WidgetsBinding.instance.ensureVisualUpdate();
     });
+  }
+
+  bool _revealFocus() {
+    final textContext = _focusText.currentContext;
+    var render = textContext?.findRenderObject();
+    while (render is RenderProxyBox) {
+      render = render.child;
+    }
+    final view = ref.read(searchControllerProvider).selectedView;
+    final focus = view?.focusRange;
+    if (render is! RenderParagraph || focus == null) return false;
+    // Prefix labels precede the canonical UTF-16 view.
+    final prefixLength = render.text.toPlainText().length - view!.text.length;
+    final boxes = render.getBoxesForSelection(
+      TextSelection(
+        baseOffset: prefixLength + focus.start,
+        extentOffset: prefixLength + focus.end,
+      ),
+    );
+    if (boxes.isEmpty) return false;
+    final viewport = RenderAbstractViewport.of(render) as RenderBox;
+    var bounds = boxes.first.toRect();
+    for (var index = 1; index < boxes.length; index++) {
+      bounds = bounds.expandToInclude(boxes[index].toRect());
+    }
+    if (bounds.height > viewport.size.height) bounds = boxes.first.toRect();
+    final rect = MatrixUtils.transformRect(
+      render.getTransformTo(viewport),
+      bounds,
+    );
+    final delta = rect.top < 0
+        ? rect.top
+        : rect.bottom > viewport.size.height
+        ? rect.bottom - viewport.size.height
+        : 0.0;
+    final position = Scrollable.of(textContext!).position;
+    final target = (position.pixels + delta).clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+    if ((target - position.pixels).abs() > 0.5) position.jumpTo(target);
+    return true;
   }
 
   @override
@@ -248,7 +274,6 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
               child: ScrollablePositionedList.builder(
                 key: const ValueKey('search-results'),
                 itemScrollController: _items,
-                scrollOffsetController: _offset,
                 itemPositionsListener: _positions,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,

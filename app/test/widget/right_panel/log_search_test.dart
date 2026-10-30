@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:skyport/l10n/app_localizations.dart';
 import 'package:skyport/providers/search_controller.dart';
 import 'package:skyport/providers/ui_controller.dart';
@@ -47,6 +48,225 @@ void main() {
   ProviderContainer container(WidgetTester tester) => ProviderScope.containerOf(
     tester.element(find.byType(ReceiveDisplayWidget)),
   );
+
+  Future<void> pumpSearchFrames(WidgetTester tester) async {
+    final list = find.byKey(const ValueKey('search-results'));
+    for (var frame = 0; frame < 24; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      for (final scrollable in tester.stateList<ScrollableState>(
+        find.descendant(of: list, matching: find.byType(Scrollable)),
+      )) {
+        final position = scrollable.position;
+        expect(
+          position.pixels,
+          inInclusiveRange(
+            position.minScrollExtent - 1,
+            position.maxScrollExtent + 1,
+          ),
+          reason: 'search frame $frame must not overscroll and rebound',
+        );
+      }
+    }
+  }
+
+  Rect focusedRect(WidgetTester tester) {
+    final search = container(tester).read(searchControllerProvider);
+    final view = search.selectedView!;
+    final paragraph = tester.renderObject<RenderParagraph>(
+      find
+          .descendant(
+            of: find.byKey(
+              ValueKey('search-row-${search.selectedHit!.recordId}'),
+            ),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is RichText &&
+                  widget.text.toPlainText().contains('needle'),
+            ),
+          )
+          .first,
+    );
+    final prefix = paragraph.text.toPlainText().length - view.text.length;
+    final boxes = paragraph.getBoxesForSelection(
+      TextSelection(
+        baseOffset: prefix + view.focusRange!.start,
+        extentOffset: prefix + view.focusRange!.end,
+      ),
+    );
+    var bounds = boxes.first.toRect();
+    for (final box in boxes.skip(1)) {
+      bounds = bounds.expandToInclude(box.toRect());
+    }
+    return MatrixUtils.transformRect(paragraph.getTransformTo(null), bounds);
+  }
+
+  void expectFocusVisible(WidgetTester tester) {
+    final viewport = tester.getRect(
+      find.byKey(const ValueKey('search-results')),
+    );
+    final focus = focusedRect(tester);
+    expect(focus.top, greaterThanOrEqualTo(viewport.top - 1));
+    expect(focus.bottom, lessThanOrEqualTo(viewport.bottom + 1));
+  }
+
+  testWidgets(
+    'search reveal stays bounded at the tail and preserves visible matches',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(600, 520));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final logs = SearchFixtureController();
+      const ids = [1, 3, 40, 115, 118];
+      String text(int id) => ids.contains(id) ? 'needle row $id' : 'row $id';
+      const range = rust.SearchRange(start: 0, end: 6);
+      final session = FixtureSearchSession(
+        hits: [
+          for (var index = 0; index < ids.length; index++)
+            fixtureHit(ids[index], index, text(ids[index]).length),
+        ],
+        views: {
+          for (final id in ids)
+            id: fixtureView(id, text(id), ranges: [range], focus: range),
+        },
+      );
+      await mount(tester, logs, FixtureSearchBackend(logs, [session]));
+      logs.upsert([
+        for (var id = 1; id <= 120; id++) fixtureRecord(id, text(id)),
+      ]);
+      await tester.pumpAndSettle();
+      final list = find.byKey(const ValueKey('search-results'));
+      await tester.drag(list, const Offset(0, 200));
+      await tester.pumpAndSettle();
+      tester
+          .widget<ScrollablePositionedList>(list)
+          .itemScrollController!
+          .jumpTo(index: 0);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('search-open')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('search-input')),
+        'needle',
+      );
+      await tester.tap(find.byKey(const ValueKey('search-next')));
+      await pumpSearchFrames(tester);
+      expectFocusVisible(tester);
+      final first = find.byKey(const ValueKey('search-row-1'));
+      final readingPosition = tester.getTopLeft(first);
+      await tester.tap(find.byKey(const ValueKey('search-next')));
+      await pumpSearchFrames(tester);
+      expect(container(tester).read(searchControllerProvider).selectedIndex, 1);
+      expect(tester.getTopLeft(first), readingPosition);
+      expectFocusVisible(tester);
+      for (var index = 2; index < ids.length; index++) {
+        await tester.tap(find.byKey(const ValueKey('search-next')));
+        await pumpSearchFrames(tester);
+        expect(
+          container(tester).read(searchControllerProvider).selectedIndex,
+          index,
+        );
+        expectFocusVisible(tester);
+      }
+      await tester.tap(find.byKey(const ValueKey('search-next')));
+      await pumpSearchFrames(tester);
+      expect(container(tester).read(searchControllerProvider).selectedIndex, 0);
+      expect(container(tester).read(searchControllerProvider).wrapped, isTrue);
+      expectFocusVisible(tester);
+      await tester.tap(find.byKey(const ValueKey('search-previous')));
+      await pumpSearchFrames(tester);
+      expect(container(tester).read(searchControllerProvider).selectedIndex, 4);
+      expectFocusVisible(tester);
+      final lastRow = find.byKey(const ValueKey('search-row-118'));
+      final tailPosition = tester.getTopLeft(lastRow);
+      await tester.tap(find.byKey(const ValueKey('search-previous')));
+      await pumpSearchFrames(tester);
+      expect(container(tester).read(searchControllerProvider).selectedIndex, 3);
+      expect(tester.getTopLeft(lastRow), tailPosition);
+      expectFocusVisible(tester);
+    },
+  );
+
+  testWidgets('search reveal reaches matches deep inside a single long record', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(600, 520));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final logs = SearchFixtureController();
+    final text = List.generate(
+      60,
+      (line) =>
+          '${line == 0 || line == 55 ? 'needle' : 'line'} $line ${'wrapped ' * 4}',
+    ).join('\n');
+    final session = _LongRecordSession(text);
+    await mount(tester, logs, FixtureSearchBackend(logs, [session]));
+    logs.upsert([fixtureRecord(1, text)]);
+    await tester.pumpAndSettle();
+    final list = find.byKey(const ValueKey('search-results'));
+    await tester.drag(list, const Offset(0, 200));
+    await tester.pumpAndSettle();
+    tester
+        .widget<ScrollablePositionedList>(list)
+        .itemScrollController!
+        .jumpTo(index: 0);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('search-open')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('search-input')),
+      'needle',
+    );
+    for (final index in [0, 1, 0]) {
+      await tester.tap(find.byKey(const ValueKey('search-next')));
+      await pumpSearchFrames(tester);
+      expect(
+        container(tester).read(searchControllerProvider).selectedIndex,
+        index,
+      );
+      expectFocusVisible(tester);
+    }
+  });
+
+  testWidgets('search reveal includes the last line of a multiline match', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(600, 520));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final logs = SearchFixtureController();
+    const text = 'needle\nneedle';
+    const range = rust.SearchRange(start: 0, end: text.length);
+    final session = FixtureSearchSession(
+      hits: [fixtureHit(2, 0, text.length)],
+      views: {
+        2: fixtureView(2, text, ranges: [range], focus: range),
+      },
+    );
+    await mount(tester, logs, FixtureSearchBackend(logs, [session]));
+    logs.upsert([
+      fixtureRecord(1, 'before\n' * 40),
+      fixtureRecord(2, text),
+      fixtureRecord(3, 'after\n' * 40),
+    ]);
+    await tester.pumpAndSettle();
+    final list = find.byKey(const ValueKey('search-results'));
+    await tester.drag(list, const Offset(0, 200));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('search-open')));
+    await tester.pumpAndSettle();
+    tester
+        .widget<ScrollablePositionedList>(list)
+        .itemScrollController!
+        .jumpTo(index: 1, alignment: 0.9);
+    await tester.pumpAndSettle();
+    expect(
+      tester.getRect(find.byKey(const ValueKey('search-row-2'))).bottom,
+      greaterThan(tester.getRect(list).bottom),
+    );
+    final search = container(tester).read(searchControllerProvider.notifier);
+    search.setDraft(text);
+    await search.submit();
+    await pumpSearchFrames(tester);
+    expect(container(tester).read(searchControllerProvider).selectedIndex, 0);
+    expectFocusVisible(tester);
+  });
 
   testWidgets(
     'typing preserves reading; Enter advances matches; Esc preserves draft',
@@ -490,4 +710,36 @@ void main() {
     expect(session.cancellations, 1);
     expect(tester.takeException(), isNull);
   });
+}
+
+class _LongRecordSession extends FixtureSearchSession {
+  _LongRecordSession(String text)
+    : super(
+        hits: [fixtureHit(1, 0, text.length), fixtureHit(1, 1, text.length)],
+        views: {
+          1: fixtureView(
+            1,
+            text,
+            ranges: [
+              const rust.SearchRange(start: 0, end: 6),
+              rust.SearchRange(
+                start: text.lastIndexOf('needle'),
+                end: text.lastIndexOf('needle') + 6,
+              ),
+            ],
+          ),
+        },
+      );
+
+  @override
+  Future<rust.SearchRecordView?> record(int id, {int? focusIndex}) async {
+    final view = await super.record(id, focusIndex: focusIndex);
+    if (view == null) return null;
+    return fixtureView(
+      id,
+      view.text,
+      ranges: view.ranges,
+      focus: focusIndex == null ? null : view.ranges[focusIndex],
+    );
+  }
 }
