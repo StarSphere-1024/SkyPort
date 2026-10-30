@@ -50,6 +50,16 @@ class ApplicationSettings extends ConsumerWidget {
       }
     }
 
+    Future<void> setAutoCheckUpdates(bool enabled) async {
+      try {
+        await ref
+            .read(uiSettingsProvider.notifier)
+            .setAutoCheckUpdates(enabled);
+      } catch (error) {
+        if (context.mounted) showErrorNotice(context, error);
+      }
+    }
+
     Widget settingRow({
       required IconData icon,
       required String title,
@@ -155,7 +165,7 @@ class ApplicationSettings extends ConsumerWidget {
             ],
           ),
           SettingsSection(
-            title: localizations.settingsConnection,
+            title: localizations.settingsGeneral,
             children: [
               settingRow(
                 icon: Icons.sync_rounded,
@@ -168,28 +178,14 @@ class ApplicationSettings extends ConsumerWidget {
                   onChanged: controllerNotifier.setAutoReconnect,
                 ),
               ),
-            ],
-          ),
-          SettingsSection(
-            title: localizations.checkForUpdates,
-            children: [
-              SwitchListTile(
-                contentPadding: const EdgeInsets.all(12),
-                secondary: const Icon(
-                  Icons.system_update_alt_rounded,
-                  size: 20,
+              settingRow(
+                icon: Icons.system_update_alt_rounded,
+                title: localizations.autoCheckUpdates,
+                onTap: () => setAutoCheckUpdates(!uiSettings.autoCheckUpdates),
+                trailing: Switch(
+                  value: uiSettings.autoCheckUpdates,
+                  onChanged: setAutoCheckUpdates,
                 ),
-                title: Text(localizations.autoCheckUpdates),
-                value: uiSettings.autoCheckUpdates,
-                onChanged: (enabled) async {
-                  try {
-                    await ref
-                        .read(uiSettingsProvider.notifier)
-                        .setAutoCheckUpdates(enabled);
-                  } catch (error) {
-                    if (context.mounted) showErrorNotice(context, error);
-                  }
-                },
               ),
             ],
           ),

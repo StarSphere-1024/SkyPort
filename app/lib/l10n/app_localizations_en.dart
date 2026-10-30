@@ -189,7 +189,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAppearance => 'Appearance';
 
   @override
-  String get settingsConnection => 'Connection';
+  String get settingsGeneral => 'General';
 
   @override
   String get settingsLogs => 'Logs';

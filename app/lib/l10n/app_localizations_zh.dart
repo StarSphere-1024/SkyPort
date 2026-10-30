@@ -186,7 +186,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsAppearance => '外观';
 
   @override
-  String get settingsConnection => '连接';
+  String get settingsGeneral => '常规';
 
   @override
   String get settingsLogs => '日志';

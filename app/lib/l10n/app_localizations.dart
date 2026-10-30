@@ -446,11 +446,11 @@ abstract class AppLocalizations {
   /// **'Appearance'**
   String get settingsAppearance;
 
-  /// No description provided for @settingsConnection.
+  /// No description provided for @settingsGeneral.
   ///
   /// In en, this message translates to:
-  /// **'Connection'**
-  String get settingsConnection;
+  /// **'General'**
+  String get settingsGeneral;
 
   /// No description provided for @settingsLogs.
   ///

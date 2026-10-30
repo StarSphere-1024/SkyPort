@@ -65,7 +65,7 @@
     }
   },
   "settingsAppearance": "外观",
-  "settingsConnection": "连接",
+  "settingsGeneral": "常规",
   "settingsLogs": "日志",
   "logBufferSizeHint": "16–512 MB · 按 Enter 应用",
   "theme": "主题",
