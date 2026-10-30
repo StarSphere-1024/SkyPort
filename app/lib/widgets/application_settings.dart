@@ -7,6 +7,7 @@ import '../providers/ui_controller.dart';
 import '../providers/ui_settings_provider.dart';
 import '../providers/theme_provider.dart';
 import 'shared/settings_section.dart';
+import 'shared/error_notice.dart';
 import 'theme_color_setting.dart';
 
 class ApplicationSettings extends ConsumerWidget {
@@ -166,6 +167,29 @@ class ApplicationSettings extends ConsumerWidget {
                   value: autoReconnect,
                   onChanged: controllerNotifier.setAutoReconnect,
                 ),
+              ),
+            ],
+          ),
+          SettingsSection(
+            title: localizations.checkForUpdates,
+            children: [
+              SwitchListTile(
+                contentPadding: const EdgeInsets.all(12),
+                secondary: const Icon(
+                  Icons.system_update_alt_rounded,
+                  size: 20,
+                ),
+                title: Text(localizations.autoCheckUpdates),
+                value: uiSettings.autoCheckUpdates,
+                onChanged: (enabled) async {
+                  try {
+                    await ref
+                        .read(uiSettingsProvider.notifier)
+                        .setAutoCheckUpdates(enabled);
+                  } catch (error) {
+                    if (context.mounted) showErrorNotice(context, error);
+                  }
+                },
               ),
             ],
           ),

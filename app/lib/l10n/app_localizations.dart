@@ -1105,6 +1105,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'later context clipped …'**
   String get searchContextAfter;
+
+  /// No description provided for @checkForUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates'**
+  String get checkForUpdates;
+
+  /// No description provided for @updateChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking for updates…'**
+  String get updateChecking;
+
+  /// No description provided for @updateUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'You’re using the latest version.'**
+  String get updateUpToDate;
+
+  /// No description provided for @updateAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version} is available'**
+  String updateAvailable(String version);
+
+  /// No description provided for @updateDownloadAsset.
+  ///
+  /// In en, this message translates to:
+  /// **'Download {asset}'**
+  String updateDownloadAsset(String asset);
+
+  /// No description provided for @updateNoPackage.
+  ///
+  /// In en, this message translates to:
+  /// **'No compatible package is available for this platform.'**
+  String get updateNoPackage;
+
+  /// No description provided for @updateReleasePage.
+  ///
+  /// In en, this message translates to:
+  /// **'View release page'**
+  String get updateReleasePage;
+
+  /// No description provided for @updateDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading update…'**
+  String get updateDownloading;
+
+  /// No description provided for @updateValidating.
+  ///
+  /// In en, this message translates to:
+  /// **'Verifying downloaded package…'**
+  String get updateValidating;
+
+  /// No description provided for @updateCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Download cancelled.'**
+  String get updateCancelled;
+
+  /// No description provided for @updateDownloadComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Download verified:'**
+  String get updateDownloadComplete;
+
+  /// No description provided for @updateOpenFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Open download folder'**
+  String get updateOpenFolder;
+
+  /// No description provided for @updateErrorNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not connect to check or download the update.'**
+  String get updateErrorNetwork;
+
+  /// No description provided for @updateErrorInvalidRelease.
+  ///
+  /// In en, this message translates to:
+  /// **'The release information is invalid.'**
+  String get updateErrorInvalidRelease;
+
+  /// No description provided for @updateErrorUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Updates are not supported on this platform.'**
+  String get updateErrorUnsupported;
+
+  /// No description provided for @updateErrorIntegrity.
+  ///
+  /// In en, this message translates to:
+  /// **'The downloaded package failed integrity verification.'**
+  String get updateErrorIntegrity;
+
+  /// No description provided for @updateErrorFileAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not access the download folder or file.'**
+  String get updateErrorFileAccess;
+
+  /// No description provided for @updateErrorUnexpected.
+  ///
+  /// In en, this message translates to:
+  /// **'The update operation failed.'**
+  String get updateErrorUnexpected;
+
+  /// No description provided for @autoCheckUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates at startup'**
+  String get autoCheckUpdates;
 }
 
 class _AppLocalizationsDelegate

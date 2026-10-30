@@ -30,6 +30,7 @@ void main() {
         () => Directory.systemTemp.createTemp('skyport-search-native-'),
       ))!;
       SharedPreferences.setMockInitialValues({
+        'ui_auto_check_updates': false,
         'theme_mode': 'dark',
         'ui_show_sent': true,
         'dynamic_color_enabled': false,

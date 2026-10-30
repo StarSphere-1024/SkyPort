@@ -20,6 +20,7 @@ import 'widgets/left_panel.dart';
 import 'widgets/right_panel.dart';
 import 'widgets/status_bar.dart';
 import 'widgets/desktop_window_frame.dart';
+import 'widgets/startup_update_check.dart';
 import 'services/app_logger.dart';
 import 'l10n/app_localizations.dart';
 import 'utils/error_messages.dart';
@@ -126,7 +127,7 @@ class SerialDebuggerApp extends ConsumerWidget {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         builder: (context, child) => DesktopWindowFrame(child: child!),
-        home: const HomePage(),
+        home: const StartupUpdateCheck(child: HomePage()),
       ),
     );
   }
@@ -241,6 +242,7 @@ class _HomePageState extends ConsumerState<HomePage>
   late final AnimationController _panelAnimation;
   late bool _panelOpen;
   ConfigurationPage _selectedPage = ConfigurationPage.serial;
+  bool _aboutOpened = false;
 
   @override
   void initState() {
@@ -401,7 +403,10 @@ class _HomePageState extends ConsumerState<HomePage>
 
   void _openPage(ConfigurationPage page) {
     final open = !_panelOpen || _selectedPage != page;
-    setState(() => _selectedPage = page);
+    setState(() {
+      _selectedPage = page;
+      if (page == ConfigurationPage.about) _aboutOpened = true;
+    });
     _setPanelOpen(open);
   }
 
@@ -446,10 +451,7 @@ class _HomePageState extends ConsumerState<HomePage>
                   formKey: _formKey,
                 ),
               ),
-              if (_selectedPage == ConfigurationPage.about)
-                const AboutPanel()
-              else
-                const SizedBox.shrink(),
+              if (_aboutOpened) const AboutPanel() else const SizedBox.shrink(),
             ],
           ),
         ),

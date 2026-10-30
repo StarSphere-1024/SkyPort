@@ -35,7 +35,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('More'), findsNothing);
+    await tester.ensureVisible(find.byIcon(Icons.open_in_new_rounded));
     await tester.tap(find.byIcon(Icons.open_in_new_rounded));
     await tester.pumpAndSettle();
     final l10n = AppLocalizations.of(tester.element(find.byType(AboutPanel)));

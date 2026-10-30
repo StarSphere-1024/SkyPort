@@ -20,6 +20,7 @@ void main() {
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({
+      'ui_auto_check_updates': false,
       'dynamic_color_enabled': true,
       'dynamic_color_preference_initialized': true,
       'theme_color': 0xff123456,

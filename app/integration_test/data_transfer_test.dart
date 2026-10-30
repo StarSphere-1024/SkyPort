@@ -37,7 +37,10 @@ void main() {
     final directory = (await tester.runAsync(
       () => Directory.systemTemp.createTemp('skyport-settings-'),
     ))!;
-    SharedPreferences.setMockInitialValues({'serial_auto_reconnect': false});
+    SharedPreferences.setMockInitialValues({
+      'serial_auto_reconnect': false,
+      'ui_auto_check_updates': false,
+    });
     final prefs = await SharedPreferences.getInstance();
     final bootstrap = (await tester.runAsync(
       () => createCoreFromHost(prefs, dataDirectory: directory.path),
@@ -95,6 +98,7 @@ void main() {
       () => Directory.systemTemp.createTemp('skyport-ui-pty-'),
     ))!;
     SharedPreferences.setMockInitialValues({
+      'ui_auto_check_updates': false,
       'serial_port_name': Platform.environment['SKYPORT_PTY']!,
       'serial_auto_reconnect': false,
       'ui_append_newline': true,

@@ -9,6 +9,7 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
   static const _keyShowSent = 'ui_show_sent';
   static const _keyEnableAnsi = 'ui_enable_ansi';
   static const _keyLogExportPath = 'ui_log_export_path';
+  static const _keyAutoCheckUpdates = 'ui_auto_check_updates';
 
   @override
   UiSettings build() {
@@ -19,6 +20,7 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
       showSent: prefs.getBool(_keyShowSent) ?? true,
       enableAnsi: prefs.getBool(_keyEnableAnsi) ?? false,
       logExportPath: prefs.getString(_keyLogExportPath) ?? '',
+      autoCheckUpdates: prefs.getBool(_keyAutoCheckUpdates) ?? true,
     );
   }
 
@@ -32,6 +34,14 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
       _set(_keyEnableAnsi, state.copyWith(enableAnsi: value), value);
   void setLogExportPath(String value) =>
       _set(_keyLogExportPath, state.copyWith(logExportPath: value), value);
+
+  Future<void> setAutoCheckUpdates(bool value) async {
+    final saved = await ref
+        .read(sharedPreferencesProvider)
+        .setBool(_keyAutoCheckUpdates, value);
+    if (!saved) throw StateError('Could not save automatic update preference');
+    state = state.copyWith(autoCheckUpdates: value);
+  }
 
   void _set(String key, UiSettings updated, Object value) {
     state = updated;

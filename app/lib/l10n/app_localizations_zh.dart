@@ -528,4 +528,65 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get searchContextAfter => '已省略后文 …';
+
+  @override
+  String get checkForUpdates => '检查更新';
+
+  @override
+  String get updateChecking => '正在检查更新…';
+
+  @override
+  String get updateUpToDate => '当前已是最新版本。';
+
+  @override
+  String updateAvailable(String version) {
+    return '有新版本 $version 可用';
+  }
+
+  @override
+  String updateDownloadAsset(String asset) {
+    return '下载 $asset';
+  }
+
+  @override
+  String get updateNoPackage => '此平台没有兼容的软件包。';
+
+  @override
+  String get updateReleasePage => '查看版本发布页面';
+
+  @override
+  String get updateDownloading => '正在下载更新…';
+
+  @override
+  String get updateValidating => '正在验证下载的软件包…';
+
+  @override
+  String get updateCancelled => '下载已取消。';
+
+  @override
+  String get updateDownloadComplete => '下载并验证完成：';
+
+  @override
+  String get updateOpenFolder => '打开下载文件夹';
+
+  @override
+  String get updateErrorNetwork => '无法连接以检查或下载更新。';
+
+  @override
+  String get updateErrorInvalidRelease => '版本发布信息无效。';
+
+  @override
+  String get updateErrorUnsupported => '此平台不支持更新。';
+
+  @override
+  String get updateErrorIntegrity => '下载的软件包未通过完整性验证。';
+
+  @override
+  String get updateErrorFileAccess => '无法访问下载文件夹或文件。';
+
+  @override
+  String get updateErrorUnexpected => '更新操作失败。';
+
+  @override
+  String get autoCheckUpdates => '启动时自动检查更新';
 }

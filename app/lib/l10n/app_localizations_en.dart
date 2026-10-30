@@ -554,4 +554,70 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchContextAfter => 'later context clipped …';
+
+  @override
+  String get checkForUpdates => 'Check for updates';
+
+  @override
+  String get updateChecking => 'Checking for updates…';
+
+  @override
+  String get updateUpToDate => 'You’re using the latest version.';
+
+  @override
+  String updateAvailable(String version) {
+    return 'Version $version is available';
+  }
+
+  @override
+  String updateDownloadAsset(String asset) {
+    return 'Download $asset';
+  }
+
+  @override
+  String get updateNoPackage =>
+      'No compatible package is available for this platform.';
+
+  @override
+  String get updateReleasePage => 'View release page';
+
+  @override
+  String get updateDownloading => 'Downloading update…';
+
+  @override
+  String get updateValidating => 'Verifying downloaded package…';
+
+  @override
+  String get updateCancelled => 'Download cancelled.';
+
+  @override
+  String get updateDownloadComplete => 'Download verified:';
+
+  @override
+  String get updateOpenFolder => 'Open download folder';
+
+  @override
+  String get updateErrorNetwork =>
+      'Could not connect to check or download the update.';
+
+  @override
+  String get updateErrorInvalidRelease => 'The release information is invalid.';
+
+  @override
+  String get updateErrorUnsupported =>
+      'Updates are not supported on this platform.';
+
+  @override
+  String get updateErrorIntegrity =>
+      'The downloaded package failed integrity verification.';
+
+  @override
+  String get updateErrorFileAccess =>
+      'Could not access the download folder or file.';
+
+  @override
+  String get updateErrorUnexpected => 'The update operation failed.';
+
+  @override
+  String get autoCheckUpdates => 'Check for updates at startup';
 }

@@ -12,9 +12,12 @@ Read additional context only when relevant:
 - `app/pubspec.yaml`: app version, Dart SDK constraints, and Flutter dependencies. Cargo manifests/`Cargo.lock`: Rust dependencies; the bridge manifest pins the FRB version.
 - `.github/workflows/`: actual CI checks and platform packaging steps.
 
-- Keep README user-facing. Make minimal changes only when explicitly requested or existing guidance becomes incorrect; code changes alone do not warrant implementation details, work logs, or minor behavior notes.
+- Modify README files only when explicitly requested or to minimally correct existing errors; new features alone do not justify changes. Keep implementation and verification notes in chat.
 - When updating README images, replace only the referenced image assets by default, using screenshots of the actual current UI.
 - Unless explicitly requested, update docs only when existing guidance becomes incorrect; do not create documentation files unless requested.
+- Keep instructions and replies concise; amend existing rules instead of adding repetitive lists.
+- Before implementation, state the understood requirements and approach. Confirm unresolved behavior or visual choices with the user before editing; assumptions are not agreement.
+- Do not add UI copy that merely repeats a title or control label; helper text must provide necessary additional information.
 
 Key implementation entry points:
 

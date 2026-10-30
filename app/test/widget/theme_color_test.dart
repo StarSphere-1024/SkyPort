@@ -28,7 +28,10 @@ void main() {
     WidgetTester tester, {
     Color initial = Colors.blue,
   }) async {
-    SharedPreferences.setMockInitialValues({'theme_color': initial.toARGB32()});
+    SharedPreferences.setMockInitialValues({
+      'theme_color': initial.toARGB32(),
+      'ui_auto_check_updates': false,
+    });
     final prefs = await SharedPreferences.getInstance();
     await tester.pumpWidget(
       ProviderScope(
@@ -266,7 +269,7 @@ void main() {
   testWidgets('unsubmitted log capacity survives theme and panel changes', (
     tester,
   ) async {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({'ui_auto_check_updates': false});
     final prefs = await SharedPreferences.getInstance();
     await tester.pumpWidget(
       ProviderScope(
@@ -296,6 +299,9 @@ void main() {
     await tester.tap(find.text(l10n.dark).last);
     await tester.pumpAndSettle();
     expect(container.read(themeModeProvider), ThemeMode.dark);
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('theme-color-scheme')),
+    );
     await tester.tap(find.byKey(const ValueKey('theme-color-scheme')));
     await tester.pumpAndSettle();
     await tester.tap(
@@ -321,7 +327,7 @@ void main() {
     tester.view.physicalSize = const Size(320, 360);
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({'ui_auto_check_updates': false});
     final prefs = await SharedPreferences.getInstance();
     const channel = MethodChannel('plugins.flutter.io/file_selector');
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(

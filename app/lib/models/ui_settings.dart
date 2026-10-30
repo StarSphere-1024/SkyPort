@@ -4,6 +4,7 @@ class UiSettings {
   final bool showSent;
   final bool enableAnsi;
   final String logExportPath;
+  final bool autoCheckUpdates;
 
   const UiSettings({
     this.hexDisplay = false,
@@ -11,6 +12,7 @@ class UiSettings {
     this.showSent = true,
     this.enableAnsi = false,
     this.logExportPath = '',
+    this.autoCheckUpdates = true,
   });
 
   UiSettings copyWith({
@@ -19,11 +21,13 @@ class UiSettings {
     bool? showSent,
     bool? enableAnsi,
     String? logExportPath,
+    bool? autoCheckUpdates,
   }) => UiSettings(
     hexDisplay: hexDisplay ?? this.hexDisplay,
     showTimestamp: showTimestamp ?? this.showTimestamp,
     showSent: showSent ?? this.showSent,
     enableAnsi: enableAnsi ?? this.enableAnsi,
     logExportPath: logExportPath ?? this.logExportPath,
+    autoCheckUpdates: autoCheckUpdates ?? this.autoCheckUpdates,
   );
 }

@@ -5,8 +5,13 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/app_localizations.dart';
 
+import '../services/update_service.dart';
+import 'update_panel.dart';
+
 class AboutPanel extends StatefulWidget {
-  const AboutPanel({super.key});
+  const AboutPanel({super.key, this.updateService});
+
+  final UpdateService? updateService;
 
   @override
   State<AboutPanel> createState() => _AboutPanelState();
@@ -97,6 +102,8 @@ class _AboutPanelState extends State<AboutPanel> {
               color: colors.onSurfaceVariant,
             ),
           ),
+          const SizedBox(height: 12),
+          UpdatePanel(updateService: widget.updateService),
           const SizedBox(height: 24),
           Material(
             color: colors.surfaceContainerHigh,

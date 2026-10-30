@@ -118,6 +118,7 @@ void main() {
         addTearDown(() => binding.setSurfaceSize(null));
       }
       SharedPreferences.setMockInitialValues({
+        'ui_auto_check_updates': false,
         'ui_enable_ansi': true,
         'ui_show_timestamp': true,
         'ui_show_sent': true,
