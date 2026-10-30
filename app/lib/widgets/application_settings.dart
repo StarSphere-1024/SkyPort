@@ -168,6 +168,44 @@ class ApplicationSettings extends ConsumerWidget {
             title: localizations.settingsGeneral,
             children: [
               settingRow(
+                icon: Icons.language_rounded,
+                title: localizations.language,
+                control: Semantics(
+                  label: localizations.language,
+                  child: DropdownButton<String>(
+                    key: const ValueKey('language-dropdown'),
+                    value: uiSettings.languageCode,
+                    isExpanded: true,
+                    borderRadius: BorderRadius.circular(12),
+                    underline: const SizedBox.shrink(),
+                    onChanged: (value) async {
+                      if (value == null) return;
+                      try {
+                        await ref
+                            .read(uiSettingsProvider.notifier)
+                            .setLanguageCode(value);
+                      } catch (error) {
+                        if (context.mounted) showErrorNotice(context, error);
+                      }
+                    },
+                    items: [
+                      DropdownMenuItem(
+                        value: '',
+                        child: Text(localizations.followSystem),
+                      ),
+                      DropdownMenuItem(
+                        value: 'zh',
+                        child: Text(localizations.languageSimplifiedChinese),
+                      ),
+                      DropdownMenuItem(
+                        value: 'en',
+                        child: Text(localizations.languageEnglish),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              settingRow(
                 icon: Icons.sync_rounded,
                 title: localizations.autoReconnect,
                 onTap: () =>

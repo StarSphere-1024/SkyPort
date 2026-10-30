@@ -192,6 +192,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsLogs => '日志';
 
   @override
+  String get language => '语言';
+
+  @override
+  String get languageSimplifiedChinese => '简体中文';
+
+  @override
+  String get languageEnglish => 'English';
+
+  @override
   String get logBufferSizeHint => '16–512 MB · 按 Enter 应用';
 
   @override

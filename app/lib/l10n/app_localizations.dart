@@ -458,6 +458,24 @@ abstract class AppLocalizations {
   /// **'Logs'**
   String get settingsLogs;
 
+  /// No description provided for @language.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get language;
+
+  /// No description provided for @languageSimplifiedChinese.
+  ///
+  /// In en, this message translates to:
+  /// **'简体中文'**
+  String get languageSimplifiedChinese;
+
+  /// No description provided for @languageEnglish.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get languageEnglish;
+
   /// No description provided for @logBufferSizeHint.
   ///
   /// In en, this message translates to:

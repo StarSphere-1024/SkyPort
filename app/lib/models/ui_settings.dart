@@ -5,6 +5,7 @@ class UiSettings {
   final bool enableAnsi;
   final String logExportPath;
   final bool autoCheckUpdates;
+  final String languageCode;
 
   const UiSettings({
     this.hexDisplay = false,
@@ -13,6 +14,7 @@ class UiSettings {
     this.enableAnsi = false,
     this.logExportPath = '',
     this.autoCheckUpdates = true,
+    this.languageCode = '',
   });
 
   UiSettings copyWith({
@@ -22,6 +24,7 @@ class UiSettings {
     bool? enableAnsi,
     String? logExportPath,
     bool? autoCheckUpdates,
+    String? languageCode,
   }) => UiSettings(
     hexDisplay: hexDisplay ?? this.hexDisplay,
     showTimestamp: showTimestamp ?? this.showTimestamp,
@@ -29,5 +32,6 @@ class UiSettings {
     enableAnsi: enableAnsi ?? this.enableAnsi,
     logExportPath: logExportPath ?? this.logExportPath,
     autoCheckUpdates: autoCheckUpdates ?? this.autoCheckUpdates,
+    languageCode: languageCode ?? this.languageCode,
   );
 }

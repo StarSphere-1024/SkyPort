@@ -21,6 +21,7 @@ import 'widgets/right_panel.dart';
 import 'widgets/status_bar.dart';
 import 'widgets/desktop_window_frame.dart';
 import 'widgets/startup_update_check.dart';
+import 'providers/ui_settings_provider.dart';
 import 'services/app_logger.dart';
 import 'l10n/app_localizations.dart';
 import 'utils/error_messages.dart';
@@ -111,6 +112,9 @@ class SerialDebuggerApp extends ConsumerWidget {
     final hasManualColor = ref.watch(hasManualThemeColorProvider);
     final dynamicEnabled = ref.watch(dynamicColorEnabledProvider);
     final systemAccent = ref.watch(systemAccentColorProvider);
+    final languageCode = ref.watch(
+      uiSettingsProvider.select((settings) => settings.languageCode),
+    );
     Color seedFor(Brightness brightness) => resolveThemeColor(
       dynamicEnabled: dynamicEnabled,
       manualSeed: hasManualColor ? themeColor : null,
@@ -124,6 +128,7 @@ class SerialDebuggerApp extends ConsumerWidget {
         theme: getLightTheme(seedFor(Brightness.light)),
         darkTheme: getDarkTheme(seedFor(Brightness.dark)),
         themeMode: themeMode,
+        locale: languageCode.isEmpty ? null : Locale(languageCode),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         builder: (context, child) => DesktopWindowFrame(child: child!),

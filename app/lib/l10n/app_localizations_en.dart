@@ -195,6 +195,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsLogs => 'Logs';
 
   @override
+  String get language => 'Language';
+
+  @override
+  String get languageSimplifiedChinese => '简体中文';
+
+  @override
+  String get languageEnglish => 'English';
+
+  @override
   String get logBufferSizeHint => '16–512 MB · Press Enter to apply';
 
   @override

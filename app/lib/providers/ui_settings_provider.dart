@@ -10,6 +10,7 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
   static const _keyEnableAnsi = 'ui_enable_ansi';
   static const _keyLogExportPath = 'ui_log_export_path';
   static const _keyAutoCheckUpdates = 'ui_auto_check_updates';
+  static const _keyLanguageCode = 'ui_language_code';
 
   @override
   UiSettings build() {
@@ -21,6 +22,11 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
       enableAnsi: prefs.getBool(_keyEnableAnsi) ?? false,
       logExportPath: prefs.getString(_keyLogExportPath) ?? '',
       autoCheckUpdates: prefs.getBool(_keyAutoCheckUpdates) ?? true,
+      languageCode: switch (prefs.getString(_keyLanguageCode)) {
+        'en' => 'en',
+        'zh' => 'zh',
+        _ => '',
+      },
     );
   }
 
@@ -41,6 +47,17 @@ class UiSettingsNotifier extends Notifier<UiSettings> {
         .setBool(_keyAutoCheckUpdates, value);
     if (!saved) throw StateError('Could not save automatic update preference');
     state = state.copyWith(autoCheckUpdates: value);
+  }
+
+  Future<void> setLanguageCode(String value) async {
+    if (!const ['', 'en', 'zh'].contains(value)) {
+      throw ArgumentError.value(value, 'value', 'Unsupported language');
+    }
+    final saved = await ref
+        .read(sharedPreferencesProvider)
+        .setString(_keyLanguageCode, value);
+    if (!saved) throw StateError('Could not save language preference');
+    state = state.copyWith(languageCode: value);
   }
 
   void _set(String key, UiSettings updated, Object value) {
