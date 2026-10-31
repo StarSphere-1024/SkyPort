@@ -6,7 +6,7 @@
 
 **English** · [简体中文](README_zh_CN.md)
 
-**A desktop serial port debugging assistant for embedded development and hardware testing**
+**A cross-platform desktop serial port debugging assistant built with Flutter and Rust**
 
 Connect devices, send and receive text or Hex data, inspect ANSI-colored logs, and export debugging records.
 
