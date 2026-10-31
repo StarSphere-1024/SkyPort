@@ -1,4 +1,3 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide SearchController;
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -239,80 +238,69 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
     }
     return Stack(
       children: [
-        Listener(
-          onPointerSignal: (event) {
-            if (event is PointerScrollEvent) _manualScroll();
+        NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            final dragging =
+                notification is ScrollStartNotification &&
+                notification.dragDetails != null;
+            final scrolling =
+                notification is UserScrollNotification &&
+                notification.direction != ScrollDirection.idle;
+            if (dragging || scrolling) _manualScroll();
+            if (notification is ScrollEndNotification && _manualScrolling) {
+              _manualScrolling = false;
+              if (!ref.read(searchControllerProvider).visible &&
+                  !_hasActiveSelection &&
+                  notification.metrics.extentAfter <=
+                      SkyPortConstants.scrollBottomThreshold) {
+                setState(() => _followLatest = true);
+                _scheduleBottom();
+              }
+            }
+            return false;
           },
-          child: NotificationListener<ScrollNotification>(
-            onNotification: (notification) {
-              final dragging =
-                  notification is ScrollStartNotification &&
-                  notification.dragDetails != null;
-              final scrollingUp =
-                  notification is UserScrollNotification &&
-                  notification.direction == ScrollDirection.forward;
-              if (dragging) _manualScroll();
-              if (_followLatest && (dragging || scrollingUp)) {
-                setState(() => _followLatest = false);
-              }
-              if (notification is ScrollEndNotification && _manualScrolling) {
-                _manualScrolling = false;
-                if (!ref.read(searchControllerProvider).visible &&
-                    !_hasActiveSelection &&
-                    notification.metrics.extentAfter <=
-                        SkyPortConstants.scrollBottomThreshold) {
-                  setState(() => _followLatest = true);
-                  _scheduleBottom();
-                }
-              }
-              return false;
+          child: SelectionArea(
+            onSelectionChanged: (selection) {
+              _hasActiveSelection = selection?.plainText.isNotEmpty ?? false;
             },
-            child: SelectionArea(
-              onSelectionChanged: (selection) {
-                _hasActiveSelection = selection?.plainText.isNotEmpty ?? false;
+            child: ScrollablePositionedList.builder(
+              key: const ValueKey('search-results'),
+              itemScrollController: _items,
+              itemPositionsListener: _positions,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              itemCount: mapper.totalCount,
+              itemBuilder: (context, index) {
+                final entry = mapper[index];
+                final selected = hit?.recordId == entry.id;
+                return _SearchResultRow(
+                  key: ValueKey((search.generation, entry)),
+                  entry: entry,
+                  onTailBuilt: index == mapper.totalCount - 1
+                      ? (context) {
+                          _tailContext = context;
+                          _tailEntry = entry;
+                        }
+                      : null,
+                  onRowBuilt: (row) => _rowContexts[entry.id] = row,
+                  onRowDisposed: (row) {
+                    if (identical(_rowContexts[entry.id], row)) {
+                      _rowContexts.remove(entry.id);
+                    }
+                  },
+                  generation: search.generation,
+                  showHighlights: search.visible && search.hasResults,
+                  focusIndex: selected ? search.selectedIndex : null,
+                  selectedView: selected && search.visible
+                      ? search.selectedView
+                      : null,
+                  focusTextKey: selected ? _focusText : null,
+                  style: style,
+                  showTimestamp: settings.showTimestamp,
+                  showSent: options.showSent,
+                  hex: options.hex,
+                  ansi: options.stripAnsi,
+                );
               },
-              child: ScrollablePositionedList.builder(
-                key: const ValueKey('search-results'),
-                itemScrollController: _items,
-                itemPositionsListener: _positions,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                itemCount: mapper.totalCount,
-                itemBuilder: (context, index) {
-                  final entry = mapper[index];
-                  final selected = hit?.recordId == entry.id;
-                  return _SearchResultRow(
-                    key: ValueKey((search.generation, entry)),
-                    entry: entry,
-                    onTailBuilt: index == mapper.totalCount - 1
-                        ? (context) {
-                            _tailContext = context;
-                            _tailEntry = entry;
-                          }
-                        : null,
-                    onRowBuilt: (row) => _rowContexts[entry.id] = row,
-                    onRowDisposed: (row) {
-                      if (identical(_rowContexts[entry.id], row)) {
-                        _rowContexts.remove(entry.id);
-                      }
-                    },
-                    generation: search.generation,
-                    showHighlights: search.visible && search.hasResults,
-                    focusIndex: selected ? search.selectedIndex : null,
-                    selectedView: selected && search.visible
-                        ? search.selectedView
-                        : null,
-                    focusTextKey: selected ? _focusText : null,
-                    style: style,
-                    showTimestamp: settings.showTimestamp,
-                    showSent: options.showSent,
-                    hex: options.hex,
-                    ansi: options.stripAnsi,
-                  );
-                },
-              ),
             ),
           ),
         ),

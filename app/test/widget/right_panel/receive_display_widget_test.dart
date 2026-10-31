@@ -278,6 +278,16 @@ void main() {
         .dy;
     expect(row1, closeTo(top + 8, 1));
     expect(row2, greaterThan(row1));
+    await tester.sendEventToBinding(
+      PointerScrollEvent(
+        position: tester.getCenter(
+          find.byKey(const ValueKey('search-results')),
+        ),
+        scrollDelta: const Offset(0, 200),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(FloatingActionButton), findsNothing);
   });
 
   testWidgets('return to latest reaches the end of variable-height output', (
@@ -344,12 +354,38 @@ void main() {
         position: tester.getCenter(
           find.byKey(const ValueKey('search-results')),
         ),
+        scrollDelta: const Offset(0, 200),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(position.extentAfter, closeTo(0, 1));
+    expect(find.byType(FloatingActionButton), findsNothing);
+    await tester.sendEventToBinding(
+      PointerScrollEvent(
+        position: tester.getCenter(
+          find.byKey(const ValueKey('search-results')),
+        ),
         scrollDelta: const Offset(0, -200),
       ),
     );
     await tester.pumpAndSettle();
     expect(position.extentAfter, greaterThan(0));
     expect(find.byType(FloatingActionButton), findsOneWidget);
+    await tester.sendEventToBinding(
+      PointerScrollEvent(
+        position: tester.getCenter(
+          find.byKey(const ValueKey('search-results')),
+        ),
+        scrollDelta: const Offset(0, 1000),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(position.extentAfter, closeTo(0, 1));
+    expect(find.byType(FloatingActionButton), findsNothing);
+    controller.receiveThrough(202, first: 1, textForId: textForId);
+    await tester.pumpAndSettle();
+    expect(position.extentAfter, closeTo(0, 1));
+    expect(find.textContaining('row 202 ', findRichText: true), findsOneWidget);
   });
 
   testWidgets('variable-height follow never renders beyond the end', (
