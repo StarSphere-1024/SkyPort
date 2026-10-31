@@ -8,7 +8,7 @@
   "serialPageLabel": "Port",
   "settingsPageLabel": "Settings",
   "aboutPageLabel": "About",
-  "aboutDescription": "A desktop serial port debugging assistant built with Rust and Flutter.",
+  "aboutDescription": "A cross-platform desktop serial port debugging assistant built with Flutter and Rust.",
   "projectLink": "Project address",
   "projectLinkOpenFailed": "Could not open the project link. You can copy it and open it in your browser.",
   "expandConfiguration": "Expand configuration panel",

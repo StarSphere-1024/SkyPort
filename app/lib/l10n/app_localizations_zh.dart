@@ -33,7 +33,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutPageLabel => '关于';
 
   @override
-  String get aboutDescription => '基于 Rust 与 Flutter 的桌面串口调试助手。';
+  String get aboutDescription => '基于 Flutter 与 Rust 的跨平台桌面串口调试助手';
 
   @override
   String get projectLink => '项目地址';

@@ -8,7 +8,7 @@
   "serialPageLabel": "串口",
   "settingsPageLabel": "设置",
   "aboutPageLabel": "关于",
-  "aboutDescription": "基于 Rust 与 Flutter 的桌面串口调试助手。",
+  "aboutDescription": "基于 Flutter 与 Rust 的跨平台桌面串口调试助手",
   "projectLink": "项目地址",
   "projectLinkOpenFailed": "无法打开项目链接，可复制链接后在浏览器中打开。",
   "expandConfiguration": "展开配置面板",

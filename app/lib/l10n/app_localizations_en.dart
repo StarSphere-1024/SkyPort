@@ -34,7 +34,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutDescription =>
-      'A desktop serial port debugging assistant built with Rust and Flutter.';
+      'A cross-platform desktop serial port debugging assistant built with Flutter and Rust.';
 
   @override
   String get projectLink => 'Project address';

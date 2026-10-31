@@ -149,7 +149,7 @@ abstract class AppLocalizations {
   /// No description provided for @aboutDescription.
   ///
   /// In en, this message translates to:
-  /// **'A desktop serial port debugging assistant built with Rust and Flutter.'**
+  /// **'A cross-platform desktop serial port debugging assistant built with Flutter and Rust.'**
   String get aboutDescription;
 
   /// No description provided for @projectLink.
