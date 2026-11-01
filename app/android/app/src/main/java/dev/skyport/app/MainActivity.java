@@ -1,6 +1,10 @@
 package dev.skyport.app;
 
 import android.content.Intent;
+import android.content.Context;
+import android.graphics.Rect;
+import android.os.Build;
+import android.os.Bundle;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
@@ -17,7 +21,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import io.flutter.embedding.android.FlutterActivity;
+import io.flutter.embedding.android.FlutterView;
+import io.flutter.embedding.android.FlutterViewDelegate;
 import io.flutter.embedding.engine.FlutterEngine;
+import io.flutter.embedding.engine.renderer.FlutterRenderer;
 import io.flutter.plugin.common.MethodChannel;
 
 public final class MainActivity extends FlutterActivity {
@@ -31,6 +38,32 @@ public final class MainActivity extends FlutterActivity {
     private MethodChannel.Result exportResult;
     private File pendingExport;
     private boolean foreground;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        if (Build.VERSION.SDK_INT >= 35) {
+            FlutterView content = findViewById(FLUTTER_VIEW_ID);
+            content.setDelegate(new FlutterViewDelegate() {
+                private final int[] location = new int[2];
+
+                @Override
+                public void growViewportMetricsToCaptionBar(
+                        Context context, FlutterRenderer.ViewportMetrics metrics) {
+                    // Flutter's default uses window-relative caption bounds even when
+                    // Android has already placed FlutterView below the opaque caption.
+                    content.getLocationInWindow(location);
+                    for (Rect rect : getCaptionBarInsets(context)) {
+                        metrics.viewPaddingTop = Math.max(
+                                metrics.viewPaddingTop, rect.bottom - location[1]);
+                    }
+                }
+            });
+            content.addOnLayoutChangeListener((view, l, t, r, b, oldL, oldT, oldR, oldB) ->
+                    view.requestApplyInsets());
+            content.post(content::requestApplyInsets);
+        }
+    }
 
 
     @Override
