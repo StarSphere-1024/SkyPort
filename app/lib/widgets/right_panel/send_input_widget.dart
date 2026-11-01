@@ -27,6 +27,7 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
   void initState() {
     super.initState();
     _focusNode = FocusNode(onKeyEvent: _handleKeyEvent);
+    FocusManager.instance.addEarlyKeyEventHandler(_handleGlobalKeyEvent);
     _sendController.text = ref.read(autoSendDraftProvider);
     _previousHexMode = ref.read(uiControllerProvider).hexSend;
     _updateCanSend(_sendController.text);
@@ -34,6 +35,7 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
 
   @override
   void dispose() {
+    FocusManager.instance.removeEarlyKeyEventHandler(_handleGlobalKeyEvent);
     _sendController.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -106,9 +108,46 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
   bool _isValidHex(String sanitized) =>
       hexRegex.hasMatch(sanitized) && sanitized.length % 2 == 0;
 
-  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+  KeyEventResult _handleGlobalKeyEvent(KeyEvent event) {
+    final keyboard = HardwareKeyboard.instance;
+    if (event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.keyS ||
+        !keyboard.isAltPressed ||
+        keyboard.isControlPressed ||
+        keyboard.isShiftPressed ||
+        keyboard.isMetaPressed ||
+        ModalRoute.of(context)?.isCurrent != true ||
+        !_focusNode.canRequestFocus) {
+      return KeyEventResult.ignored;
+    }
+    _focusNode.requestFocus();
+    return KeyEventResult.handled;
+  }
 
+  void _send() {
+    if (ref.read(uiControllerProvider).connection != UiConnection.connected ||
+        !_canSend ||
+        !_formKey.currentState!.validate()) {
+      return;
+    }
+    ref.read(uiControllerProvider.notifier).send(_sendController.text);
+    setState(() {
+      _historyIndex = -1;
+      _tempInput = '';
+    });
+  }
+
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    final keyboard = HardwareKeyboard.instance;
+    if (event.logicalKey == LogicalKeyboardKey.enter &&
+        keyboard.isControlPressed &&
+        !keyboard.isAltPressed &&
+        !keyboard.isShiftPressed &&
+        !keyboard.isMetaPressed) {
+      if (event is KeyDownEvent) _send();
+      return KeyEventResult.handled;
+    }
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
     if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
       final text = _sendController.text;
       final selection = _sendController.selection;
@@ -187,16 +226,7 @@ class _SendInputWidgetState extends ConsumerState<SendInputWidget> {
       message: label,
       child: FilledButton(
         onPressed: connectionState == UiConnection.connected && canSend
-            ? () {
-                if (_formKey.currentState!.validate()) {
-                  final text = _sendController.text;
-                  ref.read(uiControllerProvider.notifier).send(text);
-                  setState(() {
-                    _historyIndex = -1;
-                    _tempInput = '';
-                  });
-                }
-              }
+            ? _send
             : null,
         style: FilledButton.styleFrom(
           padding: EdgeInsets.symmetric(

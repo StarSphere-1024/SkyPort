@@ -215,6 +215,120 @@ void main() {
     );
   });
 
+  testWidgets('Ctrl+Enter sends once without inserting a newline', (
+    tester,
+  ) async {
+    final controller = FakeUiController(
+      sendState(connection: UiConnection.connected),
+    );
+    await tester.pumpWidget(app(controller));
+    final input = find.byType(TextFormField);
+    await tester.enterText(input, 'hello');
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    expect(controller.sent, ['hello']);
+    expect(tester.widget<TextFormField>(input).controller!.text, 'hello');
+  });
+
+  testWidgets('Alt+S focuses the send field without replacing its draft', (
+    tester,
+  ) async {
+    final controller = FakeUiController(
+      sendState(connection: UiConnection.connected),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [uiControllerProvider.overrideWith(() => controller)],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const Scaffold(
+            body: Column(
+              children: [
+                SendInputWidget(),
+                TextField(key: ValueKey('other-input')),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    final input = find.byType(TextFormField);
+    await tester.enterText(input, 'draft');
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('other-input')));
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyS);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyS);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<EditableText>(
+            find.descendant(of: input, matching: find.byType(EditableText)),
+          )
+          .focusNode
+          .hasFocus,
+      isTrue,
+    );
+    expect(tester.widget<TextFormField>(input).controller!.text, 'draft');
+  });
+
+  testWidgets('Alt+S does not steal focus from an excluded send field', (
+    tester,
+  ) async {
+    final controller = FakeUiController(
+      sendState(connection: UiConnection.connected),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [uiControllerProvider.overrideWith(() => controller)],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const Scaffold(
+            body: Column(
+              children: [
+                ExcludeFocus(child: SendInputWidget()),
+                TextField(key: ValueKey('other-input')),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    final otherInput = find.byKey(const ValueKey('other-input'));
+    await tester.tap(otherInput);
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyS);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyS);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<EditableText>(
+            find.descendant(
+              of: otherInput,
+              matching: find.byType(EditableText),
+            ),
+          )
+          .focusNode
+          .hasFocus,
+      isTrue,
+    );
+  });
+
   testWidgets('disconnect disables a nonempty draft without discarding it', (
     tester,
   ) async {

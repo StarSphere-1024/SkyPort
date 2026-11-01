@@ -305,6 +305,18 @@ class _HomePageState extends ConsumerState<HomePage>
       bindings: {
         const SingleActivator(LogicalKeyboardKey.escape): () =>
             _setPanelOpen(false),
+        const SingleActivator(
+          LogicalKeyboardKey.keyB,
+          control: true,
+          includeRepeats: false,
+        ): () =>
+            _setPanelOpen(!_panelOpen),
+        const SingleActivator(
+          LogicalKeyboardKey.keyO,
+          control: true,
+          shift: true,
+          includeRepeats: false,
+        ): _toggleConnection,
       },
       child: Focus(
         autofocus: true,
@@ -404,6 +416,18 @@ class _HomePageState extends ConsumerState<HomePage>
           : const Duration(milliseconds: 240),
       curve: Curves.easeInOutCubic,
     );
+  }
+
+  void _toggleConnection() {
+    final state = ref.read(uiControllerProvider);
+    final controller = ref.read(uiControllerProvider.notifier);
+    if (state.connection == UiConnection.connected ||
+        state.connection == UiConnection.reconnecting) {
+      unawaited(controller.disconnect());
+    } else if (state.connection == UiConnection.disconnected &&
+        state.portName.isNotEmpty) {
+      unawaited(controller.connect());
+    }
   }
 
   void _openPage(ConfigurationPage page) {

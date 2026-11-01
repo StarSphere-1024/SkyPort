@@ -18,6 +18,9 @@ import 'package:skyport/widgets/about_panel.dart';
 import 'package:skyport/widgets/right_panel/send_input_widget.dart';
 
 class LayoutController extends UiController {
+  int connectCalls = 0;
+  int disconnectCalls = 0;
+
   String portName = '/dev/serial/by-id/usb-very-long-device-name-1234567890';
   int receivedBytes = 123456789;
   int sentBytes = 987654321;
@@ -54,11 +57,16 @@ class LayoutController extends UiController {
   UiState build() => snapshot(UiConnection.connected);
 
   @override
-  Future<void> disconnect() async =>
-      state = snapshot(UiConnection.disconnected);
+  Future<void> disconnect() async {
+    disconnectCalls++;
+    state = snapshot(UiConnection.disconnected);
+  }
 
   @override
-  Future<void> connect() async => state = snapshot(UiConnection.connected);
+  Future<void> connect() async {
+    connectCalls++;
+    state = snapshot(UiConnection.connected);
+  }
 
   void showConnection(UiConnection connection) => state = snapshot(connection);
   UiConnection get connection => state.connection;
@@ -128,6 +136,81 @@ void main() {
     await tester.pumpAndSettle();
     await mount();
     expect(expand, findsOneWidget);
+  });
+
+  testWidgets('home shortcuts toggle panel and connection globally', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1000, 700);
+    addTearDown(tester.view.resetPhysicalSize);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          uiControllerProvider.overrideWith(LayoutController.new),
+          sharedPreferencesProvider.overrideWithValue(prefs),
+        ],
+        child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: HomePage(),
+        ),
+      ),
+    );
+    final controller =
+        ProviderScope.containerOf(
+              tester.element(find.byType(HomePage)),
+            ).read(uiControllerProvider.notifier)
+            as LayoutController;
+    final input = find.descendant(
+      of: find.byType(SendInputWidget),
+      matching: find.byType(TextFormField),
+    );
+    await tester.tap(input);
+    await tester.enterText(input, 'keep this draft');
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyB);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<ConnectionRail>(find.byType(ConnectionRail)).panelOpen,
+      isFalse,
+    );
+    expect(
+      tester.widget<TextFormField>(input).controller!.text,
+      'keep this draft',
+    );
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyO);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    expect(controller.disconnectCalls, 1);
+    expect(controller.connection, UiConnection.disconnected);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyO);
+    await tester.sendKeyRepeatEvent(LogicalKeyboardKey.keyO);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyO);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    expect(controller.connectCalls, 1);
+    expect(controller.connection, UiConnection.connected);
+
+    controller.showConnection(UiConnection.disconnecting);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyO);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    expect(controller.disconnectCalls, 1);
+    expect(controller.connectCalls, 1);
   });
 
   testWidgets(
