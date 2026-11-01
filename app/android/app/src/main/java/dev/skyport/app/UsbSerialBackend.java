@@ -49,7 +49,10 @@ public final class UsbSerialBackend {
 
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override public void onReceive(Context ignored, Intent intent) {
-            UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+            @SuppressWarnings("deprecation")
+            UsbDevice device = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                    ? intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice.class)
+                    : intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
             if (device == null) return;
             synchronized (UsbSerialBackend.this) {
                 if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(intent.getAction())) {
