@@ -124,6 +124,13 @@ class PortSelectionWidget extends ConsumerWidget {
         '${l10n.serialNumber}: ${port.serialNumber!.trim()}',
     ].join(' · ');
     final hasSelection = ports.any((port) => port.portName == selectedPort);
+    final productCounts = <String, int>{};
+    for (final port in ports) {
+      final product = port.product?.trim() ?? '';
+      if (product.isNotEmpty) {
+        productCounts.update(product, (count) => count + 1, ifAbsent: () => 1);
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -180,10 +187,25 @@ class PortSelectionWidget extends ConsumerWidget {
                     ].join('\n'),
                     child: Align(
                       alignment: AlignmentDirectional.centerStart,
-                      child: Text(
-                        title(port),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final painter = TextPainter(
+                            text: TextSpan(
+                              text: title(port),
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                            textDirection: Directionality.of(context),
+                            textScaler: MediaQuery.textScalerOf(context),
+                            maxLines: 1,
+                          )..layout();
+                          final fits = painter.width <= constraints.maxWidth;
+                          painter.dispose();
+                          return Text(
+                            fits ? title(port) : port.portName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -208,9 +230,11 @@ class PortSelectionWidget extends ConsumerWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            if (details(port).isNotEmpty)
+                            if ((productCounts[port.product?.trim()] ?? 0) >
+                                    1 &&
+                                (port.serialNumber?.trim().isNotEmpty ?? false))
                               Text(
-                                details(port),
+                                '${l10n.serialNumber}: ${port.serialNumber!.trim()}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.bodySmall?.copyWith(

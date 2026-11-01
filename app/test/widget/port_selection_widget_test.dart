@@ -147,6 +147,8 @@ void main() {
         overrides: [uiControllerProvider.overrideWith(_PortController.new)],
       );
       addTearDown(container.dispose);
+      final width = ValueNotifier<double>(320);
+      addTearDown(width.dispose);
       final controller =
           container.read(uiControllerProvider.notifier) as _PortController;
       controller.updatePorts(const [
@@ -168,21 +170,26 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: const MaterialApp(
+          child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
-              body: SizedBox(width: 320, child: PortSelectionWidget()),
+              body: ValueListenableBuilder<double>(
+                valueListenable: width,
+                builder: (context, width, _) =>
+                    SizedBox(width: width, child: const PortSelectionWidget()),
+              ),
             ),
           ),
         ),
       );
+      expect(find.text('/dev/ttyUSB0').hitTestable(), findsOneWidget);
       await tester.tap(find.byType(DropdownButton<String>));
       await tester.pumpAndSettle();
-      expect(
-        find.textContaining('Silicon Labs · VID:PID 10C4:EA60').hitTestable(),
-        findsOneWidget,
-      );
+      expect(find.text('Serial: DEVICE-A').hitTestable(), findsOneWidget);
+      expect(find.text('Serial: DEVICE-B').hitTestable(), findsOneWidget);
+      expect(find.textContaining('VID:PID'), findsNothing);
+      expect(find.textContaining('Silicon Labs'), findsNothing);
       final secondDevice = find
           .text('/dev/ttyUSB1 · CP2102 USB to UART Bridge Controller')
           .hitTestable();
@@ -199,6 +206,50 @@ void main() {
         find.byTooltip(
           '/dev/ttyUSB1 · CP2102 USB to UART Bridge Controller\nSerial: DEVICE-B',
         ),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      controller.updatePorts(const [
+        UiPort(
+          portName: '/dev/ttyUSB1',
+          product: 'CP2102 USB to UART Bridge Controller',
+          manufacturer: 'Silicon Labs',
+          vid: 0x10c4,
+          pid: 0xea60,
+          serialNumber: 'DEVICE-B',
+        ),
+      ]);
+      await tester.pumpAndSettle();
+      expect(find.text('/dev/ttyUSB1').hitTestable(), findsOneWidget);
+      await tester.tap(find.byType(DropdownButton<String>));
+      await tester.pumpAndSettle();
+      expect(find.text('Serial: DEVICE-B'), findsNothing);
+      expect(find.textContaining('VID:PID'), findsNothing);
+      await tester.tap(
+        find
+            .text('/dev/ttyUSB1 · CP2102 USB to UART Bridge Controller')
+            .hitTestable(),
+      );
+      await tester.pumpAndSettle();
+      final tooltip = find.byTooltip(
+        '/dev/ttyUSB1 · CP2102 USB to UART Bridge Controller\n'
+        'Silicon Labs · VID:PID 10C4:EA60 · Serial: DEVICE-B',
+      );
+      await tester.longPress(tooltip);
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('Silicon Labs · VID:PID 10C4:EA60'),
+        findsOneWidget,
+      );
+      await tester.tapAt(const Offset(0, 400));
+      await tester.binding.setSurfaceSize(const Size(1400, 600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      width.value = 1200;
+      await tester.pumpAndSettle();
+      expect(
+        find
+            .text('/dev/ttyUSB1 · CP2102 USB to UART Bridge Controller')
+            .hitTestable(),
         findsOneWidget,
       );
       expect(tester.takeException(), isNull);
