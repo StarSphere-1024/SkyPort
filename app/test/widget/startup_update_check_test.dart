@@ -58,12 +58,10 @@ void main() {
       service.result.complete(
         AppRelease(
           version: '2.0.7',
-          notes: 'New release',
           pageUrl: Uri.https(
             'github.com',
             '/StarSphere-1024/SkyPort/releases/tag/v2.0.7',
           ),
-          assets: const [],
         ),
       );
       await tester.pumpAndSettle();
@@ -78,4 +76,56 @@ void main() {
       expect(reopened.read(uiSettingsProvider).autoCheckUpdates, isFalse);
     },
   );
+
+  for (final version in ['2.0.8', '2.0.9']) {
+    testWidgets('startup respects ignored version for $version', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({
+        'ui_ignored_update_version': '2.0.8',
+      });
+      PackageInfo.setMockInitialValues(
+        appName: 'SkyPort',
+        packageName: 'skyport',
+        version: '2.0.7',
+        buildNumber: '0',
+        buildSignature: '',
+      );
+      final prefs = await SharedPreferences.getInstance();
+      final container = ProviderContainer(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      );
+      addTearDown(container.dispose);
+      final service = _PendingCheck();
+      addTearDown(service.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: StartupUpdateCheck(
+              updateService: service,
+              child: const Scaffold(body: Text('Serial debugging')),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      service.result.complete(
+        AppRelease(
+          version: version,
+          pageUrl: Uri.https(
+            'github.com',
+            '/StarSphere-1024/SkyPort/releases/tag/v$version',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byType(AlertDialog),
+        version == '2.0.8' ? findsNothing : findsOneWidget,
+      );
+    });
+  }
 }

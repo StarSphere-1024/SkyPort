@@ -5,6 +5,7 @@ class UiSettings {
   final bool enableAnsi;
   final String logExportPath;
   final bool autoCheckUpdates;
+  final String ignoredUpdateVersion;
   final String languageCode;
 
   const UiSettings({
@@ -14,6 +15,7 @@ class UiSettings {
     this.enableAnsi = false,
     this.logExportPath = '',
     this.autoCheckUpdates = true,
+    this.ignoredUpdateVersion = '',
     this.languageCode = '',
   });
 
@@ -24,6 +26,7 @@ class UiSettings {
     bool? enableAnsi,
     String? logExportPath,
     bool? autoCheckUpdates,
+    String? ignoredUpdateVersion,
     String? languageCode,
   }) => UiSettings(
     hexDisplay: hexDisplay ?? this.hexDisplay,
@@ -32,6 +35,7 @@ class UiSettings {
     enableAnsi: enableAnsi ?? this.enableAnsi,
     logExportPath: logExportPath ?? this.logExportPath,
     autoCheckUpdates: autoCheckUpdates ?? this.autoCheckUpdates,
+    ignoredUpdateVersion: ignoredUpdateVersion ?? this.ignoredUpdateVersion,
     languageCode: languageCode ?? this.languageCode,
   );
 }

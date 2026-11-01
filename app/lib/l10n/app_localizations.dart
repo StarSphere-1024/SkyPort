@@ -1148,58 +1148,40 @@ abstract class AppLocalizations {
   /// **'Version {version} is available'**
   String updateAvailable(String version);
 
-  /// No description provided for @updateDownloadAsset.
-  ///
-  /// In en, this message translates to:
-  /// **'Download {asset}'**
-  String updateDownloadAsset(String asset);
-
-  /// No description provided for @updateNoPackage.
-  ///
-  /// In en, this message translates to:
-  /// **'No compatible package is available for this platform.'**
-  String get updateNoPackage;
-
   /// No description provided for @updateReleasePage.
   ///
   /// In en, this message translates to:
-  /// **'View release page'**
+  /// **'Go to download'**
   String get updateReleasePage;
 
-  /// No description provided for @updateDownloading.
+  /// No description provided for @updateLater.
   ///
   /// In en, this message translates to:
-  /// **'Downloading update…'**
-  String get updateDownloading;
+  /// **'Later'**
+  String get updateLater;
 
-  /// No description provided for @updateValidating.
+  /// No description provided for @updateIgnoreVersion.
   ///
   /// In en, this message translates to:
-  /// **'Verifying downloaded package…'**
-  String get updateValidating;
+  /// **'Don\'t remind me about this version'**
+  String get updateIgnoreVersion;
 
-  /// No description provided for @updateCancelled.
+  /// No description provided for @updateErrorOpenPage.
   ///
   /// In en, this message translates to:
-  /// **'Download cancelled.'**
-  String get updateCancelled;
+  /// **'Could not open the download page. Check your default browser settings and try again.'**
+  String get updateErrorOpenPage;
 
-  /// No description provided for @updateDownloadComplete.
+  /// No description provided for @updateErrorSavePreference.
   ///
   /// In en, this message translates to:
-  /// **'Download verified:'**
-  String get updateDownloadComplete;
-
-  /// No description provided for @updateOpenFolder.
-  ///
-  /// In en, this message translates to:
-  /// **'Open download folder'**
-  String get updateOpenFolder;
+  /// **'Could not save the reminder preference. Try again.'**
+  String get updateErrorSavePreference;
 
   /// No description provided for @updateErrorNetwork.
   ///
   /// In en, this message translates to:
-  /// **'Could not connect to check or download the update.'**
+  /// **'Could not connect to check for updates.'**
   String get updateErrorNetwork;
 
   /// No description provided for @updateErrorInvalidRelease.
@@ -1207,24 +1189,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The release information is invalid.'**
   String get updateErrorInvalidRelease;
-
-  /// No description provided for @updateErrorUnsupported.
-  ///
-  /// In en, this message translates to:
-  /// **'Updates are not supported on this platform.'**
-  String get updateErrorUnsupported;
-
-  /// No description provided for @updateErrorIntegrity.
-  ///
-  /// In en, this message translates to:
-  /// **'The downloaded package failed integrity verification.'**
-  String get updateErrorIntegrity;
-
-  /// No description provided for @updateErrorFileAccess.
-  ///
-  /// In en, this message translates to:
-  /// **'Could not access the download folder or file.'**
-  String get updateErrorFileAccess;
 
   /// No description provided for @updateErrorUnexpected.
   ///

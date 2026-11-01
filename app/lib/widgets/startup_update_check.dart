@@ -43,7 +43,9 @@ class _StartupUpdateCheckState extends ConsumerState<StartupUpdateCheck> {
       final release = await _service.check(package.version);
       if (!mounted ||
           release == null ||
-          !ref.read(uiSettingsProvider).autoCheckUpdates) {
+          !ref.read(uiSettingsProvider).autoCheckUpdates ||
+          release.version ==
+              ref.read(uiSettingsProvider).ignoredUpdateVersion) {
         return;
       }
       await showUpdateDialog(context, release);

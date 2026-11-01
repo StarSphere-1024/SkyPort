@@ -553,45 +553,25 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String updateDownloadAsset(String asset) {
-    return '下载 $asset';
-  }
+  String get updateReleasePage => '前往下载';
 
   @override
-  String get updateNoPackage => '此平台没有兼容的软件包。';
+  String get updateLater => '稍后';
 
   @override
-  String get updateReleasePage => '查看版本发布页面';
+  String get updateIgnoreVersion => '不再提醒此版本';
 
   @override
-  String get updateDownloading => '正在下载更新…';
+  String get updateErrorOpenPage => '无法打开下载页面，请检查默认浏览器设置后重试。';
 
   @override
-  String get updateValidating => '正在验证下载的软件包…';
+  String get updateErrorSavePreference => '无法保存提醒设置，请重试。';
 
   @override
-  String get updateCancelled => '下载已取消。';
-
-  @override
-  String get updateDownloadComplete => '下载并验证完成：';
-
-  @override
-  String get updateOpenFolder => '打开下载文件夹';
-
-  @override
-  String get updateErrorNetwork => '无法连接以检查或下载更新。';
+  String get updateErrorNetwork => '无法连接以检查更新。';
 
   @override
   String get updateErrorInvalidRelease => '版本发布信息无效。';
-
-  @override
-  String get updateErrorUnsupported => '此平台不支持更新。';
-
-  @override
-  String get updateErrorIntegrity => '下载的软件包未通过完整性验证。';
-
-  @override
-  String get updateErrorFileAccess => '无法访问下载文件夹或文件。';
 
   @override
   String get updateErrorUnexpected => '更新操作失败。';

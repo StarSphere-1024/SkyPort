@@ -579,50 +579,27 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String updateDownloadAsset(String asset) {
-    return 'Download $asset';
-  }
+  String get updateReleasePage => 'Go to download';
 
   @override
-  String get updateNoPackage =>
-      'No compatible package is available for this platform.';
+  String get updateLater => 'Later';
 
   @override
-  String get updateReleasePage => 'View release page';
+  String get updateIgnoreVersion => 'Don\'t remind me about this version';
 
   @override
-  String get updateDownloading => 'Downloading update…';
+  String get updateErrorOpenPage =>
+      'Could not open the download page. Check your default browser settings and try again.';
 
   @override
-  String get updateValidating => 'Verifying downloaded package…';
+  String get updateErrorSavePreference =>
+      'Could not save the reminder preference. Try again.';
 
   @override
-  String get updateCancelled => 'Download cancelled.';
-
-  @override
-  String get updateDownloadComplete => 'Download verified:';
-
-  @override
-  String get updateOpenFolder => 'Open download folder';
-
-  @override
-  String get updateErrorNetwork =>
-      'Could not connect to check or download the update.';
+  String get updateErrorNetwork => 'Could not connect to check for updates.';
 
   @override
   String get updateErrorInvalidRelease => 'The release information is invalid.';
-
-  @override
-  String get updateErrorUnsupported =>
-      'Updates are not supported on this platform.';
-
-  @override
-  String get updateErrorIntegrity =>
-      'The downloaded package failed integrity verification.';
-
-  @override
-  String get updateErrorFileAccess =>
-      'Could not access the download folder or file.';
 
   @override
   String get updateErrorUnexpected => 'The update operation failed.';
