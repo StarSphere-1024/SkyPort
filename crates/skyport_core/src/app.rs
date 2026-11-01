@@ -393,18 +393,30 @@ fn event_weight(event: &Event) -> usize {
     let log_size = |log: &LogDelta| {
         log.upsert.iter().map(|r| r.data.len() + 48).sum::<usize>() + log.removed_ids.len() * 8 + 64
     };
+    let ports_size = |ports: &[crate::PortInfo]| {
+        ports
+            .iter()
+            .map(|port| {
+                port.port_name.len()
+                    + port.product.as_ref().map_or(0, String::len)
+                    + port.manufacturer.as_ref().map_or(0, String::len)
+                    + port.serial_number.as_ref().map_or(0, String::len)
+                    + 4
+            })
+            .sum::<usize>()
+    };
     let state_size = |state: &AppState| {
         state.config.serial.port_name.len()
             + state.config.history.iter().map(String::len).sum::<usize>()
             + state.auto_send_input.len()
-            + state.ports.iter().map(String::len).sum::<usize>()
+            + ports_size(&state.ports)
             + state.error.as_ref().map_or(0, error_size)
             + state.auto_send_error.as_ref().map_or(0, error_size)
             + 512
     };
     match &event.kind {
         EventKind::StateChanged(state) => state_size(state),
-        EventKind::PortsChanged(ports) => ports.iter().map(String::len).sum::<usize>() + 32,
+        EventKind::PortsChanged(ports) => ports_size(ports) + 32,
         EventKind::LogChanged(log) => log_size(log),
         EventKind::DataReceived { data, log, .. } => data.len() + log_size(log) + 64,
         EventKind::DataSent { data, log, .. } => data.len() + log_size(log) + 64,
@@ -1236,9 +1248,9 @@ fn update_config_with_input(
     }
     Ok(())
 }
-fn update_ports(shared: &Shared, mut ports: Vec<String>) {
-    ports.sort_unstable();
-    ports.dedup();
+fn update_ports(shared: &Shared, mut ports: Vec<crate::PortInfo>) {
+    ports.sort_unstable_by(|a, b| a.port_name.cmp(&b.port_name));
+    ports.dedup_by(|a, b| a.port_name == b.port_name);
     if let Ok(mut state) = shared.state.lock() {
         if state.snapshot.ports != ports {
             state.snapshot.ports = ports.clone();

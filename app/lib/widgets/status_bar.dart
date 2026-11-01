@@ -24,10 +24,7 @@ class StatusBar extends ConsumerWidget {
           rxBytesPerSecond: state.rxBytesPerSecond,
           connection: state.connection,
           portName: state.portName,
-          baudRate: state.baudRate,
-          dataBits: state.dataBits,
-          parity: state.parity,
-          stopBits: state.stopBits,
+          appliedConfig: state.appliedConfig,
           error: state.error,
         ),
       ),
@@ -61,14 +58,22 @@ class StatusBar extends ConsumerWidget {
     final status = connectionStatusLabel(state.connection, l10n);
     final reconnecting = state.connection == UiConnection.reconnecting;
     final diagnostic = reconnecting ? state.error : null;
-    final portText = state.portName.isEmpty ? '' : state.portName;
-    final serialSettings =
-        '${state.baudRate} · ${state.dataBits}'
-        '${switch (state.parity) {
-          UiParity.none => 'N',
-          UiParity.odd => 'O',
-          UiParity.even => 'E',
-        }}${state.stopBits}';
+    final liveConfig = switch (state.connection) {
+      UiConnection.connected ||
+      UiConnection.reconfiguring ||
+      UiConnection.disconnecting => state.appliedConfig,
+      _ => null,
+    };
+    final portText =
+        liveConfig?.portName ?? (reconnecting ? state.portName : '');
+    final serialSettings = liveConfig == null
+        ? ''
+        : '${liveConfig.baudRate} · ${liveConfig.dataBits}'
+              '${switch (liveConfig.parity) {
+                UiParity.none => 'N',
+                UiParity.odd => 'O',
+                UiParity.even => 'E',
+              }}${liveConfig.stopBits}';
 
     return Container(
       height: actionSize + (touch ? 1 : 0),
@@ -100,7 +105,7 @@ class StatusBar extends ConsumerWidget {
                 (reconnecting ? 0 : 12) -
                 (diagnostic == null ? 0 : actionSize),
           );
-          final portLabel = portText.isEmpty ? l10n.noPortSelected : portText;
+          final portLabel = portText.isEmpty ? status : '$status  $portText';
           final minimumPortWidth = math.min(
             widthOf(portLabel),
             math.min(scaler.scale(80), available * 0.4),
@@ -118,6 +123,7 @@ class StatusBar extends ConsumerWidget {
                 );
           final showSettings =
               portText.isNotEmpty &&
+              serialSettings.isNotEmpty &&
               available - statsWidth >=
                   minimumPortWidth + widthOf('  $serialSettings');
           painter.dispose();
@@ -150,16 +156,16 @@ class StatusBar extends ConsumerWidget {
               Expanded(
                 child: Tooltip(
                   message:
-                      '$status\n${state.portName}  $serialSettings'
+                      '$status${portText.isEmpty ? '' : '\n$portText'}'
+                      '${serialSettings.isEmpty ? '' : '  $serialSettings'}'
                       '${diagnostic == null ? '' : '\n${localizedError(l10n, diagnostic)}'}',
                   child: Text.rich(
                     TextSpan(
-                      text: reconnecting ? '$status  ' : '',
+                      text: '$status  ',
+                      style: reconnecting ? secondaryStyle : null,
                       children: [
                         TextSpan(
-                          text: portText.isEmpty
-                              ? l10n.noPortSelected
-                              : portText,
+                          text: portText,
                           style: reconnecting ? secondaryStyle : null,
                         ),
                         if (showSettings)

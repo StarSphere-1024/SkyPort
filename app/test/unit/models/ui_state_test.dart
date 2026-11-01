@@ -414,12 +414,22 @@ void main() {
   test(
     'metadata transitions preserve received rows and an observable subscription gap',
     () {
+      const expectedApplied = (
+        portName: '/dev/example',
+        baudRate: 115200,
+        dataBits: 8,
+        parity: UiParity.even,
+        stopBits: 1,
+      );
       final initial = UiState.fromSnapshot(
         rust.AppSnapshot(
           sequence: 7,
           config: config,
+          appliedConfig: config.serial,
           connection: rust.ConnectionState.connected,
-          ports: const ['/dev/example'],
+          ports: const [
+            rust.PortInfo(portName: '/dev/example', product: 'Adapter'),
+          ],
           rxBytes: 2,
           txBytes: 1,
           lastRxBytes: 2,
@@ -437,15 +447,19 @@ void main() {
         ),
         dataGap: true,
       );
+      expect(initial.appliedConfig, expectedApplied);
       final reconfiguring = initial.withEvent(
-        const rust.Event(
+        rust.Event(
           sequence: 8,
           kind: rust.EventType.stateChanged,
           state: rust.AppState(
             sequence: 8,
             config: config,
             connection: rust.ConnectionState.reconfiguring,
-            ports: ['/dev/example'],
+            appliedConfig: config.serial,
+            ports: const [
+              rust.PortInfo(portName: '/dev/example', product: 'Adapter'),
+            ],
             rxBytes: 2,
             txBytes: 1,
             lastRxBytes: 2,
@@ -478,6 +492,10 @@ void main() {
       expect(initial.logIncomplete, isTrue);
       expect(initial.trimmedBytes, 10);
       expect(initial.logs.chunks.single.entries.single.data, [0, 255]);
+      final disconnected = received.withEvent(
+        const rust.Event(sequence: 10, kind: rust.EventType.disconnected),
+      );
+      expect(disconnected.appliedConfig, isNull);
     },
   );
   test(

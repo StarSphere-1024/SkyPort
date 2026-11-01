@@ -239,7 +239,7 @@ CLI、GPUI 直接调用该 API；实际生成到 Dart 的 API 名称由 bridge �
 事件至少包含：
 
 - `state_changed`：连接状态、应用配置、错误和统计；
-- `ports_changed`：端口名称列表；
+- `ports_changed`：结构化端口列表，包含端口名及可选的产品描述、制造商、USB VID/PID 和序列号；缺失元数据不补造占位值；
 - `data_received`：原始字节批次或日志记录，不生成前端样式对象；
 - `data_sent`：实际写入完成的发送记录；
 - `write_failed`；

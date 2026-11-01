@@ -111,6 +111,16 @@ pub enum ConnectionState {
     Closed,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct PortInfo {
+    pub port_name: String,
+    pub product: Option<String>,
+    pub manufacturer: Option<String>,
+    pub serial_number: Option<String>,
+    pub vid: Option<u16>,
+    pub pid: Option<u16>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AppSnapshot {
     pub sequence: u64,
@@ -118,7 +128,7 @@ pub struct AppSnapshot {
     pub connection: ConnectionState,
     pub applied_config: Option<SerialConfig>,
     pub connected_at_ms: Option<i64>,
-    pub ports: Vec<String>,
+    pub ports: Vec<PortInfo>,
     pub rx_bytes: u64,
     pub tx_bytes: u64,
     pub last_rx_bytes: u64,
@@ -136,7 +146,7 @@ pub struct AppState {
     pub connection: ConnectionState,
     pub applied_config: Option<SerialConfig>,
     pub connected_at_ms: Option<i64>,
-    pub ports: Vec<String>,
+    pub ports: Vec<PortInfo>,
     pub rx_bytes: u64,
     pub tx_bytes: u64,
     pub last_rx_bytes: u64,
@@ -203,7 +213,7 @@ pub struct Event {
 #[derive(Clone, Debug)]
 pub enum EventKind {
     StateChanged(AppState),
-    PortsChanged(Vec<String>),
+    PortsChanged(Vec<PortInfo>),
     LogChanged(LogDelta),
     DataReceived {
         data: Vec<u8>,

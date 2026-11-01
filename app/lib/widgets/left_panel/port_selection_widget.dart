@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,7 +7,6 @@ import '../../l10n/app_localizations.dart';
 import '../../models/ui_state.dart';
 import '../../providers/ui_controller.dart';
 import '../../utils/connection_status.dart';
-import '../shared/dropdown_builders.dart';
 
 class PortSelectionWidget extends ConsumerWidget {
   const PortSelectionWidget({super.key});
@@ -34,7 +35,9 @@ class PortSelectionWidget extends ConsumerWidget {
     final ports = state.ports;
     final selectedPort = state.portName.isEmpty ? null : state.portName;
     final isUnavailable =
-        !isConnected && selectedPort != null && !ports.contains(selectedPort);
+        !isConnected &&
+        selectedPort != null &&
+        !ports.any((port) => port.portName == selectedPort);
 
     final disconnect =
         isConnected || connectionState == UiConnection.reconnecting;
@@ -94,7 +97,7 @@ class PortSelectionWidget extends ConsumerWidget {
 
   Widget _buildPortDropdown({
     required BuildContext context,
-    required List<String> ports,
+    required List<UiPort> ports,
     required String? selectedPort,
     required bool isUnavailable,
     required bool isReconnecting,
@@ -102,27 +105,128 @@ class PortSelectionWidget extends ConsumerWidget {
     required ValueChanged<String?> onSelected,
   }) {
     final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
+    );
+    String title(UiPort port) => [
+      port.portName,
+      if (port.product?.trim().isNotEmpty ?? false) port.product!.trim(),
+    ].join(' · ');
+    String details(UiPort port) => [
+      if (port.manufacturer?.trim().isNotEmpty ?? false)
+        port.manufacturer!.trim(),
+      if (port.vid != null && port.pid != null)
+        'VID:PID ${port.vid!.toRadixString(16).padLeft(4, '0').toUpperCase()}:'
+            '${port.pid!.toRadixString(16).padLeft(4, '0').toUpperCase()}',
+      if (port.serialNumber?.trim().isNotEmpty ?? false)
+        '${l10n.serialNumber}: ${port.serialNumber!.trim()}',
+    ].join(' · ');
+    final hasSelection = ports.any((port) => port.portName == selectedPort);
 
-    final entries = <DropdownMenuEntry<String>>[
-      ...ports.map(
-        (port) => DropdownMenuEntry<String>(value: port, label: port),
-      ),
-    ];
-
-    return DropdownBuilders.buildDropdown<String>(
-      context: context,
-      menuKey: ValueKey('${ports.join('\u0000')}\u0001$selectedPort'),
-      initialSelection: selectedPort,
-      entries: entries,
-      onSelected: isDisabled ? null : onSelected,
-      hintText: ports.isEmpty ? l10n.noPortsFound : null,
-      errorText: isReconnecting && selectedPort != null
-          ? '${l10n.reconnecting}: $selectedPort'
-          : isUnavailable
-          ? '${l10n.unavailable}: $selectedPort'
-          : null,
-      label: l10n.portName,
-      enabled: !isDisabled && entries.isNotEmpty,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.portName,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 6),
+        InputDecorator(
+          decoration: InputDecoration(
+            enabled: !isDisabled && ports.isNotEmpty,
+            isDense: true,
+            filled: true,
+            fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.3,
+            ),
+            border: border,
+            enabledBorder: border,
+            disabledBorder: border,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+            errorText: isReconnecting && selectedPort != null
+                ? '${l10n.reconnecting}: $selectedPort'
+                : isUnavailable
+                ? '${l10n.unavailable}: $selectedPort'
+                : null,
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: hasSelection ? selectedPort : null,
+              isExpanded: true,
+              menuWidth: math.min(520, MediaQuery.sizeOf(context).width - 32),
+              menuMaxHeight: 360,
+              itemHeight: null,
+              borderRadius: BorderRadius.circular(8),
+              icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+              style: theme.textTheme.bodyMedium,
+              hint: Text(
+                ports.isEmpty
+                    ? l10n.noPortsFound
+                    : selectedPort ?? l10n.portName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              onChanged: isDisabled ? null : onSelected,
+              selectedItemBuilder: (context) => [
+                for (final port in ports)
+                  Tooltip(
+                    message: [
+                      title(port),
+                      if (details(port).isNotEmpty) details(port),
+                    ].join('\n'),
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Text(
+                        title(port),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+              ],
+              items: [
+                for (final port in ports)
+                  DropdownMenuItem(
+                    value: port.portName,
+                    child: Tooltip(
+                      message: [
+                        title(port),
+                        if (details(port).isNotEmpty) details(port),
+                      ].join('\n'),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title(port),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (details(port).isNotEmpty)
+                              Text(
+                                details(port),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

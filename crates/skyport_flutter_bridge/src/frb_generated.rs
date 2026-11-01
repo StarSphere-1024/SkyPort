@@ -1516,7 +1516,7 @@ impl SseDecode for crate::api::AppSnapshot {
         let mut var_connection = <crate::api::ConnectionState>::sse_decode(deserializer);
         let mut var_appliedConfig = <Option<crate::api::SerialConfig>>::sse_decode(deserializer);
         let mut var_connectedAtMs = <Option<i64>>::sse_decode(deserializer);
-        let mut var_ports = <Vec<String>>::sse_decode(deserializer);
+        let mut var_ports = <Vec<crate::api::PortInfo>>::sse_decode(deserializer);
         let mut var_rxBytes = <u64>::sse_decode(deserializer);
         let mut var_txBytes = <u64>::sse_decode(deserializer);
         let mut var_lastRxBytes = <u64>::sse_decode(deserializer);
@@ -1552,7 +1552,7 @@ impl SseDecode for crate::api::AppState {
         let mut var_connection = <crate::api::ConnectionState>::sse_decode(deserializer);
         let mut var_appliedConfig = <Option<crate::api::SerialConfig>>::sse_decode(deserializer);
         let mut var_connectedAtMs = <Option<i64>>::sse_decode(deserializer);
-        let mut var_ports = <Vec<String>>::sse_decode(deserializer);
+        let mut var_ports = <Vec<crate::api::PortInfo>>::sse_decode(deserializer);
         let mut var_rxBytes = <u64>::sse_decode(deserializer);
         let mut var_txBytes = <u64>::sse_decode(deserializer);
         let mut var_lastRxBytes = <u64>::sse_decode(deserializer);
@@ -1765,7 +1765,7 @@ impl SseDecode for crate::api::Event {
         let mut var_sequence = <u64>::sse_decode(deserializer);
         let mut var_kind = <crate::api::EventType>::sse_decode(deserializer);
         let mut var_state = <Option<crate::api::AppState>>::sse_decode(deserializer);
-        let mut var_ports = <Option<Vec<String>>>::sse_decode(deserializer);
+        let mut var_ports = <Option<Vec<crate::api::PortInfo>>>::sse_decode(deserializer);
         let mut var_data = <Option<Vec<u8>>>::sse_decode(deserializer);
         let mut var_log = <Option<crate::api::LogDelta>>::sse_decode(deserializer);
         let mut var_rxBytes = <Option<u64>>::sse_decode(deserializer);
@@ -1950,6 +1950,18 @@ impl SseDecode for Vec<crate::api::LogRecord> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::LogRecord>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::PortInfo> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::PortInfo>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -2282,6 +2294,17 @@ impl SseDecode for Option<crate::api::SerialConfig> {
     }
 }
 
+impl SseDecode for Option<u16> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<u16>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<u32> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2315,6 +2338,17 @@ impl SseDecode for Option<Vec<String>> {
     }
 }
 
+impl SseDecode for Option<Vec<crate::api::PortInfo>> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<Vec<crate::api::PortInfo>>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<Vec<u8>> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2335,6 +2369,26 @@ impl SseDecode for crate::api::Parity {
             1 => crate::api::Parity::Odd,
             2 => crate::api::Parity::Even,
             _ => unreachable!("Invalid variant for Parity: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::PortInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_portName = <String>::sse_decode(deserializer);
+        let mut var_product = <Option<String>>::sse_decode(deserializer);
+        let mut var_manufacturer = <Option<String>>::sse_decode(deserializer);
+        let mut var_serialNumber = <Option<String>>::sse_decode(deserializer);
+        let mut var_vid = <Option<u16>>::sse_decode(deserializer);
+        let mut var_pid = <Option<u16>>::sse_decode(deserializer);
+        return crate::api::PortInfo {
+            port_name: var_portName,
+            product: var_product,
+            manufacturer: var_manufacturer,
+            serial_number: var_serialNumber,
+            vid: var_vid,
+            pid: var_pid,
         };
     }
 }
@@ -2558,6 +2612,13 @@ impl SseDecode for crate::api::SubscribeReply {
             subscription: var_subscription,
             error: var_error,
         };
+    }
+}
+
+impl SseDecode for u16 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_u16::<NativeEndian>().unwrap()
     }
 }
 
@@ -3193,6 +3254,26 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::Parity> for crate::api::Parit
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::PortInfo {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.port_name.into_into_dart().into_dart(),
+            self.product.into_into_dart().into_dart(),
+            self.manufacturer.into_into_dart().into_dart(),
+            self.serial_number.into_into_dart().into_dart(),
+            self.vid.into_into_dart().into_dart(),
+            self.pid.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::PortInfo {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::PortInfo> for crate::api::PortInfo {
+    fn into_into_dart(self) -> crate::api::PortInfo {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::SearchHit {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -3539,7 +3620,7 @@ impl SseEncode for crate::api::AppSnapshot {
         <crate::api::ConnectionState>::sse_encode(self.connection, serializer);
         <Option<crate::api::SerialConfig>>::sse_encode(self.applied_config, serializer);
         <Option<i64>>::sse_encode(self.connected_at_ms, serializer);
-        <Vec<String>>::sse_encode(self.ports, serializer);
+        <Vec<crate::api::PortInfo>>::sse_encode(self.ports, serializer);
         <u64>::sse_encode(self.rx_bytes, serializer);
         <u64>::sse_encode(self.tx_bytes, serializer);
         <u64>::sse_encode(self.last_rx_bytes, serializer);
@@ -3559,7 +3640,7 @@ impl SseEncode for crate::api::AppState {
         <crate::api::ConnectionState>::sse_encode(self.connection, serializer);
         <Option<crate::api::SerialConfig>>::sse_encode(self.applied_config, serializer);
         <Option<i64>>::sse_encode(self.connected_at_ms, serializer);
-        <Vec<String>>::sse_encode(self.ports, serializer);
+        <Vec<crate::api::PortInfo>>::sse_encode(self.ports, serializer);
         <u64>::sse_encode(self.rx_bytes, serializer);
         <u64>::sse_encode(self.tx_bytes, serializer);
         <u64>::sse_encode(self.last_rx_bytes, serializer);
@@ -3742,7 +3823,7 @@ impl SseEncode for crate::api::Event {
         <u64>::sse_encode(self.sequence, serializer);
         <crate::api::EventType>::sse_encode(self.kind, serializer);
         <Option<crate::api::AppState>>::sse_encode(self.state, serializer);
-        <Option<Vec<String>>>::sse_encode(self.ports, serializer);
+        <Option<Vec<crate::api::PortInfo>>>::sse_encode(self.ports, serializer);
         <Option<Vec<u8>>>::sse_encode(self.data, serializer);
         <Option<crate::api::LogDelta>>::sse_encode(self.log, serializer);
         <Option<u64>>::sse_encode(self.rx_bytes, serializer);
@@ -3890,6 +3971,16 @@ impl SseEncode for Vec<crate::api::LogRecord> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::LogRecord>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::PortInfo> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::PortInfo>::sse_encode(item, serializer);
         }
     }
 }
@@ -4177,6 +4268,16 @@ impl SseEncode for Option<crate::api::SerialConfig> {
     }
 }
 
+impl SseEncode for Option<u16> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <u16>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<u32> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -4207,6 +4308,16 @@ impl SseEncode for Option<Vec<String>> {
     }
 }
 
+impl SseEncode for Option<Vec<crate::api::PortInfo>> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <Vec<crate::api::PortInfo>>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<Vec<u8>> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -4231,6 +4342,18 @@ impl SseEncode for crate::api::Parity {
             },
             serializer,
         );
+    }
+}
+
+impl SseEncode for crate::api::PortInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.port_name, serializer);
+        <Option<String>>::sse_encode(self.product, serializer);
+        <Option<String>>::sse_encode(self.manufacturer, serializer);
+        <Option<String>>::sse_encode(self.serial_number, serializer);
+        <Option<u16>>::sse_encode(self.vid, serializer);
+        <Option<u16>>::sse_encode(self.pid, serializer);
     }
 }
 
@@ -4370,6 +4493,13 @@ impl SseEncode for crate::api::SubscribeReply {
         <Option<crate::api::AppSnapshot>>::sse_encode(self.snapshot, serializer);
         <Option<SubscriptionHandle>>::sse_encode(self.subscription, serializer);
         <Option<crate::api::CoreError>>::sse_encode(self.error, serializer);
+    }
+}
+
+impl SseEncode for u16 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_u16::<NativeEndian>(self).unwrap();
     }
 }
 

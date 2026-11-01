@@ -337,13 +337,35 @@ pub struct LogDelta {
     pub incomplete: bool,
 }
 #[derive(Clone, Debug)]
+pub struct PortInfo {
+    pub port_name: String,
+    pub product: Option<String>,
+    pub manufacturer: Option<String>,
+    pub serial_number: Option<String>,
+    pub vid: Option<u16>,
+    pub pid: Option<u16>,
+}
+impl From<core::PortInfo> for PortInfo {
+    fn from(value: core::PortInfo) -> Self {
+        Self {
+            port_name: value.port_name,
+            product: value.product,
+            manufacturer: value.manufacturer,
+            serial_number: value.serial_number,
+            vid: value.vid,
+            pid: value.pid,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct AppSnapshot {
     pub sequence: u64,
     pub config: AppConfig,
     pub connection: ConnectionState,
     pub applied_config: Option<SerialConfig>,
     pub connected_at_ms: Option<i64>,
-    pub ports: Vec<String>,
+    pub ports: Vec<PortInfo>,
     pub rx_bytes: u64,
     pub tx_bytes: u64,
     pub last_rx_bytes: u64,
@@ -360,7 +382,7 @@ pub struct AppState {
     pub connection: ConnectionState,
     pub applied_config: Option<SerialConfig>,
     pub connected_at_ms: Option<i64>,
-    pub ports: Vec<String>,
+    pub ports: Vec<PortInfo>,
     pub rx_bytes: u64,
     pub tx_bytes: u64,
     pub last_rx_bytes: u64,
@@ -396,7 +418,7 @@ pub struct Event {
     pub sequence: u64,
     pub kind: EventType,
     pub state: Option<AppState>,
-    pub ports: Option<Vec<String>>,
+    pub ports: Option<Vec<PortInfo>>,
     pub data: Option<Vec<u8>>,
     pub log: Option<LogDelta>,
     pub rx_bytes: Option<u64>,
@@ -674,7 +696,7 @@ impl From<core::AppSnapshot> for AppSnapshot {
             connection: value.connection.into(),
             applied_config: value.applied_config.map(Into::into),
             connected_at_ms: value.connected_at_ms,
-            ports: value.ports,
+            ports: value.ports.into_iter().map(Into::into).collect(),
             rx_bytes: value.rx_bytes,
             tx_bytes: value.tx_bytes,
             last_rx_bytes: value.last_rx_bytes,
@@ -694,7 +716,7 @@ impl From<core::AppState> for AppState {
             connection: value.connection.into(),
             applied_config: value.applied_config.map(Into::into),
             connected_at_ms: value.connected_at_ms,
-            ports: value.ports,
+            ports: value.ports.into_iter().map(Into::into).collect(),
             rx_bytes: value.rx_bytes,
             tx_bytes: value.tx_bytes,
             last_rx_bytes: value.last_rx_bytes,
@@ -727,7 +749,7 @@ impl From<core::Event> for Event {
             }
             core::EventKind::PortsChanged(ports) => {
                 event.kind = EventType::PortsChanged;
-                event.ports = Some(ports);
+                event.ports = Some(ports.into_iter().map(Into::into).collect());
             }
             core::EventKind::LogChanged(log) => {
                 event.kind = EventType::LogChanged;

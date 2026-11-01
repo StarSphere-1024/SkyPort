@@ -3,7 +3,7 @@ use jni::{
     sys::jint,
     JNIEnv, JavaVM,
 };
-use skyport_core::{CoreError, ErrorKind, SerialBackend, SerialConfig, TransportPort};
+use skyport_core::{CoreError, ErrorKind, PortInfo, SerialBackend, SerialConfig, TransportPort};
 use std::{
     io::{self, Read, Write},
     sync::{Arc, Mutex},
@@ -121,20 +121,60 @@ fn local<T>(
 }
 
 impl SerialBackend for AndroidBackend {
-    fn ports(&self) -> Result<Vec<String>, CoreError> {
+    fn ports(&self) -> Result<Vec<PortInfo>, CoreError> {
         let mut env = self
             .vm
             .attach_current_thread_permanently()
             .map_err(internal)?;
         local(&mut env, 32, |env| {
-            let result =
-                env.call_method(self.object.as_obj(), "ports", "()[Ljava/lang/String;", &[]);
-            let names = JObjectArray::from(checked(env, result)?.l().map_err(internal)?);
-            let count = env.get_array_length(&names).map_err(internal)?;
+            let result = env.call_method(
+                self.object.as_obj(),
+                "ports",
+                "()[Ldev/skyport/app/UsbSerialBackend$PortInfo;",
+                &[],
+            );
+            let items = JObjectArray::from(checked(env, result)?.l().map_err(internal)?);
+            let count = env.get_array_length(&items).map_err(internal)?;
             let mut ports = Vec::with_capacity(count as usize);
             for i in 0..count {
-                let name = env.get_object_array_element(&names, i).map_err(internal)?;
-                ports.push(string_value(env, name)?);
+                ports.push(local(env, 16, |env| {
+                    let item = env.get_object_array_element(&items, i).map_err(internal)?;
+                    let optional =
+                        |env: &mut JNIEnv, name: &str| -> Result<Option<String>, CoreError> {
+                            let value = env
+                                .get_field(&item, name, "Ljava/lang/String;")
+                                .map_err(internal)?
+                                .l()
+                                .map_err(internal)?;
+                            if value.is_null() {
+                                Ok(None)
+                            } else {
+                                string_value(env, value).map(Some)
+                            }
+                        };
+                    let number = |env: &mut JNIEnv, name: &str| -> Result<u16, CoreError> {
+                        env.get_field(&item, name, "I")
+                            .map_err(internal)?
+                            .i()
+                            .map_err(internal)
+                            .and_then(|value| u16::try_from(value).map_err(internal))
+                    };
+                    let port_name = optional(env, "portName")?
+                        .ok_or_else(|| internal("missing USB port name"))?;
+                    let product = optional(env, "product")?;
+                    let manufacturer = optional(env, "manufacturer")?;
+                    let serial_number = optional(env, "serialNumber")?;
+                    let vid = number(env, "vid")?;
+                    let pid = number(env, "pid")?;
+                    Ok(PortInfo {
+                        port_name,
+                        product,
+                        manufacturer,
+                        serial_number,
+                        vid: Some(vid),
+                        pid: Some(pid),
+                    })
+                })?);
             }
             Ok(ports)
         })

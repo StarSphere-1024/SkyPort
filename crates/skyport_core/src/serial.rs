@@ -30,14 +30,14 @@ impl<T: serialport::SerialPort> TransportPort for T {
 }
 
 pub trait SerialBackend: Send + Sync {
-    fn ports(&self) -> Result<Vec<String>, CoreError>;
+    fn ports(&self) -> Result<Vec<crate::PortInfo>, CoreError>;
     fn open(&self, config: &SerialConfig) -> Result<Box<dyn TransportPort>, CoreError>;
 }
 
 pub(crate) struct NativeBackend;
 
 impl SerialBackend for NativeBackend {
-    fn ports(&self) -> Result<Vec<String>, CoreError> {
+    fn ports(&self) -> Result<Vec<crate::PortInfo>, CoreError> {
         ports()
     }
     fn open(&self, config: &SerialConfig) -> Result<Box<dyn TransportPort>, CoreError> {
@@ -48,13 +48,32 @@ impl SerialBackend for NativeBackend {
 // Bound command waiting while the single worker polls serial input.
 pub(crate) const READ_POLL_TIMEOUT: Duration = Duration::from_millis(5);
 
-pub(crate) fn ports() -> Result<Vec<String>, CoreError> {
+pub(crate) fn ports() -> Result<Vec<crate::PortInfo>, CoreError> {
     serialport::available_ports()
         .map(|ports| {
             ports
                 .into_iter()
-                .map(|p| p.port_name)
-                .filter(|name| is_listed_port(name))
+                .filter(|port| is_listed_port(&port.port_name))
+                .map(|port| {
+                    let (product, manufacturer, serial_number, vid, pid) = match port.port_type {
+                        serialport::SerialPortType::UsbPort(info) => (
+                            info.product,
+                            info.manufacturer,
+                            info.serial_number,
+                            Some(info.vid),
+                            Some(info.pid),
+                        ),
+                        _ => (None, None, None, None, None),
+                    };
+                    crate::PortInfo {
+                        port_name: port.port_name,
+                        product,
+                        manufacturer,
+                        serial_number,
+                        vid,
+                        pid,
+                    }
+                })
                 .collect()
         })
         .map_err(|e| {

@@ -59,6 +59,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get portName => 'Port Name';
 
   @override
+  String get serialNumber => 'Serial';
+
+  @override
   String get noPortsFound => 'No ports found';
 
   @override

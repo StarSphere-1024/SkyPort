@@ -155,13 +155,35 @@ public final class UsbSerialBackend {
         }
     }
 
-    public synchronized String[] ports() {
-        if (shutdown) return new String[0];
+    public static final class PortInfo {
+        public final String portName;
+        public final String product;
+        public final String manufacturer;
+        public final String serialNumber;
+        public final int vid;
+        public final int pid;
+        PortInfo(String portName, UsbDevice device, boolean hasPermission) {
+            this.portName = portName;
+            product = device.getProductName();
+            manufacturer = device.getManufacturerName();
+            String serial = null;
+            if (hasPermission) {
+                try { serial = device.getSerialNumber(); }
+                catch (SecurityException ignored) { /* Permission may be revoked during enumeration. */ }
+            }
+            serialNumber = serial;
+            vid = device.getVendorId();
+            pid = device.getProductId();
+        }
+    }
+
+    public synchronized PortInfo[] ports() {
+        if (shutdown) return new PortInfo[0];
         Map<String, String> existing = new HashMap<>();
         for (Map.Entry<String, PortRef> entry : ports.entrySet())
             existing.put(entry.getValue().attachmentKey, entry.getKey());
         Map<String, PortRef> discovered = new HashMap<>();
-        List<String> names = new ArrayList<>();
+        List<PortInfo> result = new ArrayList<>();
         for (UsbSerialDriver driver : UsbSerialProber.getDefaultProber().findAllDrivers(manager)) {
             UsbDevice device = driver.getDevice();
             for (UsbSerialPort port : driver.getPorts()) {
@@ -173,13 +195,13 @@ public final class UsbSerialBackend {
                             device.getVendorId(), device.getProductId(), port.getPortNumber(), UUID.randomUUID().toString().substring(0, 8));
                 } else candidate = ports.get(name);
                 discovered.put(name, candidate);
-                names.add(name);
+                result.add(new PortInfo(name, device, manager.hasPermission(device)));
             }
         }
         ports.clear();
         ports.putAll(discovered);
-        names.sort(String::compareTo);
-        return names.toArray(new String[0]);
+        result.sort((a, b) -> a.portName.compareTo(b.portName));
+        return result.toArray(new PortInfo[0]);
     }
 
     public synchronized long open(String name, int baud, int dataBits, int parity, int stopBits, int flowControl) throws UsbSerialException {

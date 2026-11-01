@@ -22,11 +22,37 @@ enum UiFlowControl { none, hardware, software }
 enum UiNewline { none, lf, cr, crlf }
 
 typedef UiErrorNotice = ({rust.CoreError error, bool reconnecting});
+typedef UiSerialConfig = ({
+  String portName,
+  int baudRate,
+  int dataBits,
+  UiParity parity,
+  int stopBits,
+});
+
+class UiPort {
+  const UiPort({
+    required this.portName,
+    this.product,
+    this.manufacturer,
+    this.serialNumber,
+    this.vid,
+    this.pid,
+  });
+
+  final String portName;
+  final String? product;
+  final String? manufacturer;
+  final String? serialNumber;
+  final int? vid;
+  final int? pid;
+}
 
 class UiState {
   final int sequence;
   final UiConnection connection;
   final String portName;
+  final UiSerialConfig? appliedConfig;
   final int baudRate;
   final int dataBits;
   final UiParity parity;
@@ -41,7 +67,7 @@ class UiState {
   final int logCapacityBytes;
   final List<String> sendHistory;
   final String autoSendInput;
-  final List<String> ports;
+  final List<UiPort> ports;
   final int rxBytes;
   final int txBytes;
   final int lastRxBytes;
@@ -74,6 +100,7 @@ class UiState {
     required this.sendHistory,
     required this.autoSendInput,
     required this.ports,
+    this.appliedConfig,
     required this.rxBytes,
     required this.txBytes,
     required this.lastRxBytes,
@@ -114,7 +141,8 @@ class UiState {
       logCapacityBytes: snapshot.config.logCapacityBytes,
       sendHistory: snapshot.config.history,
       autoSendInput: snapshot.autoSendInput,
-      ports: snapshot.ports,
+      ports: snapshot.ports.map(_uiPort).toList(),
+      appliedConfig: _serialConfig(snapshot.appliedConfig),
       rxBytes: snapshot.rxBytes,
       txBytes: snapshot.txBytes,
       lastRxBytes: snapshot.lastRxBytes,
@@ -128,7 +156,6 @@ class UiState {
       dataGap: dataGap,
     );
   }
-
   UiState withState(rust.AppState update) => UiState(
     sequence: update.sequence,
     connection: _connection(update.connection),
@@ -147,7 +174,8 @@ class UiState {
     logCapacityBytes: update.config.logCapacityBytes,
     sendHistory: update.config.history,
     autoSendInput: update.autoSendInput,
-    ports: update.ports,
+    ports: update.ports.map(_uiPort).toList(),
+    appliedConfig: _serialConfig(update.appliedConfig),
     rxBytes: update.rxBytes,
     txBytes: update.txBytes,
     rxBytesPerSecond: update.rxBytesPerSecond,
@@ -187,7 +215,10 @@ class UiState {
             next = next.withState(update);
           }
         case rust.EventType.portsChanged:
-          next = next._copy(sequence: event.sequence, ports: event.ports);
+          next = next._copy(
+            sequence: event.sequence,
+            ports: event.ports?.map(_uiPort).toList(),
+          );
         case rust.EventType.logChanged:
         case rust.EventType.dataReceived:
         case rust.EventType.dataSent:
@@ -203,6 +234,8 @@ class UiState {
             sequence: event.sequence,
             error: event.error,
             replaceError: true,
+            appliedConfig: null,
+            replaceAppliedConfig: true,
           );
         case rust.EventType.writeFailed:
         case rust.EventType.queueOverflow:
@@ -307,7 +340,9 @@ class UiState {
 
   UiState _copy({
     int? sequence,
-    List<String>? ports,
+    List<UiPort>? ports,
+    UiSerialConfig? appliedConfig,
+    bool replaceAppliedConfig = false,
     int? rxBytes,
     int? txBytes,
     int? lastRxBytes,
@@ -321,6 +356,7 @@ class UiState {
     bool? dataGap,
   }) => UiState(
     sequence: sequence ?? this.sequence,
+    appliedConfig: replaceAppliedConfig ? appliedConfig : this.appliedConfig,
     connection: connection,
     portName: portName,
     baudRate: baudRate,
@@ -351,6 +387,25 @@ class UiState {
     logIncomplete: logIncomplete ?? this.logIncomplete,
     dataGap: dataGap ?? this.dataGap,
   );
+
+  static UiPort _uiPort(rust.PortInfo port) => UiPort(
+    portName: port.portName,
+    product: port.product,
+    manufacturer: port.manufacturer,
+    serialNumber: port.serialNumber,
+    vid: port.vid,
+    pid: port.pid,
+  );
+  static UiSerialConfig? _serialConfig(rust.SerialConfig? config) =>
+      config == null
+      ? null
+      : (
+          portName: config.portName,
+          baudRate: config.baudRate,
+          dataBits: config.dataBits,
+          parity: _parity(config.parity),
+          stopBits: config.stopBits,
+        );
 
   static LogChunk _chunk(rust.LogRecord record) {
     final entry = LogEntry(

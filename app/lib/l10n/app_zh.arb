@@ -16,6 +16,7 @@
   "noPortSelected": "未选择端口",
   "serialPortSettings": "串口设置",
   "portName": "端口",
+  "serialNumber": "序列号",
   "noPortsFound": "未发现端口",
   "connect": "连接",
   "disconnect": "断开",

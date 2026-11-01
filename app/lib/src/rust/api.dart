@@ -7,7 +7,7 @@ import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `dispatch`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 Future<CreateCoreReply> createCore({
   required String dataDirectory,
@@ -204,7 +204,7 @@ class AppSnapshot {
   final ConnectionState connection;
   final SerialConfig? appliedConfig;
   final int? connectedAtMs;
-  final List<String> ports;
+  final List<PortInfo> ports;
   final int rxBytes;
   final int txBytes;
   final int lastRxBytes;
@@ -275,7 +275,7 @@ class AppState {
   final ConnectionState connection;
   final SerialConfig? appliedConfig;
   final int? connectedAtMs;
-  final List<String> ports;
+  final List<PortInfo> ports;
   final int rxBytes;
   final int txBytes;
   final int lastRxBytes;
@@ -553,7 +553,7 @@ class Event {
   final int sequence;
   final EventType kind;
   final AppState? state;
-  final List<String>? ports;
+  final List<PortInfo>? ports;
   final Uint8List? data;
   final LogDelta? log;
   final int? rxBytes;
@@ -857,6 +857,45 @@ class LogSnapshot {
 enum Newline { none, lf, cr, crLf }
 
 enum Parity { none, odd, even }
+
+class PortInfo {
+  final String portName;
+  final String? product;
+  final String? manufacturer;
+  final String? serialNumber;
+  final int? vid;
+  final int? pid;
+
+  const PortInfo({
+    required this.portName,
+    this.product,
+    this.manufacturer,
+    this.serialNumber,
+    this.vid,
+    this.pid,
+  });
+
+  @override
+  int get hashCode =>
+      portName.hashCode ^
+      product.hashCode ^
+      manufacturer.hashCode ^
+      serialNumber.hashCode ^
+      vid.hashCode ^
+      pid.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PortInfo &&
+          runtimeType == other.runtimeType &&
+          portName == other.portName &&
+          product == other.product &&
+          manufacturer == other.manufacturer &&
+          serialNumber == other.serialNumber &&
+          vid == other.vid &&
+          pid == other.pid;
+}
 
 class SearchHit {
   final int recordId;

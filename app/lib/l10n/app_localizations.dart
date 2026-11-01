@@ -194,6 +194,12 @@ abstract class AppLocalizations {
   /// **'Port Name'**
   String get portName;
 
+  /// No description provided for @serialNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Serial'**
+  String get serialNumber;
+
   /// No description provided for @noPortsFound.
   ///
   /// In en, this message translates to:

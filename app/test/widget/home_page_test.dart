@@ -26,6 +26,8 @@ class LayoutController extends UiController {
   Future<void> send(String value) async => sentInputs.add(value);
 
   String portName = '/dev/serial/by-id/usb-very-long-device-name-1234567890';
+  String appliedPortName =
+      '/dev/serial/by-id/usb-very-long-device-name-1234567890';
   int receivedBytes = 123456789;
   int sentBytes = 987654321;
   UiState snapshot(UiConnection connection) => UiState(
@@ -35,6 +37,18 @@ class LayoutController extends UiController {
     baudRate: 115200,
     dataBits: 8,
     parity: UiParity.none,
+    appliedConfig: switch (connection) {
+      UiConnection.connected ||
+      UiConnection.reconfiguring ||
+      UiConnection.disconnecting => (
+        portName: appliedPortName,
+        baudRate: 115200,
+        dataBits: 8,
+        parity: UiParity.none,
+        stopBits: 1,
+      ),
+      _ => null,
+    },
     flowControl: UiFlowControl.none,
     stopBits: 1,
     autoReconnect: false,
@@ -45,7 +59,7 @@ class LayoutController extends UiController {
     logCapacityBytes: 128 * 1024 * 1024,
     sendHistory: const [],
     autoSendInput: '',
-    ports: [if (portName.isNotEmpty) portName],
+    ports: [if (portName.isNotEmpty) UiPort(portName: portName)],
     rxBytes: receivedBytes,
     txBytes: sentBytes,
     rxBytesPerSecond: 1536.5,
@@ -83,6 +97,11 @@ class LayoutController extends UiController {
 
   void showPort(String value) {
     portName = value;
+    state = snapshot(state.connection);
+  }
+
+  void showAppliedPort(String value) {
+    appliedPortName = value;
     state = snapshot(state.connection);
   }
 }
@@ -533,6 +552,45 @@ void main() {
       expect(controller.connection, UiConnection.disconnected);
     },
   );
+  testWidgets('status uses applied settings, never the disconnected draft', (
+    tester,
+  ) async {
+    final controller = LayoutController();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [uiControllerProvider.overrideWith(() => controller)],
+        child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(bottomNavigationBar: StatusBar()),
+        ),
+      ),
+    );
+    controller.showAppliedPort('/dev/applied');
+    controller.showPort('/dev/draft');
+    await tester.pump();
+    String tooltips() => tester
+        .widgetList<Tooltip>(
+          find.descendant(
+            of: find.byType(StatusBar),
+            matching: find.byType(Tooltip),
+          ),
+        )
+        .map((tooltip) => tooltip.message ?? '')
+        .join('\n');
+
+    expect(tooltips(), contains('/dev/applied'));
+    expect(tooltips(), isNot(contains('/dev/draft')));
+    expect(tooltips(), contains('8N1'));
+
+    controller.showConnection(UiConnection.disconnected);
+    await tester.pump();
+    final l10n = AppLocalizations.of(tester.element(find.byType(StatusBar)));
+    expect(find.textContaining(l10n.disconnected), findsOneWidget);
+    expect(tooltips(), isNot(contains('/dev/applied')));
+    expect(tooltips(), isNot(contains('/dev/draft')));
+    expect(tooltips(), isNot(contains('8N1')));
+  });
   testWidgets('status bar prioritizes totals without losing tooltip details', (
     tester,
   ) async {
