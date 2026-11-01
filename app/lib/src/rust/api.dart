@@ -91,6 +91,9 @@ Future<DispatchReply> updateConfig({
 Future<DispatchReply> connect({required CoreHandle handle}) =>
     RustLib.instance.api.crateApiConnect(handle: handle);
 
+Future<DispatchReply> suspend({required CoreHandle handle}) =>
+    RustLib.instance.api.crateApiSuspend(handle: handle);
+
 Future<DispatchReply> disconnect({required CoreHandle handle}) =>
     RustLib.instance.api.crateApiDisconnect(handle: handle);
 

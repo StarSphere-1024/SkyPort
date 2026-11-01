@@ -252,6 +252,11 @@ class UiController extends Notifier<UiState> {
     await _dispatch(rust.disconnect(handle: _handle));
   }
 
+  Future<void> suspend() async {
+    final error = await _dispatch(rust.suspend(handle: _handle));
+    if (error != null) throw CoreCommandException(error);
+  }
+
   Future<void> listPorts() async {
     await _dispatch(rust.listPorts(handle: _handle));
   }

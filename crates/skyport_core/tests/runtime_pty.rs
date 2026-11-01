@@ -305,6 +305,79 @@ fn pty_connect_disconnect_and_reconfigure_keep_hangup_disabled() {
     core.close().unwrap();
 }
 #[test]
+fn suspend_disconnects_and_persists_auto_send_off_without_reconnecting() {
+    let dir = tempfile::tempdir().unwrap();
+    let pty = Pty::new();
+    let core = AppCore::create(options(
+        dir.path().into(),
+        pty.slave.to_string_lossy().into_owned(),
+    ))
+    .unwrap();
+    core.dispatch(Command::Connect).unwrap();
+    wait_for(|| core.snapshot().unwrap().connection == ConnectionState::Connected);
+    core.dispatch(Command::UpdateConfig(ConfigPatch {
+        auto_reconnect: Some(true),
+        auto_send_enabled: Some(true),
+        auto_send_input: Some("suspend-marker".into()),
+        ..ConfigPatch::default()
+    }))
+    .unwrap();
+    wait_for(|| core.snapshot().unwrap().config.send.auto_send_enabled);
+    core.dispatch(Command::Suspend).unwrap();
+    wait_for(|| {
+        let state = core.snapshot().unwrap();
+        state.connection == ConnectionState::Disconnected && !state.config.send.auto_send_enabled
+    });
+    std::thread::sleep(Duration::from_millis(1100));
+    let state = core.snapshot().unwrap();
+    assert_eq!(state.connection, ConnectionState::Disconnected);
+    assert!(!state.config.send.auto_send_enabled);
+    assert!(state.config.serial.auto_reconnect);
+    let saved: serde_json::Value =
+        serde_json::from_slice(&fs::read(dir.path().join("config.json")).unwrap()).unwrap();
+    assert_eq!(saved["send"]["auto_send_enabled"], false);
+    core.close().unwrap();
+}
+
+#[test]
+fn suspend_stops_io_even_when_preferences_cannot_be_saved() {
+    let dir = tempfile::tempdir().unwrap();
+    let pty = Pty::new();
+    let core = AppCore::create(options(
+        dir.path().into(),
+        pty.slave.to_string_lossy().into_owned(),
+    ))
+    .unwrap();
+    core.dispatch(Command::Connect).unwrap();
+    wait_for(|| core.snapshot().unwrap().connection == ConnectionState::Connected);
+    core.dispatch(Command::UpdateConfig(ConfigPatch {
+        auto_reconnect: Some(true),
+        auto_send_enabled: Some(true),
+        auto_send_input: Some("suspend-marker".into()),
+        ..ConfigPatch::default()
+    }))
+    .unwrap();
+    wait_for(|| core.snapshot().unwrap().config.send.auto_send_enabled);
+    fs::remove_file(dir.path().join("config.json")).unwrap();
+    fs::create_dir(dir.path().join("config.json")).unwrap();
+    core.dispatch(Command::Suspend).unwrap();
+    wait_for(|| {
+        let state = core.snapshot().unwrap();
+        state.connection == ConnectionState::Disconnected
+            && !state.config.send.auto_send_enabled
+            && state
+                .error
+                .is_some_and(|error| error.code == Some(ErrorCode::ConfigIo))
+    });
+    thread::sleep(Duration::from_millis(1100));
+    assert_eq!(
+        core.snapshot().unwrap().connection,
+        ConnectionState::Disconnected
+    );
+    core.close().unwrap();
+}
+
+#[test]
 fn pty_software_flow_control_pauses_and_resumes_output() {
     let dir = tempfile::tempdir().unwrap();
     let mut pty = Pty::new();

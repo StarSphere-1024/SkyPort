@@ -11,5 +11,8 @@ crate-type = ["cdylib"]
 flutter_rust_bridge = "=2.13.0"
 skyport_core = { path = "../skyport_core" }
 
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.21"
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(frb_expand)"] }

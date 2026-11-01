@@ -46,6 +46,8 @@ linux/flutter/ephemeral/
 *.msi
 *.zip
 *.tar.gz
+*.apk
+*.aab
 
 Thumbs.db
 ehthumbs.db

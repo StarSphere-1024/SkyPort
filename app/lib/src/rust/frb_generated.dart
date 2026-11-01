@@ -64,7 +64,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -2082707964;
+  int get rustContentHash => -854247704;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -173,6 +173,8 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<SubscribeReply> crateApiSubscribe({required CoreHandle handle});
+
+  Future<DispatchReply> crateApiSuspend({required CoreHandle handle});
 
   Future<DispatchReply> crateApiUpdateConfig({
     required CoreHandle handle,
@@ -1042,6 +1044,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "subscribe", argNames: ["handle"]);
 
   @override
+  Future<DispatchReply> crateApiSuspend({required CoreHandle handle}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreHandle(
+            handle,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 25,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_dispatch_reply,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSuspendConstMeta,
+        argValues: [handle],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSuspendConstMeta =>
+      const TaskConstMeta(debugName: "suspend", argNames: ["handle"]);
+
+  @override
   Future<DispatchReply> crateApiUpdateConfig({
     required CoreHandle handle,
     required ConfigPatch patch,
@@ -1058,7 +1091,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 25,
+            funcId: 26,
             port: port_,
           );
         },

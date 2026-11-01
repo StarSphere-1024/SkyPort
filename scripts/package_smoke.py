@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Unpack a desktop artifact and exercise its real Flutter/Rust host."""
+"""Install/launch an Android APK, or unpack and exercise a desktop bundle."""
 import argparse
 import os
 from pathlib import Path
 import subprocess
 import tempfile
+import time
 import zipfile
 
 
@@ -35,11 +36,40 @@ def run_host(root: Path) -> None:
             raise RuntimeError(f"Packaged host smoke failed with exit {result.returncode}")
 
 
+def run_android(artifact: Path, device: str) -> None:
+    with zipfile.ZipFile(artifact) as archive:
+        native = [name for name in archive.namelist()
+                  if name.startswith("lib/") and name.endswith("/libskyport_flutter_bridge.so")]
+        if not native:
+            raise RuntimeError("APK does not contain the Rust bridge")
+        for name in native:
+            if archive.read(name)[:4] != b"\x7fELF":
+                raise RuntimeError(f"Invalid bundled native library: {name}")
+    adb = ["adb", "-s", device]
+    subprocess.run([*adb, "shell", "am", "force-stop", "dev.skyport.app"], check=True)
+    subprocess.run([*adb, "install", "-r", str(artifact)], check=True)
+    subprocess.run([*adb, "shell", "am", "start", "-W", "-n",
+                    "dev.skyport.app/.MainActivity"], check=True)
+    time.sleep(3)
+    process = subprocess.run([*adb, "shell", "pidof", "dev.skyport.app"],
+                             capture_output=True, text=True, check=True)
+    if not process.stdout.strip():
+        raise RuntimeError("Android application exited during startup")
+    print(f"APK_LAUNCH_SMOKE_OK: device={device}, pid={process.stdout.strip()}, "
+          f"bridge={native}; USB I/O and rendered UI require separate verification")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("artifact", type=Path)
+    parser.add_argument("--device", help="ADB serial; required for APK installation")
     args = parser.parse_args()
     artifact = args.artifact.resolve()
+    if artifact.suffix.lower() == ".apk":
+        if not args.device:
+            parser.error("--device is required for APK installation")
+        run_android(artifact, args.device)
+        return
     if artifact.is_dir():
         run_host(artifact)
         return
@@ -56,7 +86,7 @@ def main() -> None:
             with zipfile.ZipFile(artifact) as archive:
                 archive.extractall(root)
         else:
-            parser.error(f"Unsupported desktop artifact: {artifact}")
+            parser.error(f"Unsupported artifact: {artifact}")
         run_host(root)
 
 

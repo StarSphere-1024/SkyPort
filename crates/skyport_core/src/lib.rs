@@ -14,6 +14,7 @@ pub use search::{
     SearchSession, SearchSnapshotInfo,
 };
 use serde::{Deserialize, Serialize};
+pub use serial::{SerialBackend, TransportPort};
 use std::{error::Error, fmt, path::PathBuf, time::Duration};
 
 pub type RequestId = u64;
@@ -167,6 +168,7 @@ pub enum Command {
     SetConfig(AppConfig),
     UpdateConfig(ConfigPatch),
     Connect,
+    Suspend,
     Disconnect,
     SendText {
         text: String,

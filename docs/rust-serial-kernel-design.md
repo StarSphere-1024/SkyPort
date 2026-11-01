@@ -7,7 +7,7 @@
 本项目按“完整重构”设计，而不是把 `flutter_libserialport` 替换成另一个 transport：
 
 - Rust 核心作为普通 library crate 独立编译、运行和测试，负责串口领域状态、数据处理、配置、日志模型和任务调度；
-- Rust 核心使用 `serialport` crate，通过 worker thread 处理阻塞式串口 I/O，不依赖 Flutter、Dart 或 GUI 框架；
+- Rust 核心通过独立的 `SerialBackend` / `TransportPort` 接口处理 worker I/O；桌面默认使用 `serialport`，Android 由 Flutter bridge 注入 JNI/USB Host 适配器，核心不依赖 Flutter、Dart、JNI 或 GUI 框架；
 - Flutter 是第一个前端，只负责 UI、交互和渲染；
 - 独立的 Flutter bridge crate 编译为 `cdylib`，使用 `flutter_rust_bridge` 接入核心；其底层仍通过 FFI，但不手工维护 C ABI；
 - CLI 和纯 Rust GUI（例如 GPUI-kit 方案）直接依赖核心 Rust API，不绕行 Flutter bridge；
@@ -15,6 +15,8 @@
 - 现有 Dart manager、service、串口模型和旧 FFI 依赖只作为行为基线，不作为最终架构。
 
 核心负责状态和规则，前端负责交互和表现。“完全解耦”指核心可以脱离任何前端运行，不代表前端不能理解连接状态或串口配置。替换前端不应改写串口行为；未来 CLI、GPUI 前端是接入方向，不要求本次同时实现或承诺其平台支持。
+
+Android 使用每个 `AppCore` 的 backend 注入，不改变桌面的默认创建入口。平台适配层负责 USB 授权、驱动与有界接收缓冲；核心继续负责连接状态、自动发送、日志和部分写入进度。`Suspend` 在同一 worker 中停止自动发送并断开连接，保存偏好失败也必须先停止 I/O。Android 导出先由 Rust 写入应用私有临时文件，再通过系统文档选择器复制到 `content://` 目标；该 URI 不作为 Rust 文件路径。
 
 ## 2. 重构前的行为基线
 

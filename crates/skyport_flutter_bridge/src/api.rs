@@ -790,11 +790,17 @@ impl From<core::Event> for Event {
 }
 
 pub fn create_core(data_directory: String, legacy_config: Option<LegacyConfig>) -> CreateCoreReply {
-    match core::AppCore::create(core::AppOptions {
+    let options = core::AppOptions {
         data_directory: PathBuf::from(data_directory),
         legacy_config: legacy_config.map(Into::into),
         ..core::AppOptions::default()
-    }) {
+    };
+    #[cfg(target_os = "android")]
+    let created = crate::android::backend()
+        .and_then(|backend| core::AppCore::create_with_backend(options, Some(backend)));
+    #[cfg(not(target_os = "android"))]
+    let created = core::AppCore::create(options);
+    match created {
         Ok(value) => CreateCoreReply {
             handle: Some(CoreHandle(value)),
             error: None,
@@ -980,6 +986,9 @@ pub fn update_config(handle: &CoreHandle, patch: ConfigPatch) -> DispatchReply {
 }
 pub fn connect(handle: &CoreHandle) -> DispatchReply {
     dispatch(handle, core::Command::Connect)
+}
+pub fn suspend(handle: &CoreHandle) -> DispatchReply {
+    dispatch(handle, core::Command::Suspend)
 }
 pub fn disconnect(handle: &CoreHandle) -> DispatchReply {
     dispatch(handle, core::Command::Disconnect)

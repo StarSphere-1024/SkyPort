@@ -5,7 +5,45 @@ use crate::{
     SerialConfig,
 };
 use serialport::{DataBits, Parity as PortParity, StopBits};
-use std::time::Duration;
+use std::{
+    io::{Read, Write},
+    time::Duration,
+};
+
+pub trait TransportPort: Read + Write + Send {
+    fn timeout(&self) -> Duration;
+    fn set_timeout(&mut self, timeout: Duration) -> Result<(), CoreError>;
+    /// Consume transport-specific failure details, including partial write progress.
+    fn take_write_error(&mut self) -> Option<CoreError> {
+        None
+    }
+}
+
+impl<T: serialport::SerialPort> TransportPort for T {
+    fn timeout(&self) -> Duration {
+        serialport::SerialPort::timeout(self)
+    }
+    fn set_timeout(&mut self, timeout: Duration) -> Result<(), CoreError> {
+        serialport::SerialPort::set_timeout(self, timeout)
+            .map_err(|e| CoreError::new(ErrorKind::WriteFailed, e.to_string()))
+    }
+}
+
+pub trait SerialBackend: Send + Sync {
+    fn ports(&self) -> Result<Vec<String>, CoreError>;
+    fn open(&self, config: &SerialConfig) -> Result<Box<dyn TransportPort>, CoreError>;
+}
+
+pub(crate) struct NativeBackend;
+
+impl SerialBackend for NativeBackend {
+    fn ports(&self) -> Result<Vec<String>, CoreError> {
+        ports()
+    }
+    fn open(&self, config: &SerialConfig) -> Result<Box<dyn TransportPort>, CoreError> {
+        native_open(config)
+    }
+}
 
 // Bound command waiting while the single worker polls serial input.
 pub(crate) const READ_POLL_TIMEOUT: Duration = Duration::from_millis(5);
@@ -31,7 +69,7 @@ fn is_listed_port(name: &str) -> bool {
     !cfg!(target_os = "linux") || name.starts_with("/dev/ttyUSB") || name.starts_with("/dev/ttyACM")
 }
 
-pub(crate) fn open(config: &SerialConfig) -> Result<Box<dyn serialport::SerialPort>, CoreError> {
+fn native_open(config: &SerialConfig) -> Result<Box<dyn TransportPort>, CoreError> {
     config.validate(true)?;
     let data_bits = match config.data_bits {
         5 => DataBits::Five,
@@ -175,16 +213,11 @@ fn port_error(
 }
 
 pub(crate) fn set_read_timeout(
-    port: &mut dyn serialport::SerialPort,
+    port: &mut dyn TransportPort,
     timeout: Duration,
 ) -> Result<(), CoreError> {
     port.set_timeout(timeout).map_err(|error| {
-        port_error(
-            error,
-            "set read timeout on",
-            &port.name().unwrap_or_default(),
-            ErrorKind::ReadFailed,
-        )
+        CoreError::new(ErrorKind::ReadFailed, format!("set read timeout: {error}"))
     })
 }
 
@@ -290,7 +323,7 @@ fn hex_digit(byte: u8) -> Option<u8> {
 }
 
 pub(crate) fn write_all_accounted(
-    port: &mut dyn serialport::SerialPort,
+    port: &mut dyn TransportPort,
     bytes: &[u8],
 ) -> Result<(), CoreError> {
     let deadline = std::time::Instant::now() + Duration::from_millis(1000);
@@ -312,7 +345,14 @@ pub(crate) fn write_all_accounted(
                 )
                 .with_written(written as u64)
             })?;
-            match port.write(&bytes[written..]) {
+            let result = port.write(&bytes[written..]);
+            if result.is_err() {
+                if let Some(mut error) = port.take_write_error() {
+                    error.bytes_written += written as u64;
+                    return Err(error);
+                }
+            }
+            match result {
                 Ok(0) => {
                     return Err(CoreError::new(
                         ErrorKind::WriteFailed,
@@ -369,6 +409,10 @@ pub(crate) fn write_all_accounted(
 
 #[cfg(test)]
 mod tests {
+    use std::{
+        io::{Read, Write},
+        time::Duration,
+    };
     #[test]
     fn ambiguous_open_errors_do_not_claim_the_port_is_missing() {
         for (source, operation, expected) in [
@@ -403,6 +447,49 @@ mod tests {
         }
     }
 
+    struct PartialPort {
+        timeout: Duration,
+        calls: usize,
+    }
+    impl Read for PartialPort {
+        fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
+            Ok(0)
+        }
+    }
+    impl Write for PartialPort {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.calls += 1;
+            if self.calls == 1 {
+                Ok(bytes.len().min(2))
+            } else {
+                Err(std::io::ErrorKind::BrokenPipe.into())
+            }
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    impl super::TransportPort for PartialPort {
+        fn timeout(&self) -> Duration {
+            self.timeout
+        }
+        fn set_timeout(&mut self, timeout: Duration) -> Result<(), crate::CoreError> {
+            self.timeout = timeout;
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn partial_transport_failure_preserves_written_byte_count() {
+        let mut port = PartialPort {
+            timeout: Duration::from_millis(5),
+            calls: 0,
+        };
+        let error = super::write_all_accounted(&mut port, b"hello").unwrap_err();
+        assert_eq!(error.kind, crate::ErrorKind::Disconnected);
+        assert_eq!(error.bytes_written, 2);
+        assert_eq!(port.timeout, Duration::from_millis(5));
+    }
     #[test]
     fn port_listing_is_usb_only_on_linux() {
         for (name, linux_visible) in [

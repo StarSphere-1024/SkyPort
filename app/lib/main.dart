@@ -76,12 +76,17 @@ Future<void> main(List<String> args) async {
       stackTrace: stackTrace,
     );
   }
-  await installHostCloseHandler(bootstrap);
   final container = ProviderContainer(
     overrides: [
       if (prefs != null) sharedPreferencesProvider.overrideWithValue(prefs),
       if (bootstrap != null) coreBootstrapProvider.overrideWithValue(bootstrap),
     ],
+  );
+  await installHostCloseHandler(
+    bootstrap,
+    onSuspend: bootstrap == null
+        ? null
+        : () => container.read(uiControllerProvider.notifier).suspend(),
   );
   runApp(
     UncontrolledProviderScope(
@@ -323,81 +328,90 @@ class _HomePageState extends ConsumerState<HomePage>
         child: LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 800;
-            return Scaffold(
-              body: SafeArea(
-                child: Row(
-                  children: [
-                    ConnectionRail(
-                      panelOpen: _panelOpen,
-                      selectedPage: _selectedPage,
-                      onSelected: _openPage,
-                    ),
-                    Expanded(
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final panelWidth = constraints.maxWidth
-                              .clamp(0, 310)
-                              .toDouble();
-                          return AnimatedBuilder(
-                            animation: _panelAnimation,
-                            child: _configurationPanel(context),
-                            builder: (context, panel) {
-                              final visibleWidth =
-                                  panelWidth * _panelAnimation.value;
-                              return Stack(
-                                clipBehavior: Clip.hardEdge,
-                                children: [
-                                  Positioned.fill(
-                                    child: Padding(
-                                      padding: EdgeInsetsDirectional.only(
-                                        start: compact ? 0 : visibleWidth,
-                                      ),
-                                      child: ExcludeFocus(
-                                        excluding: compact && _panelOpen,
-                                        child: IgnorePointer(
-                                          ignoring: compact && _panelOpen,
-                                          child: const RightPanel(),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  if (compact && _panelOpen)
-                                    Positioned.fill(
-                                      child: ModalBarrier(
-                                        dismissible: false,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .scrim
-                                            .withValues(alpha: 0.32),
-                                      ),
-                                    ),
-                                  PositionedDirectional(
-                                    start: visibleWidth - panelWidth,
-                                    top: 0,
-                                    bottom: 0,
-                                    width: panelWidth,
-                                    child: ExcludeFocus(
-                                      excluding: !_panelOpen,
-                                      child: ExcludeSemantics(
-                                        excluding: !_panelOpen,
-                                        child: IgnorePointer(
-                                          ignoring: !_panelOpen,
-                                          child: panel,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          );
-                        },
+            return PopScope(
+              canPop: !compact || !_panelOpen,
+              onPopInvokedWithResult: (didPop, result) {
+                if (!didPop && compact && _panelOpen) _setPanelOpen(false);
+              },
+              child: Scaffold(
+                body: SafeArea(
+                  child: Row(
+                    children: [
+                      ConnectionRail(
+                        panelOpen: _panelOpen,
+                        selectedPage: _selectedPage,
+                        onSelected: _openPage,
                       ),
-                    ),
-                  ],
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final panelWidth = constraints.maxWidth
+                                .clamp(0, 310)
+                                .toDouble();
+                            return AnimatedBuilder(
+                              animation: _panelAnimation,
+                              child: _configurationPanel(context),
+                              builder: (context, panel) {
+                                final visibleWidth =
+                                    panelWidth * _panelAnimation.value;
+                                return Stack(
+                                  clipBehavior: Clip.hardEdge,
+                                  children: [
+                                    Positioned.fill(
+                                      child: Padding(
+                                        padding: EdgeInsetsDirectional.only(
+                                          start: compact ? 0 : visibleWidth,
+                                        ),
+                                        child: ExcludeFocus(
+                                          excluding: compact && _panelOpen,
+                                          child: IgnorePointer(
+                                            ignoring: compact && _panelOpen,
+                                            child: const RightPanel(),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    if (compact && _panelOpen)
+                                      Positioned.fill(
+                                        child: ModalBarrier(
+                                          dismissible: false,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .scrim
+                                              .withValues(alpha: 0.32),
+                                        ),
+                                      ),
+                                    PositionedDirectional(
+                                      start: visibleWidth - panelWidth,
+                                      top: 0,
+                                      bottom: 0,
+                                      width: panelWidth,
+                                      child: ExcludeFocus(
+                                        excluding: !_panelOpen,
+                                        child: ExcludeSemantics(
+                                          excluding: !_panelOpen,
+                                          child: IgnorePointer(
+                                            ignoring: !_panelOpen,
+                                            child: panel,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                bottomNavigationBar: const SafeArea(
+                  top: false,
+                  child: StatusBar(),
                 ),
               ),
-              bottomNavigationBar: const StatusBar(),
             );
           },
         ),

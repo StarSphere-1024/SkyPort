@@ -1,6 +1,8 @@
 use crate::{
     search::{PreparedSearch, SearchWorker},
-    serial, timestamp_ms, AppConfig, AppOptions, AppSnapshot, AppState, Command, ConnectionState,
+    serial,
+    serial::TransportPort,
+    timestamp_ms, AppConfig, AppOptions, AppSnapshot, AppState, Command, ConnectionState,
     CoreError, ErrorCode, ErrorKind, Event, EventKind, LogDelta, LogStore, Newline, RequestId,
     SearchOptions, SearchSession, SerialConfig,
 };
@@ -41,6 +43,7 @@ struct Shared {
     state: Mutex<State>,
     event_capacity: usize,
     worker_error: Mutex<Option<CoreError>>,
+    backend: Arc<dyn crate::SerialBackend>,
 }
 struct Lifecycle {
     closing: bool,
@@ -63,6 +66,13 @@ pub struct AppCore {
 
 impl AppCore {
     pub fn create(options: AppOptions) -> Result<Self, CoreError> {
+        Self::create_with_backend(options, None)
+    }
+
+    pub fn create_with_backend(
+        options: AppOptions,
+        backend: Option<Arc<dyn crate::SerialBackend>>,
+    ) -> Result<Self, CoreError> {
         if !(1..=4096).contains(&options.command_capacity)
             || !(1..=4096).contains(&options.event_capacity)
         {
@@ -99,6 +109,7 @@ impl AppCore {
             }),
             event_capacity: options.event_capacity,
             worker_error: Mutex::new(None),
+            backend: backend.unwrap_or_else(|| Arc::new(serial::NativeBackend)),
         });
         let (tx, rx) = mpsc::sync_channel(options.command_capacity);
         let search = SearchWorker::new()?;
@@ -413,7 +424,7 @@ fn run_worker(
     data_directory: std::path::PathBuf,
     stop: Arc<AtomicBool>,
 ) {
-    let mut port: Option<Box<dyn serialport::SerialPort>> = None;
+    let mut port: Option<Box<dyn TransportPort>> = None;
     let mut reconnect_at: Option<Instant> = None;
     let mut link_lost = false;
     let mut rate_sample_at = Instant::now();
@@ -461,7 +472,7 @@ fn run_worker(
         }
         if Instant::now() >= next_ports {
             next_ports = Instant::now() + Duration::from_secs(1);
-            match serial::ports() {
+            match shared.backend.ports() {
                 Ok(ports) => update_ports(&shared, ports),
                 Err(error) => publish_simple(&shared, EventKind::TaskFailed(error)),
             }
@@ -521,7 +532,7 @@ fn run_worker(
                 && !stop.load(Ordering::Acquire)
             {
                 publish_simple(&shared, EventKind::Reconnecting);
-                match serial::open(&config.serial) {
+                match shared.backend.open(&config.serial) {
                     Ok(open) if !stop.load(Ordering::Acquire) => {
                         port = Some(open);
                         link_lost = false;
@@ -555,7 +566,7 @@ fn handle_command(
     command: Command,
     shared: &Arc<Shared>,
     dir: &Path,
-    port: &mut Option<Box<dyn serialport::SerialPort>>,
+    port: &mut Option<Box<dyn TransportPort>>,
     reconnect_at: &mut Option<Instant>,
     next_auto: &mut Instant,
     link_lost: &mut bool,
@@ -563,7 +574,10 @@ fn handle_command(
     let mut send_final = false;
     let result = (|| -> Result<(), CoreError> {
         match command {
-            Command::ListPorts => serial::ports().map(|ports| update_ports(shared, ports)),
+            Command::ListPorts => shared
+                .backend
+                .ports()
+                .map(|ports| update_ports(shared, ports)),
             Command::SetConfig(config) => apply_config(
                 shared,
                 dir,
@@ -633,7 +647,7 @@ fn handle_command(
                     let config = snapshot_config(shared)?;
                     let keep_reconnecting = *link_lost && config.serial.auto_reconnect;
                     publish_state(shared, ConnectionState::Connecting, None);
-                    match serial::open(&config.serial) {
+                    match shared.backend.open(&config.serial) {
                         Ok(open) => {
                             *port = Some(open);
                             *link_lost = false;
@@ -649,6 +663,20 @@ fn handle_command(
                         }
                     }
                 }
+            }
+            Command::Suspend => {
+                {
+                    let mut state = shared.state.lock().map_err(lock_error)?;
+                    state.snapshot.config.send.auto_send_enabled = false;
+                }
+                mark_log_incomplete_if_pending(shared);
+                publish_state(shared, ConnectionState::Disconnecting, None);
+                *port = None;
+                *reconnect_at = None;
+                *link_lost = false;
+                publish_state(shared, ConnectionState::Disconnected, None);
+                // Stop hardware/scheduling even if saving the disabled preference fails.
+                persist_update(shared, dir, snapshot_config(shared)?)
             }
             Command::Disconnect => {
                 mark_log_incomplete_if_pending(shared);
@@ -811,7 +839,7 @@ fn apply_config(
     dir: &Path,
     config: AppConfig,
     auto_input: Option<String>,
-    port: &mut Option<Box<dyn serialport::SerialPort>>,
+    port: &mut Option<Box<dyn TransportPort>>,
     reconnect_at: &mut Option<Instant>,
     next_auto: &mut Instant,
     link_lost: &mut bool,
@@ -854,7 +882,7 @@ fn apply_config(
             return auto_error.map_or(Ok(()), Err);
         }
         *link_lost = true;
-        match serial::open(&config.serial) {
+        match shared.backend.open(&config.serial) {
             Ok(open) => {
                 *port = Some(open);
                 *link_lost = false;
@@ -986,7 +1014,7 @@ fn send(
     history: &str,
     shared: &Shared,
     dir: &Path,
-    port: &mut Option<Box<dyn serialport::SerialPort>>,
+    port: &mut Option<Box<dyn TransportPort>>,
 ) -> Result<(), CoreError> {
     if data.is_empty() {
         let error = CoreError::new(ErrorKind::InvalidArgument, "send data must not be empty")
@@ -1049,7 +1077,7 @@ fn record_tx_with_total(shared: &Shared, data: Vec<u8>, id: RequestId) -> Result
 fn auto_send(
     shared: &Arc<Shared>,
     dir: &Path,
-    port: &mut Option<Box<dyn serialport::SerialPort>>,
+    port: &mut Option<Box<dyn TransportPort>>,
     next: &mut Instant,
     reconnect_at: &mut Option<Instant>,
     link_lost: &mut bool,

@@ -33,6 +33,10 @@ class StatusBar extends ConsumerWidget {
       ),
     );
     final theme = Theme.of(context);
+    final touch =
+        theme.platform == TargetPlatform.android ||
+        theme.platform == TargetPlatform.iOS;
+    final actionSize = touch ? 48.0 : 32.0;
     final colorScheme = theme.colorScheme;
     final actionStyle = IconButton.styleFrom(
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -67,7 +71,7 @@ class StatusBar extends ConsumerWidget {
         }}${state.stopBits}';
 
     return Container(
-      height: 32,
+      height: actionSize + (touch ? 1 : 0),
       padding: const EdgeInsets.symmetric(horizontal: 12),
       alignment: AlignmentDirectional.centerEnd,
       decoration: BoxDecoration(
@@ -92,9 +96,9 @@ class StatusBar extends ConsumerWidget {
           final available = math.max(
             0.0,
             constraints.maxWidth -
-                32 -
+                actionSize -
                 (reconnecting ? 0 : 12) -
-                (diagnostic == null ? 0 : 32),
+                (diagnostic == null ? 0 : actionSize),
           );
           final portLabel = portText.isEmpty ? l10n.noPortSelected : portText;
           final minimumPortWidth = math.min(
@@ -125,9 +129,9 @@ class StatusBar extends ConsumerWidget {
                 tooltip:
                     '$status\n${disconnect ? l10n.disconnect : l10n.connect}',
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints.tightFor(
-                  width: 32,
-                  height: 32,
+                constraints: BoxConstraints.tightFor(
+                  width: actionSize,
+                  height: actionSize,
                 ),
                 onPressed: !canToggle
                     ? null
@@ -177,9 +181,9 @@ class StatusBar extends ConsumerWidget {
                   tooltip:
                       '${l10n.diagnosticDetails}: ${localizedError(l10n, diagnostic)}',
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 32,
-                    height: 32,
+                  constraints: BoxConstraints.tightFor(
+                    width: actionSize,
+                    height: actionSize,
                   ),
                   onPressed: () => showErrorDetails(context, diagnostic),
                   icon: const Icon(Icons.info_outline, size: 16),

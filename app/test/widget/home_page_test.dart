@@ -633,4 +633,52 @@ void main() {
       greaterThanOrEqualTo(3),
     );
   });
+  testWidgets('system Back closes the compact panel without losing the draft', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(480, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues({
+      'ui_configuration_panel_open': false,
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          uiControllerProvider.overrideWith(LayoutController.new),
+          sharedPreferencesProvider.overrideWithValue(prefs),
+        ],
+        child: MaterialApp(
+          theme: ThemeData(platform: TargetPlatform.android),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const HomePage(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final input = find.descendant(
+      of: find.byType(SendInputWidget),
+      matching: find.byType(TextFormField),
+    );
+    await tester.enterText(input, 'unsent Android draft');
+    final l10n = AppLocalizations.of(tester.element(find.byType(HomePage)));
+    await tester.tap(find.byTooltip(l10n.serialPageLabel));
+    await tester.pumpAndSettle();
+    expect(input.hitTestable(), findsNothing);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(input.hitTestable(), findsOneWidget);
+    expect(
+      tester.widget<TextFormField>(input).controller!.text,
+      'unsent Android draft',
+    );
+    final connect = find.descendant(
+      of: find.byType(StatusBar),
+      matching: find.byType(IconButton),
+    );
+    expect(tester.getSize(connect), const Size(48, 48));
+  });
 }

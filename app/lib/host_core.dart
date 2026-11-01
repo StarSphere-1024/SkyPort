@@ -64,7 +64,10 @@ Future<CoreBootstrap> createCoreFromHost(
   }
 }
 
-Future<void> installHostCloseHandler(CoreBootstrap? bootstrap) async {
+Future<void> installHostCloseHandler(
+  CoreBootstrap? bootstrap, {
+  Future<void> Function()? onSuspend,
+}) async {
   AppLifecycleListener? listener;
   Future<bool>? closing;
   var closed = false;
@@ -107,9 +110,21 @@ Future<void> installHostCloseHandler(CoreBootstrap? bootstrap) async {
     if (call.method != 'requestClose') throw MissingPluginException();
     return close();
   });
+  if (Platform.isAndroid) {
+    const android = MethodChannel('skyport/android');
+    android.setMethodCallHandler((call) async {
+      if (call.method != 'suspend') throw MissingPluginException();
+      if (!closed) await onSuspend?.call();
+    });
+    if (bootstrap != null &&
+        await android.invokeMethod<bool>('isForeground') != true) {
+      await onSuspend?.call();
+    }
+  }
 }
 
 String _bridgePath() {
+  if (Platform.isAndroid) return 'libskyport_flutter_bridge.so';
   if (!Platform.isWindows && !Platform.isLinux) {
     throw UnsupportedError(
       'The Rust bridge is not configured for ${Platform.operatingSystem}.',
