@@ -20,6 +20,10 @@ import 'package:skyport/widgets/right_panel/send_input_widget.dart';
 class LayoutController extends UiController {
   int connectCalls = 0;
   int disconnectCalls = 0;
+  final sentInputs = <String>[];
+
+  @override
+  Future<void> send(String value) async => sentInputs.add(value);
 
   String portName = '/dev/serial/by-id/usb-very-long-device-name-1234567890';
   int receivedBytes = 123456789;
@@ -84,6 +88,73 @@ class LayoutController extends UiController {
 }
 
 void main() {
+  testWidgets(
+    'touch outside and Escape dismiss input without losing actions or draft',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1000, 900);
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            uiControllerProvider.overrideWith(LayoutController.new),
+            sharedPreferencesProvider.overrideWithValue(prefs),
+          ],
+          child: MaterialApp(
+            theme: ThemeData(platform: TargetPlatform.android),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const HomePage(),
+          ),
+        ),
+      );
+      final input = find.descendant(
+        of: find.byType(SendInputWidget),
+        matching: find.byType(TextField),
+      );
+      final field = tester.widget<TextField>(input);
+      final l10n = AppLocalizations.of(tester.element(find.byType(HomePage)));
+      final controller =
+          ProviderScope.containerOf(
+                tester.element(find.byType(HomePage)),
+              ).read(uiControllerProvider.notifier)
+              as LayoutController;
+      await tester.enterText(input, 'keep this draft');
+      await tester.tapAt(const Offset(950, 200));
+      await tester.pumpAndSettle();
+      expect(field.focusNode!.hasFocus, isFalse);
+      expect(field.controller!.text, 'keep this draft');
+
+      await tester.tap(input);
+      await tester.tap(find.widgetWithText(FilledButton, l10n.send));
+      await tester.pumpAndSettle();
+      expect(controller.sentInputs, ['keep this draft']);
+      expect(field.controller!.text, 'keep this draft');
+
+      await tester.tap(input);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 240);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(field.focusNode!.hasFocus, isFalse);
+      expect(
+        tester.widget<ConnectionRail>(find.byType(ConnectionRail)).panelOpen,
+        isTrue,
+      );
+      expect(field.controller!.text, 'keep this draft');
+      tester.view.resetViewInsets();
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<ConnectionRail>(find.byType(ConnectionRail)).panelOpen,
+        isFalse,
+      );
+    },
+  );
+
   testWidgets('panel visibility survives page recreation', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();

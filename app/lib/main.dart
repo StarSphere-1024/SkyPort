@@ -248,6 +248,7 @@ class _HomePageState extends ConsumerState<HomePage>
     with SingleTickerProviderStateMixin {
   static const _panelOpenKey = 'ui_configuration_panel_open';
   late TextEditingController _bufferController;
+  final _workspaceFocus = FocusNode();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   late final AnimationController _panelAnimation;
   late bool _panelOpen;
@@ -270,6 +271,7 @@ class _HomePageState extends ConsumerState<HomePage>
 
   @override
   void dispose() {
+    _workspaceFocus.dispose();
     _bufferController.dispose();
     _panelAnimation.dispose();
     super.dispose();
@@ -306,114 +308,134 @@ class _HomePageState extends ConsumerState<HomePage>
       },
     );
 
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.escape): () =>
-            _setPanelOpen(false),
-        const SingleActivator(
-          LogicalKeyboardKey.keyB,
-          control: true,
-          includeRepeats: false,
-        ): () =>
-            _setPanelOpen(!_panelOpen),
-        const SingleActivator(
-          LogicalKeyboardKey.keyO,
-          control: true,
-          shift: true,
-          includeRepeats: false,
-        ): _toggleConnection,
-      },
-      child: Focus(
-        autofocus: true,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 800;
-            return PopScope(
-              canPop: !compact || !_panelOpen,
-              onPopInvokedWithResult: (didPop, result) {
-                if (!didPop && compact && _panelOpen) _setPanelOpen(false);
+    return Actions(
+      actions: {
+        EditableTextTapOutsideIntent:
+            CallbackAction<EditableTextTapOutsideIntent>(
+              onInvoke: (intent) {
+                _workspaceFocus.requestFocus();
+                return null;
               },
-              child: Scaffold(
-                body: SafeArea(
-                  child: Row(
-                    children: [
-                      ConnectionRail(
-                        panelOpen: _panelOpen,
-                        selectedPage: _selectedPage,
-                        onSelected: _openPage,
-                      ),
-                      Expanded(
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final panelWidth = constraints.maxWidth
-                                .clamp(0, 310)
-                                .toDouble();
-                            return AnimatedBuilder(
-                              animation: _panelAnimation,
-                              child: _configurationPanel(context),
-                              builder: (context, panel) {
-                                final visibleWidth =
-                                    panelWidth * _panelAnimation.value;
-                                return Stack(
-                                  clipBehavior: Clip.hardEdge,
-                                  children: [
-                                    Positioned.fill(
-                                      child: Padding(
-                                        padding: EdgeInsetsDirectional.only(
-                                          start: compact ? 0 : visibleWidth,
-                                        ),
-                                        child: ExcludeFocus(
-                                          excluding: compact && _panelOpen,
-                                          child: IgnorePointer(
-                                            ignoring: compact && _panelOpen,
-                                            child: const RightPanel(),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    if (compact && _panelOpen)
-                                      Positioned.fill(
-                                        child: ModalBarrier(
-                                          dismissible: false,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .scrim
-                                              .withValues(alpha: 0.32),
-                                        ),
-                                      ),
-                                    PositionedDirectional(
-                                      start: visibleWidth - panelWidth,
-                                      top: 0,
-                                      bottom: 0,
-                                      width: panelWidth,
-                                      child: ExcludeFocus(
-                                        excluding: !_panelOpen,
-                                        child: ExcludeSemantics(
-                                          excluding: !_panelOpen,
-                                          child: IgnorePointer(
-                                            ignoring: !_panelOpen,
-                                            child: panel,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
-                            );
-                          },
+            ),
+      },
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.escape): () {
+            final platform = Theme.of(context).platform;
+            if ((platform == TargetPlatform.android ||
+                    platform == TargetPlatform.iOS) &&
+                MediaQuery.viewInsetsOf(context).bottom > 0) {
+              _workspaceFocus.requestFocus();
+            } else {
+              _setPanelOpen(false);
+            }
+          },
+          const SingleActivator(
+            LogicalKeyboardKey.keyB,
+            control: true,
+            includeRepeats: false,
+          ): () =>
+              _setPanelOpen(!_panelOpen),
+          const SingleActivator(
+            LogicalKeyboardKey.keyO,
+            control: true,
+            shift: true,
+            includeRepeats: false,
+          ): _toggleConnection,
+        },
+        child: Focus(
+          focusNode: _workspaceFocus,
+          autofocus: true,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 800;
+              return PopScope(
+                canPop: !compact || !_panelOpen,
+                onPopInvokedWithResult: (didPop, result) {
+                  if (!didPop && compact && _panelOpen) _setPanelOpen(false);
+                },
+                child: Scaffold(
+                  body: SafeArea(
+                    child: Row(
+                      children: [
+                        ConnectionRail(
+                          panelOpen: _panelOpen,
+                          selectedPage: _selectedPage,
+                          onSelected: _openPage,
                         ),
-                      ),
-                    ],
+                        Expanded(
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              final panelWidth = constraints.maxWidth
+                                  .clamp(0, 310)
+                                  .toDouble();
+                              return AnimatedBuilder(
+                                animation: _panelAnimation,
+                                child: _configurationPanel(context),
+                                builder: (context, panel) {
+                                  final visibleWidth =
+                                      panelWidth * _panelAnimation.value;
+                                  return Stack(
+                                    clipBehavior: Clip.hardEdge,
+                                    children: [
+                                      Positioned.fill(
+                                        child: Padding(
+                                          padding: EdgeInsetsDirectional.only(
+                                            start: compact ? 0 : visibleWidth,
+                                          ),
+                                          child: ExcludeFocus(
+                                            excluding: compact && _panelOpen,
+                                            child: IgnorePointer(
+                                              ignoring: compact && _panelOpen,
+                                              child: const RightPanel(),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      if (compact && _panelOpen)
+                                        Positioned.fill(
+                                          child: ModalBarrier(
+                                            dismissible: false,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .scrim
+                                                .withValues(alpha: 0.32),
+                                          ),
+                                        ),
+                                      PositionedDirectional(
+                                        start: visibleWidth - panelWidth,
+                                        top: 0,
+                                        bottom: 0,
+                                        width: panelWidth,
+                                        child: ExcludeFocus(
+                                          excluding: !_panelOpen,
+                                          child: ExcludeSemantics(
+                                            excluding: !_panelOpen,
+                                            child: IgnorePointer(
+                                              ignoring: !_panelOpen,
+                                              child: panel,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  bottomNavigationBar: const SafeArea(
+                    top: false,
+                    child: StatusBar(),
                   ),
                 ),
-                bottomNavigationBar: const SafeArea(
-                  top: false,
-                  child: StatusBar(),
-                ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
