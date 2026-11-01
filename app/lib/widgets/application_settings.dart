@@ -98,6 +98,69 @@ class ApplicationSettings extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SettingsSection(
+            title: localizations.settingsGeneral,
+            children: [
+              settingRow(
+                icon: Icons.language_rounded,
+                title: localizations.language,
+                control: Semantics(
+                  label: localizations.language,
+                  child: DropdownButton<String>(
+                    key: const ValueKey('language-dropdown'),
+                    value: uiSettings.languageCode,
+                    isExpanded: true,
+                    borderRadius: BorderRadius.circular(12),
+                    underline: const SizedBox.shrink(),
+                    onChanged: (value) async {
+                      if (value == null) return;
+                      try {
+                        await ref
+                            .read(uiSettingsProvider.notifier)
+                            .setLanguageCode(value);
+                      } catch (error) {
+                        if (context.mounted) showErrorNotice(context, error);
+                      }
+                    },
+                    items: [
+                      DropdownMenuItem(
+                        value: '',
+                        child: Text(localizations.followSystem),
+                      ),
+                      DropdownMenuItem(
+                        value: 'zh',
+                        child: Text(localizations.languageSimplifiedChinese),
+                      ),
+                      DropdownMenuItem(
+                        value: 'en',
+                        child: Text(localizations.languageEnglish),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              settingRow(
+                icon: Icons.sync_rounded,
+                title: localizations.autoReconnect,
+                onTap: () =>
+                    controllerNotifier.setAutoReconnect(!autoReconnect),
+                trailing: Switch(
+                  key: const ValueKey('auto-reconnect-switch'),
+                  value: autoReconnect,
+                  onChanged: controllerNotifier.setAutoReconnect,
+                ),
+              ),
+              settingRow(
+                icon: Icons.system_update_alt_rounded,
+                title: localizations.autoCheckUpdates,
+                onTap: () => setAutoCheckUpdates(!uiSettings.autoCheckUpdates),
+                trailing: Switch(
+                  value: uiSettings.autoCheckUpdates,
+                  onChanged: setAutoCheckUpdates,
+                ),
+              ),
+            ],
+          ),
+          SettingsSection(
             title: localizations.settingsAppearance,
             children: [
               settingRow(
@@ -162,69 +225,6 @@ class ApplicationSettings extends ConsumerWidget {
                   ),
                 ),
               if (showManualColor) const ThemeColorSetting(),
-            ],
-          ),
-          SettingsSection(
-            title: localizations.settingsGeneral,
-            children: [
-              settingRow(
-                icon: Icons.language_rounded,
-                title: localizations.language,
-                control: Semantics(
-                  label: localizations.language,
-                  child: DropdownButton<String>(
-                    key: const ValueKey('language-dropdown'),
-                    value: uiSettings.languageCode,
-                    isExpanded: true,
-                    borderRadius: BorderRadius.circular(12),
-                    underline: const SizedBox.shrink(),
-                    onChanged: (value) async {
-                      if (value == null) return;
-                      try {
-                        await ref
-                            .read(uiSettingsProvider.notifier)
-                            .setLanguageCode(value);
-                      } catch (error) {
-                        if (context.mounted) showErrorNotice(context, error);
-                      }
-                    },
-                    items: [
-                      DropdownMenuItem(
-                        value: '',
-                        child: Text(localizations.followSystem),
-                      ),
-                      DropdownMenuItem(
-                        value: 'zh',
-                        child: Text(localizations.languageSimplifiedChinese),
-                      ),
-                      DropdownMenuItem(
-                        value: 'en',
-                        child: Text(localizations.languageEnglish),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              settingRow(
-                icon: Icons.sync_rounded,
-                title: localizations.autoReconnect,
-                onTap: () =>
-                    controllerNotifier.setAutoReconnect(!autoReconnect),
-                trailing: Switch(
-                  key: const ValueKey('auto-reconnect-switch'),
-                  value: autoReconnect,
-                  onChanged: controllerNotifier.setAutoReconnect,
-                ),
-              ),
-              settingRow(
-                icon: Icons.system_update_alt_rounded,
-                title: localizations.autoCheckUpdates,
-                onTap: () => setAutoCheckUpdates(!uiSettings.autoCheckUpdates),
-                trailing: Switch(
-                  value: uiSettings.autoCheckUpdates,
-                  onChanged: setAutoCheckUpdates,
-                ),
-              ),
             ],
           ),
           SettingsSection(

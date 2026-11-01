@@ -75,6 +75,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(app.prefs.getBool('dynamic_color_enabled'), isTrue);
 
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('theme-color-scheme')),
+      );
       await tester.tap(find.byKey(const ValueKey('theme-color-scheme')));
       await tester.pumpAndSettle();
       final red = find.byKey(ValueKey('theme-preset-${Colors.red.toARGB32()}'));
