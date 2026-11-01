@@ -45,6 +45,7 @@ flutter:
     - assets/icon.svg
 
 flutter_launcher_icons:
+  # Android uses native adaptive/vector resources derived from assets/icon.svg.
   android: false
   ios: false
   image_path: "assets/icon.png"
