@@ -134,13 +134,6 @@ class PortSelectionWidget extends ConsumerWidget {
         '${l10n.serialNumber}: ${port.serialNumber!.trim()}',
     ].join(' · ');
     final hasSelection = ports.any((port) => port.portName == selectedPort);
-    final productCounts = <String, int>{};
-    for (final port in ports) {
-      final product = port.product?.trim() ?? '';
-      if (product.isNotEmpty) {
-        productCounts.update(product, (count) => count + 1, ifAbsent: () => 1);
-      }
-    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -174,7 +167,7 @@ class PortSelectionWidget extends ConsumerWidget {
             child: DropdownButton<String>(
               value: hasSelection ? selectedPort : null,
               isExpanded: true,
-              menuWidth: math.min(520, MediaQuery.sizeOf(context).width - 32),
+              menuWidth: math.min(360, MediaQuery.sizeOf(context).width - 32),
               menuMaxHeight: 360,
               itemHeight: null,
               borderRadius: BorderRadius.circular(8),
@@ -229,30 +222,10 @@ class PortSelectionWidget extends ConsumerWidget {
                         title(port),
                         if (details(port).isNotEmpty) details(port),
                       ].join('\n'),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title(port),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if ((productCounts[port.product?.trim()] ?? 0) >
-                                    1 &&
-                                (port.serialNumber?.trim().isNotEmpty ?? false))
-                              Text(
-                                '${l10n.serialNumber}: ${port.serialNumber!.trim()}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                          ],
-                        ),
+                      child: Text(
+                        title(port),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),

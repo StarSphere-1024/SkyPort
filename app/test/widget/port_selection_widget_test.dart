@@ -189,7 +189,7 @@ void main() {
   });
 
   testWidgets(
-    'device metadata distinguishes identical products at narrow width',
+    'same-product ports remain independently selectable at narrow width',
     (tester) async {
       final container = ProviderContainer(
         overrides: [uiControllerProvider.overrideWith(_PortController.new)],
@@ -234,8 +234,6 @@ void main() {
       expect(find.text('/dev/ttyUSB0').hitTestable(), findsOneWidget);
       await tester.tap(find.byType(DropdownButton<String>));
       await tester.pumpAndSettle();
-      expect(find.text('Serial: DEVICE-A').hitTestable(), findsOneWidget);
-      expect(find.text('Serial: DEVICE-B').hitTestable(), findsOneWidget);
       expect(find.textContaining('VID:PID'), findsNothing);
       expect(find.textContaining('Silicon Labs'), findsNothing);
       final secondDevice = find
