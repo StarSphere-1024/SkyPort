@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate an Android APK's metadata, signatures, native payload, and alignment."""
+"""Validate Android APK metadata, signatures, 64-bit native payload, and alignment."""
 import argparse
 import os
 from pathlib import Path
@@ -34,15 +34,11 @@ def check_metadata(application_id: str, version_name: str, version_code: str,
 
 
 def check_elf_load_alignment(data: bytes, name: str = "ELF") -> None:
-    if len(data) < 16 or data[:4] != b"\x7fELF" or data[4] not in (1, 2) or data[5] not in (1, 2):
-        raise ValueError(f"{name}: invalid ELF header")
-    bits, endian = data[4], "<" if data[5] == 1 else ">"
-    if bits == 1:
-        header_format, program_format = endian + "HHIIIIIHHHHHH", endian + "IIIIIIII"
-        phoff_index, phentsize_index, phnum_index = 4, 8, 9
-    else:
-        header_format, program_format = endian + "HHIQQQIHHHHHH", endian + "IIQQQQQQ"
-        phoff_index, phentsize_index, phnum_index = 4, 8, 9
+    if len(data) < 16 or data[:4] != b"\x7fELF" or data[4] != 2 or data[5] not in (1, 2):
+        raise ValueError(f"{name}: invalid or non-64-bit ELF header")
+    endian = "<" if data[5] == 1 else ">"
+    header_format, program_format = endian + "HHIQQQIHHHHHH", endian + "IIQQQQQQ"
+    phoff_index, phentsize_index, phnum_index = 4, 8, 9
     header_size = 16 + struct.calcsize(header_format)
     if len(data) < header_size:
         raise ValueError(f"{name}: truncated ELF header")

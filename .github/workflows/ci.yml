@@ -80,7 +80,7 @@ jobs:
         run: flutter build windows --release
 
   android-build:
-    name: Build and launch Android without release secrets
+    name: Build Android without release secrets
     uses: ./.github/workflows/build-android.yml
 
   test:

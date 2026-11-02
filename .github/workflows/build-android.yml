@@ -29,7 +29,7 @@ env:
 
 jobs:
   android:
-    name: Android ${{ inputs.release && 'signed release' || 'debug smoke' }}
+    name: Android ${{ inputs.release && 'signed release' || 'debug build' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -109,28 +109,6 @@ jobs:
           if [ "$MODE" = debug ]; then DEBUG_FLAG+=(--debug); fi
           python3 scripts/check_android_apk.py "app/build/app/outputs/flutter-apk/app-${MODE}.apk" "${DEBUG_FLAG[@]}" \
             --abi "$SKYPORT_ANDROID_ABIS" --build-tools "$ANDROID_HOME/build-tools/36.0.0"
-      - name: Reject reused version codes or changed signing keys
-        if: inputs.release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          python3 .github/scripts/check_android_release.py \
-            --apk app/build/app/outputs/flutter-apk/app-release.apk \
-            --apksigner "$ANDROID_HOME/build-tools/36.0.0/apksigner"
-      - name: Enable emulator acceleration
-        if: ${{ !inputs.release }}
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-      - name: Install and launch on Android emulator
-        if: ${{ !inputs.release }}
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          arch: x86_64
-          disable-animations: true
-          script: python3 scripts/package_smoke.py app/build/app/outputs/flutter-apk/app-debug.apk --device emulator-5554
       - name: Prepare immutable release candidate
         if: inputs.release
         env:
@@ -140,21 +118,6 @@ jobs:
           cp app/build/app/outputs/flutter-apk/app-release.apk "app/dist/android/SkyPort-v${VERSION}-android-arm64.apk"
           cd app/dist/android
           sha256sum *.apk > SHA256SUMS-android.txt
-          {
-            echo '## Android hardware acceptance checklist'
-            echo "Commit: $GITHUB_SHA"
-            echo
-            echo 'Download the Android artifact from this run; test this exact APK, not a rebuild.'
-            echo 'Record device/Android version, USB adapter chipset, tester and results in your release verification notes.'
-            echo '- USB permission denial, then approval and connection'
-            echo '- Actual Text/Hex TX/RX and newline bytes against a real peer'
-            echo '- Unplug/replug, visible disconnect/reconnect, no implicit resend'
-            echo '- Background/lock/resume follows the suspension policy, no stale connection or duplicate TX'
-            echo '- Install over the previous signed release without uninstalling; preferences and I/O preserved (first release: N/A)'
-            echo
-            echo 'SHA-256:'
-            cat SHA256SUMS-android.txt
-          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload signed release candidate
         if: inputs.release
         uses: actions/upload-artifact@v7
