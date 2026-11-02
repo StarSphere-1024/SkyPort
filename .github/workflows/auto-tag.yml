@@ -73,7 +73,9 @@ jobs:
     if: needs.detect-version-change.outputs.should_release == 'true'
     permissions:
       contents: write
+      actions: read
     uses: ./.github/workflows/release.yml
     with:
       tag_name: ${{ needs.detect-version-change.outputs.tag_name }}
       create_tag: true
+    secrets: inherit

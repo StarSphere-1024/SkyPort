@@ -19,15 +19,17 @@ if (!repo) {
 const downloads = {
   Windows: new Map(),
   Linux: new Map(),
+  Android: new Map(),
   macOS: new Map(),
   Other: new Map(),
 };
 
-const osOrder = ["Windows", "Linux", "macOS", "Other"];
+const osOrder = ["Windows", "Linux", "Android", "macOS", "Other"];
 const archOrder = ["x64", "ARM64", "Universal", "-"];
 const downloadOrder = {
   Windows: ["Portable", "Installer"],
   Linux: ["AppImage", "DEB", "RPM"],
+  Android: ["APK"],
   macOS: ["DMG"],
   Other: [],
 };
@@ -95,6 +97,8 @@ for (const file of listFiles(artifactsDir)) {
     addDownload("Linux", "RPM", arch, "orange", "linux", filename);
   } else if (lowerName.includes("linux") && lowerName.endsWith(".appimage")) {
     addDownload("Linux", "AppImage", arch, "orange", "linux", filename);
+  } else if (lowerName.includes("android") && lowerName.endsWith(".apk")) {
+    addDownload("Android", "APK", arch, "green", "android", filename);
   } else {
     addDownload("Other", filename, "-", null, null, filename);
   }

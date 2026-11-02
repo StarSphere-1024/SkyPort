@@ -1,4 +1,4 @@
-name: Build (Linux + Windows)
+name: Build Packages
 
 on:
   workflow_call:
@@ -7,6 +7,9 @@ on:
         required: false
         type: number
         default: 7
+      android-release:
+        type: boolean
+        default: false
     outputs:
       app_version:
         description: Extracted application version
@@ -53,4 +56,14 @@ jobs:
     with:
       app_version: ${{ needs.prepare.outputs.app_version }}
       retention-days: ${{ inputs.retention-days }}
+
+  build-android:
+    name: Build Android
+    if: inputs.android-release
+    needs: prepare
+    uses: ./.github/workflows/build-android.yml
+    with:
+      release: true
+      retention-days: ${{ inputs.retention-days }}
+    secrets: inherit
 

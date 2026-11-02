@@ -79,6 +79,10 @@ jobs:
         working-directory: app
         run: flutter build windows --release
 
+  android-build:
+    name: Build and launch Android without release secrets
+    uses: ./.github/workflows/build-android.yml
+
   test:
     name: Run Tests
     uses: ./.github/workflows/test.yml

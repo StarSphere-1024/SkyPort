@@ -46,6 +46,8 @@ jobs:
         run: |
           python3 .github/scripts/test_release_version.py
           python3 .github/scripts/test_patch_fastforge_appimage.py
+          python3 .github/scripts/test_check_android_release.py
+          python3 -m unittest discover -s .github/scripts -p test_check_android_apk.py
 
       - uses: dtolnay/rust-toolchain@stable
         with:

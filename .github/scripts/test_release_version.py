@@ -13,6 +13,18 @@ class ReleaseVersionTest(unittest.TestCase):
             release_version("version: 2.1.0-rc.1+7 # candidate\n", "v2.1.0-rc.1"),
             "2.1.0-rc.1",
         )
+    def test_android_build_number_is_required_numeric_positive_and_bounded(self):
+        self.assertEqual(release_version("version: 2.0.0+2100000000\n"), "2.0.0")
+        for manifest in (
+            "version: 2.0.0\n",
+            "version: 2.0.0+0\n",
+            "version: 2.0.0+01\n",
+            "version: 2.0.0+-1\n",
+            "version: 2.0.0+1.2\n",
+            "version: 2.0.0+2100000001\n",
+        ):
+            with self.subTest(manifest=manifest), self.assertRaises(ValueError):
+                release_version(manifest)
 
     def test_missing_duplicate_or_invalid_version_fails(self):
         for manifest in (
