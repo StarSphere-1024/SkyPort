@@ -50,8 +50,12 @@ struct Lifecycle {
     closed: bool,
     close_error: Option<CoreError>,
 }
+enum WorkerMessage {
+    Command(RequestId, Command),
+    Shutdown,
+}
 struct Inner {
-    tx: SyncSender<(RequestId, Command)>,
+    tx: SyncSender<WorkerMessage>,
     next_id: Mutex<RequestId>,
     shared: Arc<Shared>,
     lifecycle: Mutex<Lifecycle>,
@@ -179,7 +183,7 @@ impl AppCore {
         validate_command(&command)?;
         let mut next = self.inner.next_id.lock().map_err(lock_error)?;
         let id = *next;
-        match self.inner.tx.try_send((id, command)) {
+        match self.inner.tx.try_send(WorkerMessage::Command(id, command)) {
             Ok(()) => {
                 *next = next.wrapping_add(1).max(1);
                 Ok(id)
@@ -277,6 +281,8 @@ impl AppCore {
         }
         life.closing = true;
         self.inner.stop.store(true, Ordering::Release);
+        // A full queue already wakes the worker; shutdown must never wait for queue space.
+        let _ = self.inner.tx.try_send(WorkerMessage::Shutdown);
         publish_state(&self.inner.shared, ConnectionState::Closing, None);
         drop(life);
         let search_error = self.inner.search.close().err();
@@ -431,7 +437,7 @@ fn event_weight(event: &Event) -> usize {
 }
 
 fn run_worker(
-    rx: Receiver<(RequestId, Command)>,
+    rx: Receiver<WorkerMessage>,
     shared: Arc<Shared>,
     data_directory: std::path::PathBuf,
     stop: Arc<AtomicBool>,
@@ -447,7 +453,7 @@ fn run_worker(
     let mut buf = [0u8; 8192];
     loop {
         if stop.load(Ordering::Acquire) {
-            while let Ok((id, command)) = rx.try_recv() {
+            while let Ok(WorkerMessage::Command(id, command)) = rx.try_recv() {
                 let error =
                     CoreError::new(ErrorKind::Closed, "AppCore closed before command execution");
                 match command {
@@ -459,8 +465,15 @@ fn run_worker(
             }
             break;
         }
-        match rx.recv_timeout(auto_wait(&shared, next_auto, Duration::from_millis(10))) {
-            Ok((id, command)) => handle_command(
+        let maximum = if port.is_some() {
+            Duration::from_millis(10)
+        } else {
+            reconnect_at
+                .map_or(next_ports, |at| at.min(next_ports))
+                .saturating_duration_since(Instant::now())
+        };
+        match rx.recv_timeout(auto_wait(&shared, next_auto, maximum)) {
+            Ok(WorkerMessage::Command(id, command)) => handle_command(
                 id,
                 command,
                 &shared,
@@ -470,7 +483,7 @@ fn run_worker(
                 &mut next_auto,
                 &mut link_lost,
             ),
-            Err(RecvTimeoutError::Disconnected) => break,
+            Ok(WorkerMessage::Shutdown) | Err(RecvTimeoutError::Disconnected) => break,
             Err(RecvTimeoutError::Timeout) => {}
         }
         update_rx_rate(

@@ -108,6 +108,40 @@ fn options(dir: PathBuf, port: String) -> AppOptions {
 }
 
 #[test]
+fn idle_core_wakes_for_commands_and_close_before_the_next_port_scan() {
+    let dir = tempfile::tempdir().unwrap();
+    let core = AppCore::create(options(dir.path().into(), String::new())).unwrap();
+    let (_, events) = core.subscribe().unwrap();
+    thread::sleep(Duration::from_millis(50));
+    let request = core
+        .dispatch(Command::SendText {
+            text: "disconnected".into(),
+            newline: Newline::None,
+        })
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_millis(500);
+    loop {
+        let event = events
+            .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+            .unwrap()
+            .expect("command must wake the idle worker before its next port scan");
+        if let EventKind::WriteFailed { request_id, error } = event.kind {
+            if request_id == request {
+                assert_eq!(error.kind, ErrorKind::Disconnected);
+                break;
+            }
+        }
+    }
+    thread::sleep(Duration::from_millis(50));
+    let started = Instant::now();
+    core.close().unwrap();
+    assert!(
+        started.elapsed() < Duration::from_millis(500),
+        "close must wake the idle worker before its next port scan"
+    );
+}
+
+#[test]
 fn occupied_port_reports_open_failure_and_connects_after_release() {
     let dir = tempfile::tempdir().unwrap();
     let pty = Pty::new();
