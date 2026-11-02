@@ -167,6 +167,8 @@ class PortSelectionWidget extends ConsumerWidget {
             child: DropdownButton<String>(
               value: hasSelection ? selectedPort : null,
               isExpanded: true,
+              isDense: true,
+              padding: const EdgeInsets.symmetric(vertical: 6),
               menuWidth: math.min(360, MediaQuery.sizeOf(context).width - 32),
               menuMaxHeight: 360,
               itemHeight: null,

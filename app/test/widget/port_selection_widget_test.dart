@@ -6,6 +6,7 @@ import 'package:skyport/models/log_model.dart';
 import 'package:skyport/models/ui_state.dart';
 import 'package:skyport/providers/ui_controller.dart';
 import 'package:skyport/widgets/left_panel/port_selection_widget.dart';
+import 'package:skyport/widgets/shared/dropdown_builders.dart';
 
 class _PortController extends UiController {
   int connects = 0;
@@ -139,6 +140,82 @@ void main() {
       expect(controller.disconnects, 1);
     },
   );
+
+  testWidgets('closed port field stays as compact as serial parameter fields', (
+    tester,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [uiControllerProvider.overrideWith(_PortController.new)],
+    );
+    addTearDown(container.dispose);
+    final controller =
+        container.read(uiControllerProvider.notifier) as _PortController;
+    controller.updatePorts(const [
+      UiPort(
+        portName: '/dev/ttyUSB0',
+        product: 'UART+SPI+I2C+JTAG',
+        serialNumber: 'DEVICE-A',
+      ),
+      UiPort(
+        portName: '/dev/ttyUSB1',
+        product: 'UART+SPI+I2C+JTAG',
+        serialNumber: 'DEVICE-B',
+      ),
+    ]);
+    for (final locale in AppLocalizations.supportedLocales) {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            locale: locale,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: SizedBox(
+                width: 278,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const PortSelectionWidget(),
+                    Builder(
+                      builder: (context) => DropdownBuilders.buildDropdown<int>(
+                        context: context,
+                        initialSelection: 115200,
+                        entries: const [
+                          DropdownMenuEntry(value: 115200, label: '115200'),
+                        ],
+                        label: 'Baud rate',
+                        onSelected: (_) {},
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      for (final connection in [
+        UiConnection.disconnected,
+        UiConnection.connected,
+      ]) {
+        controller.updateConnection(connection);
+        await tester.pumpAndSettle();
+        final parameterField = find.descendant(
+          of: find.byType(DropdownMenu<int>),
+          matching: find.byType(InputDecorator),
+        );
+        final portHeight = InputDecorator.containerOf(
+          tester.element(find.byType(DropdownButton<String>)),
+        )!.size.height;
+        expect(portHeight, greaterThanOrEqualTo(36));
+        expect(
+          portHeight,
+          lessThanOrEqualTo(tester.getSize(parameterField).height),
+        );
+      }
+    }
+  });
 
   testWidgets('port selector fits narrow widths during busy states', (
     tester,
