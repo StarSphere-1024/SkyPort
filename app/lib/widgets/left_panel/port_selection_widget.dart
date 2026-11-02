@@ -118,6 +118,7 @@ class PortSelectionWidget extends ConsumerWidget {
     final theme = Theme.of(context);
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(8),
+      gapPadding: 0,
       borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
     );
     String title(UiPort port) => [
@@ -156,7 +157,7 @@ class PortSelectionWidget extends ConsumerWidget {
             border: border,
             enabledBorder: border,
             disabledBorder: border,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+            contentPadding: EdgeInsets.zero,
             errorText: isReconnecting && selectedPort != null
                 ? '${l10n.reconnecting}: $selectedPort'
                 : isUnavailable
@@ -168,7 +169,7 @@ class PortSelectionWidget extends ConsumerWidget {
               value: hasSelection ? selectedPort : null,
               isExpanded: true,
               isDense: true,
-              padding: const EdgeInsets.symmetric(vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               menuWidth: math.min(360, MediaQuery.sizeOf(context).width - 32),
               menuMaxHeight: 360,
               itemHeight: null,

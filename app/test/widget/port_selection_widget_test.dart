@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skyport/l10n/app_localizations.dart';
@@ -141,81 +142,106 @@ void main() {
     },
   );
 
-  testWidgets('closed port field stays as compact as serial parameter fields', (
-    tester,
-  ) async {
-    final container = ProviderContainer(
-      overrides: [uiControllerProvider.overrideWith(_PortController.new)],
-    );
-    addTearDown(container.dispose);
-    final controller =
-        container.read(uiControllerProvider.notifier) as _PortController;
-    controller.updatePorts(const [
-      UiPort(
-        portName: '/dev/ttyUSB0',
-        product: 'UART+SPI+I2C+JTAG',
-        serialNumber: 'DEVICE-A',
-      ),
-      UiPort(
-        portName: '/dev/ttyUSB1',
-        product: 'UART+SPI+I2C+JTAG',
-        serialNumber: 'DEVICE-B',
-      ),
-    ]);
-    for (final locale in AppLocalizations.supportedLocales) {
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            locale: locale,
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: SizedBox(
-                width: 278,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const PortSelectionWidget(),
-                    Builder(
-                      builder: (context) => DropdownBuilders.buildDropdown<int>(
-                        context: context,
-                        initialSelection: 115200,
-                        entries: const [
-                          DropdownMenuEntry(value: 115200, label: '115200'),
-                        ],
-                        label: 'Baud rate',
-                        onSelected: (_) {},
+  testWidgets(
+    'compact port field responds across its full bounds and keyboard',
+    (tester) async {
+      final container = ProviderContainer(
+        overrides: [uiControllerProvider.overrideWith(_PortController.new)],
+      );
+      addTearDown(container.dispose);
+      final controller =
+          container.read(uiControllerProvider.notifier) as _PortController;
+      controller.updatePorts(const [
+        UiPort(
+          portName: '/dev/ttyUSB0',
+          product: 'UART+SPI+I2C+JTAG',
+          serialNumber: 'DEVICE-A',
+        ),
+        UiPort(
+          portName: '/dev/ttyUSB1',
+          product: 'UART+SPI+I2C+JTAG',
+          serialNumber: 'DEVICE-B',
+        ),
+      ]);
+      for (final locale in AppLocalizations.supportedLocales) {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              locale: locale,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: Scaffold(
+                body: SizedBox(
+                  width: 278,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const PortSelectionWidget(),
+                      Builder(
+                        builder: (context) =>
+                            DropdownBuilders.buildDropdown<int>(
+                              context: context,
+                              initialSelection: 115200,
+                              entries: const [
+                                DropdownMenuEntry(
+                                  value: 115200,
+                                  label: '115200',
+                                ),
+                              ],
+                              label: 'Baud rate',
+                              onSelected: (_) {},
+                            ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      );
-      for (final connection in [
-        UiConnection.disconnected,
-        UiConnection.connected,
-      ]) {
-        controller.updateConnection(connection);
-        await tester.pumpAndSettle();
-        final parameterField = find.descendant(
-          of: find.byType(DropdownMenu<int>),
-          matching: find.byType(InputDecorator),
         );
-        final portHeight = InputDecorator.containerOf(
-          tester.element(find.byType(DropdownButton<String>)),
-        )!.size.height;
-        expect(portHeight, greaterThanOrEqualTo(36));
-        expect(
-          portHeight,
-          lessThanOrEqualTo(tester.getSize(parameterField).height),
-        );
+        for (final connection in [
+          UiConnection.disconnected,
+          UiConnection.connected,
+        ]) {
+          controller.updateConnection(connection);
+          await tester.pumpAndSettle();
+          final parameterField = find.descendant(
+            of: find.byType(DropdownMenu<int>),
+            matching: find.byType(InputDecorator),
+          );
+          final portHeight = InputDecorator.containerOf(
+            tester.element(find.byType(DropdownButton<String>)),
+          )!.size.height;
+          expect(portHeight, greaterThanOrEqualTo(36));
+          expect(
+            portHeight,
+            lessThanOrEqualTo(tester.getSize(parameterField).height),
+          );
+          if (connection == UiConnection.disconnected) {
+            final field = InputDecorator.containerOf(
+              tester.element(find.byType(DropdownButton<String>)),
+            )!;
+            await tester.tapAt(
+              field.localToGlobal(Offset(2, field.size.height / 2)),
+            );
+            await tester.pumpAndSettle();
+            final secondPort = find
+                .text('/dev/ttyUSB1 · UART+SPI+I2C+JTAG')
+                .hitTestable();
+            expect(secondPort, findsOneWidget);
+            await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+            await tester.pumpAndSettle();
+            await tester.sendKeyEvent(LogicalKeyboardKey.space);
+            await tester.pumpAndSettle();
+            expect(secondPort, findsOneWidget);
+            await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+            await tester.pumpAndSettle();
+          }
+        }
       }
-    }
-  });
+    },
+  );
 
   testWidgets('port selector fits narrow widths during busy states', (
     tester,
