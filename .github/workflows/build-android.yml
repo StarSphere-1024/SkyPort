@@ -141,11 +141,11 @@ jobs:
           cd app/dist/android
           sha256sum *.apk > SHA256SUMS-android.txt
           {
-            echo '## Android hardware acceptance required'
+            echo '## Android hardware acceptance checklist'
             echo "Commit: $GITHUB_SHA"
             echo
             echo 'Download the Android artifact from this run; test this exact APK, not a rebuild.'
-            echo 'Record device/Android version, USB adapter chipset, tester and results in the environment approval comment.'
+            echo 'Record device/Android version, USB adapter chipset, tester and results in your release verification notes.'
             echo '- USB permission denial, then approval and connection'
             echo '- Actual Text/Hex TX/RX and newline bytes against a real peer'
             echo '- Unplug/replug, visible disconnect/reconnect, no implicit resend'

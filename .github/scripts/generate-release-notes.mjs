@@ -80,6 +80,7 @@ function addDownload(os, label, arch, color, logo, filename) {
 for (const file of listFiles(artifactsDir)) {
   const filename = basename(file);
   const lowerName = filename.toLowerCase();
+  if (lowerName === "sha256sums-android.txt") continue;
   const arch = detectArchitecture(filename);
 
   if (lowerName.includes("windows") && lowerName.endsWith("setup.exe")) {
