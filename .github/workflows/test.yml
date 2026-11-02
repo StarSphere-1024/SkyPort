@@ -41,11 +41,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
-      - name: Validate release version rules
-        run: python3 .github/scripts/test_release_version.py
+      - name: Validate release version and AppImage patch rules
+        run: |
+          python3 .github/scripts/test_release_version.py
+          python3 .github/scripts/test_patch_fastforge_appimage.py
 
       - uses: dtolnay/rust-toolchain@stable
         with:

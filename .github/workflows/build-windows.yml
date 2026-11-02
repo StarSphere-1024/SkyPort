@@ -39,8 +39,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -88,13 +86,6 @@ jobs:
       - name: Build release
         working-directory: app
         run: flutter build windows --release
-        shell: pwsh
-
-      - name: List build output (debug)
-        working-directory: app
-        run: |
-          Write-Host "Build directory contents:"
-          Get-ChildItem -Path "build/windows" -Recurse -Directory | Select-Object FullName
         shell: pwsh
 
       - name: Install Inno Setup

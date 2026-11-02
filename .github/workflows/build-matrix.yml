@@ -28,8 +28,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
       - name: Validate committed version
         id: version
@@ -56,15 +54,3 @@ jobs:
       app_version: ${{ needs.prepare.outputs.app_version }}
       retention-days: ${{ inputs.retention-days }}
 
-  summary:
-    name: Summary
-    needs: [prepare, build-linux, build-windows]
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - name: Build matrix result
-        run: |
-          echo "Linux + Windows jobs finished." \
-            && echo "Version: ${{ needs.prepare.outputs.app_version }}" \
-            && echo "Linux result: ${{ needs.build-linux.result }}" \
-            && echo "Windows result: ${{ needs.build-windows.result }}"
