@@ -140,6 +140,54 @@ void main() {
     },
   );
 
+  testWidgets('port selector fits narrow widths during busy states', (
+    tester,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [uiControllerProvider.overrideWith(_PortController.new)],
+    );
+    addTearDown(container.dispose);
+    final controller =
+        container.read(uiControllerProvider.notifier) as _PortController;
+    controller.selectedPort = '/tmp/skyport-pty-smoke-12345678/serial';
+    controller.updatePorts(const [UiPort(portName: '/dev/ttyUSB0')]);
+    for (final locale in AppLocalizations.supportedLocales) {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            locale: locale,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const Scaffold(
+              body: SingleChildScrollView(
+                child: SizedBox(width: 278, child: PortSelectionWidget()),
+              ),
+            ),
+          ),
+        ),
+      );
+      for (final connection in [
+        UiConnection.disconnected,
+        UiConnection.connected,
+        UiConnection.connecting,
+        UiConnection.reconfiguring,
+        UiConnection.disconnecting,
+        UiConnection.reconnecting,
+      ]) {
+        controller.updateConnection(connection);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(tester.takeException(), isNull);
+        final selector = tester.getRect(find.byType(DropdownButton<String>));
+        final action = tester.getRect(find.byType(FilledButton));
+        final arrow = tester.getRect(find.byIcon(Icons.keyboard_arrow_down));
+        expect(selector.right, lessThanOrEqualTo(action.left));
+        expect(arrow.right, lessThanOrEqualTo(selector.right));
+      }
+    }
+  });
+
   testWidgets(
     'device metadata distinguishes identical products at narrow width',
     (tester) async {

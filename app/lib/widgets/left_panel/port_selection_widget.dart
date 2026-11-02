@@ -43,55 +43,65 @@ class PortSelectionWidget extends ConsumerWidget {
         isConnected || connectionState == UiConnection.reconnecting;
     final l10n = AppLocalizations.of(context);
     final colors = Theme.of(context).colorScheme;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: _buildPortDropdown(
-            context: context,
-            ports: ports,
-            selectedPort: selectedPort,
-            isUnavailable: isUnavailable,
-            isReconnecting: connectionState == UiConnection.reconnecting,
-            isDisabled: isConnected || isBusy,
-            onSelected: (value) {
-              if (value != null) controller.setPort(value);
-            },
-          ),
-        ),
-        const SizedBox(width: 8),
-        Padding(
-          padding: const EdgeInsets.only(top: 22),
-          child: FilledButton.icon(
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              backgroundColor: isConnected ? colors.error : colors.primary,
-              foregroundColor: isConnected ? colors.onError : colors.onPrimary,
-            ),
-            onPressed:
-                isBusy ||
-                    (!disconnect && (selectedPort == null || isUnavailable))
-                ? null
-                : () => disconnect
-                      ? controller.disconnect()
-                      : controller.connect(),
-            icon: isBusy
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Icon(disconnect ? Icons.link_off : Icons.link, size: 18),
-            label: Text(
-              isBusy
-                  ? connectionStatusLabel(connectionState, l10n)
-                  : disconnect
-                  ? l10n.disconnect
-                  : l10n.connect,
+    return LayoutBuilder(
+      builder: (context, constraints) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: _buildPortDropdown(
+              context: context,
+              ports: ports,
+              selectedPort: selectedPort,
+              isUnavailable: isUnavailable,
+              isReconnecting: connectionState == UiConnection.reconnecting,
+              isDisabled: isConnected || isBusy,
+              onSelected: (value) {
+                if (value != null) controller.setPort(value);
+              },
             ),
           ),
-        ),
-      ],
+          const SizedBox(width: 8),
+          ConstrainedBox(
+            // Transient status labels must leave room for the port selector.
+            constraints: BoxConstraints(maxWidth: constraints.maxWidth / 2),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 22),
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  backgroundColor: isConnected ? colors.error : colors.primary,
+                  foregroundColor: isConnected
+                      ? colors.onError
+                      : colors.onPrimary,
+                ),
+                onPressed:
+                    isBusy ||
+                        (!disconnect && (selectedPort == null || isUnavailable))
+                    ? null
+                    : () => disconnect
+                          ? controller.disconnect()
+                          : controller.connect(),
+                icon: isBusy
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(disconnect ? Icons.link_off : Icons.link, size: 18),
+                label: Text(
+                  isBusy
+                      ? connectionStatusLabel(connectionState, l10n)
+                      : disconnect
+                      ? l10n.disconnect
+                      : l10n.connect,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
