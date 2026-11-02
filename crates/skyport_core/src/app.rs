@@ -337,41 +337,34 @@ pub struct EventSubscription {
 }
 impl EventSubscription {
     pub fn recv_timeout(&self, timeout: Duration) -> Result<Option<Event>, CoreError> {
-        let started = Instant::now();
-        loop {
-            if let Some(error) = self.overflow.lock().map_err(lock_error)?.take() {
-                return Err(error);
+        if let Some(error) = self.overflow.lock().map_err(lock_error)?.take() {
+            return Err(error);
+        }
+        if self.cancelled.load(Ordering::Acquire) {
+            return Err(CoreError::new(
+                ErrorKind::Closed,
+                "event subscription is closed",
+            ));
+        }
+        // The channel wakes on events or sender removal (overflow, cancellation, close).
+        match self.rx.recv_timeout(timeout) {
+            Ok(event) => {
+                self.queued_bytes
+                    .fetch_sub(event_weight(&event), Ordering::AcqRel);
+                if let Some(error) = self.overflow.lock().map_err(lock_error)?.take() {
+                    return Err(error);
+                }
+                Ok(Some(event))
             }
-            if self.cancelled.load(Ordering::Acquire) {
-                return Err(CoreError::new(
+            Err(RecvTimeoutError::Timeout) => Ok(None),
+            Err(RecvTimeoutError::Disconnected) => {
+                if let Some(error) = self.overflow.lock().map_err(lock_error)?.take() {
+                    return Err(error);
+                }
+                Err(CoreError::new(
                     ErrorKind::Closed,
                     "event subscription is closed",
-                ));
-            }
-            let remaining = timeout.saturating_sub(started.elapsed());
-            match self
-                .rx
-                .recv_timeout(remaining.min(Duration::from_millis(10)))
-            {
-                Ok(event) => {
-                    self.queued_bytes
-                        .fetch_sub(event_weight(&event), Ordering::AcqRel);
-                    if let Some(error) = self.overflow.lock().map_err(lock_error)?.take() {
-                        return Err(error);
-                    }
-                    return Ok(Some(event));
-                }
-                Err(RecvTimeoutError::Timeout) if started.elapsed() >= timeout => return Ok(None),
-                Err(RecvTimeoutError::Timeout) => {}
-                Err(RecvTimeoutError::Disconnected) => {
-                    if let Some(error) = self.overflow.lock().map_err(lock_error)?.take() {
-                        return Err(error);
-                    }
-                    return Err(CoreError::new(
-                        ErrorKind::Closed,
-                        "event subscription is closed",
-                    ));
-                }
+                ))
             }
         }
     }

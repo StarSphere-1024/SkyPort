@@ -142,6 +142,69 @@ fn idle_core_wakes_for_commands_and_close_before_the_next_port_scan() {
 }
 
 #[test]
+fn subscription_long_wait_wakes_for_events_and_close_in_sequence() {
+    let dir = tempfile::tempdir().unwrap();
+    let core = AppCore::create(options(dir.path().into(), String::new())).unwrap();
+    let (snapshot, events) = core.subscribe().unwrap();
+    let mut sequence = snapshot.sequence;
+    while let Some(event) = events.recv_timeout(Duration::ZERO).unwrap() {
+        assert_eq!(event.sequence, sequence + 1);
+        sequence = event.sequence;
+    }
+    assert!(events
+        .recv_timeout(Duration::from_millis(20))
+        .unwrap()
+        .is_none());
+
+    thread::scope(|scope| {
+        let (completed_tx, completed_rx) = std::sync::mpsc::sync_channel(0);
+        let producer = scope.spawn(move || {
+            thread::sleep(Duration::from_millis(20));
+            let request = core
+                .dispatch(Command::SendText {
+                    text: "disconnected".into(),
+                    newline: Newline::None,
+                })
+                .unwrap();
+            completed_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+            thread::sleep(Duration::from_millis(20));
+            core.close().unwrap();
+            request
+        });
+        let started = Instant::now();
+        let mut failed_request = None;
+        let mut closed = false;
+        loop {
+            match events.recv_timeout(Duration::from_secs(5)) {
+                Ok(Some(event)) => {
+                    assert_eq!(event.sequence, sequence + 1);
+                    sequence = event.sequence;
+                    match event.kind {
+                        EventKind::WriteFailed { request_id, error } => {
+                            assert_eq!(error.kind, ErrorKind::Disconnected);
+                            failed_request = Some(request_id);
+                            completed_tx.send(()).unwrap();
+                        }
+                        EventKind::StateChanged(state) => {
+                            closed |= state.connection == ConnectionState::Closed;
+                        }
+                        _ => {}
+                    }
+                }
+                Err(error) => {
+                    assert_eq!(error.kind, ErrorKind::Closed);
+                    break;
+                }
+                Ok(None) => panic!("event delivery or close did not wake the subscription"),
+            }
+        }
+        assert!(started.elapsed() < Duration::from_secs(1));
+        assert_eq!(failed_request, Some(producer.join().unwrap()));
+        assert!(closed);
+    });
+}
+
+#[test]
 fn occupied_port_reports_open_failure_and_connects_after_release() {
     let dir = tempfile::tempdir().unwrap();
     let pty = Pty::new();
