@@ -388,7 +388,7 @@ void main() {
     expect(find.textContaining('row 202 ', findRichText: true), findsOneWidget);
   });
 
-  testWidgets('variable-height follow never renders beyond the end', (
+  testWidgets('variable-height follow reaches the bottom in every frame', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(550, 900));
@@ -409,39 +409,50 @@ void main() {
     );
     String text(int id) =>
         'row $id ${id % 30 < 15 ? 'wrapped MQTT data ' * 12 : 'short'}';
+    controller.receiveThrough(149, first: 1, textForId: text);
+    await tester.pumpAndSettle();
     for (var last = 150; last <= 185; last++) {
-      controller.receiveThrough(last, first: 1, textForId: text);
-      for (var frame = 0; frame < 8; frame++) {
-        await tester.pump(const Duration(milliseconds: 16));
-        final position = tester
-            .state<ScrollableState>(
-              find.descendant(
-                of: find.byKey(const ValueKey('search-results')),
-                matching: find.byType(Scrollable),
-              ),
-            )
-            .position;
-        expect(
-          position.pixels,
-          inInclusiveRange(
-            position.minScrollExtent - 1,
-            position.maxScrollExtent + 1,
-          ),
-          reason: 'row $last, frame $frame must not overscroll and rebound',
+      for (final growth in [0, 1]) {
+        controller.receiveThrough(
+          last,
+          textForId: (id) =>
+              '${text(id)}${id == last ? '\ncontinued' * (growth * 50) : ''}',
         );
+        for (var frame = 0; frame < 8; frame++) {
+          await tester.pump(const Duration(milliseconds: 16));
+          final position = tester
+              .state<ScrollableState>(
+                find.descendant(
+                  of: find.byKey(const ValueKey('search-results')),
+                  matching: find.byType(Scrollable),
+                ),
+              )
+              .position;
+          expect(
+            position.pixels,
+            inInclusiveRange(
+              position.minScrollExtent - 1,
+              position.maxScrollExtent + 1,
+            ),
+            reason: 'row $last, frame $frame must not overscroll and rebound',
+          );
+          final latest = find.textContaining('row $last ', findRichText: true);
+          expect(latest, findsOneWidget);
+          expect(
+            tester.getBottomRight(latest).dy,
+            closeTo(
+              tester
+                      .getBottomRight(
+                        find.byKey(const ValueKey('search-results')),
+                      )
+                      .dy -
+                  8,
+              1,
+            ),
+            reason: 'row $last, frame $frame must already be bottom-aligned',
+          );
+        }
       }
-      final latest = find.textContaining('row $last ', findRichText: true);
-      expect(latest, findsOneWidget);
-      expect(
-        tester.getBottomRight(latest).dy,
-        closeTo(
-          tester
-                  .getBottomRight(find.byKey(const ValueKey('search-results')))
-                  .dy -
-              8,
-          1,
-        ),
-      );
     }
   });
 

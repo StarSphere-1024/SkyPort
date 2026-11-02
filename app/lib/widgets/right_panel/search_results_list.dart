@@ -26,10 +26,7 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
   final _items = ItemScrollController();
   final _positions = ItemPositionsListener.create();
   bool _followLatest = true;
-  bool _bottomScheduled = false;
   bool _manualScrolling = false;
-  BuildContext? _tailContext;
-  LogEntry? _tailEntry;
   bool _hasActiveSelection = false;
   final _rowContexts = <int, _SearchResultRowState>{};
   late final SearchController _searchController;
@@ -37,15 +34,16 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
   @override
   void initState() {
     super.initState();
-    _positions.itemPositions.addListener(_refineBottom);
     _searchController = ref.read(searchControllerProvider.notifier);
     _searchController.setPositionReader(_readPosition);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _shouldFollowLatest) _jumpToLatest();
+    });
   }
 
   @override
   void dispose() {
     _searchController.setPositionReader(null);
-    _positions.itemPositions.removeListener(_refineBottom);
     super.dispose();
   }
 
@@ -80,47 +78,16 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
     if (_followLatest) setState(() => _followLatest = false);
   }
 
-  void _refineBottom() {
-    if (_followLatest &&
-        !_hasActiveSelection &&
-        !ref.read(searchControllerProvider).visible) {
-      _scheduleBottom();
-    }
-  }
+  bool get _shouldFollowLatest =>
+      _followLatest &&
+      !_hasActiveSelection &&
+      !ref.read(searchControllerProvider).visible;
 
-  void _scheduleBottom() {
-    if (_bottomScheduled) return;
-    _bottomScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _bottomScheduled = false;
-      if (!mounted ||
-          !_followLatest ||
-          _hasActiveSelection ||
-          ref.read(searchControllerProvider).visible ||
-          !_items.isAttached) {
-        return;
-      }
-      final last = (_mapper?.totalCount ?? 0) - 1;
-      if (last < 0) return;
-      final tail = _tailContext;
-      if (tail == null ||
-          !tail.mounted ||
-          !identical(_tailEntry, _mapper![last])) {
-        // Never align a newly appended row's top with the viewport's top.
-        _items.jumpTo(index: last, alignment: 1);
-      } else {
-        final render = tail.findRenderObject() as RenderBox;
-        final viewport = RenderAbstractViewport.of(render) as RenderBox;
-        final position = Scrollable.of(tail).position;
-        final bottom = render
-            .localToGlobal(Offset(0, render.size.height), ancestor: viewport)
-            .dy;
-        final target = (position.pixels + bottom + 8 - viewport.size.height)
-            .clamp(position.minScrollExtent, position.maxScrollExtent);
-        if ((target - position.pixels).abs() > 0.5) position.jumpTo(target);
-      }
-    });
-    WidgetsBinding.instance.ensureVisualUpdate();
+  void _jumpToLatest() {
+    final last = (_mapper?.totalCount ?? 0) - 1;
+    if (_items.isAttached && last >= 0) {
+      _items.jumpTo(index: last);
+    }
   }
 
   final _focusText = GlobalKey();
@@ -231,11 +198,6 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
       fontSize: 18,
       height: 1.3,
     );
-    if (mapper.totalCount == 0) {
-      _tailContext = null;
-      _tailEntry = null;
-      return const SizedBox.shrink();
-    }
     return Stack(
       children: [
         NotificationListener<ScrollNotification>(
@@ -254,7 +216,7 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
                   notification.metrics.extentAfter <=
                       SkyPortConstants.scrollBottomThreshold) {
                 setState(() => _followLatest = true);
-                _scheduleBottom();
+                _jumpToLatest();
               }
             }
             return false;
@@ -267,6 +229,9 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
               key: const ValueKey('search-results'),
               itemScrollController: _items,
               itemPositionsListener: _positions,
+              physics: _FollowLatestScrollPhysics(
+                enabled: () => _shouldFollowLatest,
+              ),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               itemCount: mapper.totalCount,
               itemBuilder: (context, index) {
@@ -275,12 +240,6 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
                 return _SearchResultRow(
                   key: ValueKey((search.generation, entry)),
                   entry: entry,
-                  onTailBuilt: index == mapper.totalCount - 1
-                      ? (context) {
-                          _tailContext = context;
-                          _tailEntry = entry;
-                        }
-                      : null,
                   onRowBuilt: (row) => _rowContexts[entry.id] = row,
                   onRowDisposed: (row) {
                     if (identical(_rowContexts[entry.id], row)) {
@@ -311,7 +270,7 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
             child: FloatingActionButton.small(
               onPressed: () {
                 setState(() => _followLatest = true);
-                _scheduleBottom();
+                _jumpToLatest();
               },
               child: const Icon(Icons.arrow_downward),
             ),
@@ -321,9 +280,37 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
   }
 }
 
+// Correct during layout so newly appended text never paints at the old offset.
+class _FollowLatestScrollPhysics extends ScrollPhysics {
+  const _FollowLatestScrollPhysics({required this.enabled, super.parent});
+
+  final bool Function() enabled;
+
+  @override
+  _FollowLatestScrollPhysics applyTo(ScrollPhysics? ancestor) =>
+      _FollowLatestScrollPhysics(
+        enabled: enabled,
+        parent: buildParent(ancestor),
+      );
+
+  @override
+  double adjustPositionForNewDimensions({
+    required ScrollMetrics oldPosition,
+    required ScrollMetrics newPosition,
+    required bool isScrolling,
+    required double velocity,
+  }) => enabled()
+      ? newPosition.maxScrollExtent
+      : super.adjustPositionForNewDimensions(
+          oldPosition: oldPosition,
+          newPosition: newPosition,
+          isScrolling: isScrolling,
+          velocity: velocity,
+        );
+}
+
 class _SearchResultRow extends ConsumerStatefulWidget {
   final LogEntry entry;
-  final ValueChanged<BuildContext>? onTailBuilt;
   final ValueChanged<_SearchResultRowState> onRowBuilt;
   final ValueChanged<_SearchResultRowState> onRowDisposed;
   final int generation;
@@ -339,7 +326,6 @@ class _SearchResultRow extends ConsumerStatefulWidget {
   const _SearchResultRow({
     super.key,
     required this.entry,
-    this.onTailBuilt,
     required this.generation,
     required this.onRowBuilt,
     required this.onRowDisposed,
@@ -447,7 +433,6 @@ class _SearchResultRowState extends ConsumerState<_SearchResultRow> {
 
   @override
   Widget build(BuildContext context) {
-    widget.onTailBuilt?.call(context);
     widget.onRowBuilt(this);
     final colors = Theme.of(context).colorScheme;
     final timestampStyle = widget.style.copyWith(
