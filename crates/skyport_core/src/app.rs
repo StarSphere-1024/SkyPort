@@ -390,7 +390,13 @@ impl Drop for EventSubscription {
 fn event_weight(event: &Event) -> usize {
     let error_size = |error: &CoreError| error.message.len() + 32;
     let log_size = |log: &LogDelta| {
-        log.upsert.iter().map(|r| r.data.len() + 48).sum::<usize>() + log.removed_ids.len() * 8 + 64
+        log.upsert.iter().map(|r| r.data.len() + 48).sum::<usize>()
+            + log
+                .pending_append
+                .as_ref()
+                .map_or(0, |append| append.data.len() + 24)
+            + log.removed_ids.len() * 8
+            + 64
     };
     let ports_size = |ports: &[crate::PortInfo]| {
         ports

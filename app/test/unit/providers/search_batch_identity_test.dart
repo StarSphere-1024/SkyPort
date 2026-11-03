@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skyport/providers/search_controller.dart';
@@ -62,7 +64,12 @@ void main() {
           sequence: 2,
           kind: rust.EventType.dataReceived,
           log: rust.LogDelta(
-            upsert: [fixtureRecord(pending, 'ERROR')],
+            upsert: [],
+            pendingAppend: rust.PendingAppend(
+              timestampMs: 0,
+              offset: 0,
+              data: Uint8List.fromList('ERROR'.codeUnits),
+            ),
             removedIds: [],
             earliestId: 1,
             totalBytes: 5,

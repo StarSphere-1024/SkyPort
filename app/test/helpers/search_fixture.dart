@@ -71,9 +71,24 @@ class SearchFixtureController extends UiController {
     List<int> removed = const [],
     int? sequence,
   }) {
+    final pending = records.where((record) => record.id == 0xFFFFFFFFFFFFFFFF);
+    final pendingRecord = pending.lastOrNull;
     final delta = rust.LogDelta(
-      upsert: records,
-      removedIds: removed,
+      upsert: records
+          .where((record) => record.id != 0xFFFFFFFFFFFFFFFF)
+          .toList(),
+      pendingAppend: pendingRecord == null
+          ? null
+          : rust.PendingAppend(
+              timestampMs: pendingRecord.timestampMs,
+              offset: 0,
+              data: pendingRecord.data,
+            ),
+      removedIds: [
+        ...removed,
+        if (pendingRecord != null && !removed.contains(0xFFFFFFFFFFFFFFFF))
+          0xFFFFFFFFFFFFFFFF,
+      ],
       earliestId: 0,
       totalBytes: 1000,
       trimmedBytes: 0,

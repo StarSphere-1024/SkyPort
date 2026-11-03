@@ -7,7 +7,7 @@ import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `dispatch`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 Future<CreateCoreReply> createCore({
   required String dataDirectory,
@@ -743,6 +743,7 @@ class LegacyConfig {
 
 class LogDelta {
   final List<LogRecord> upsert;
+  final PendingAppend? pendingAppend;
   final List<int> removedIds;
   final int earliestId;
   final int totalBytes;
@@ -752,6 +753,7 @@ class LogDelta {
 
   const LogDelta({
     required this.upsert,
+    this.pendingAppend,
     required this.removedIds,
     required this.earliestId,
     required this.totalBytes,
@@ -763,6 +765,7 @@ class LogDelta {
   @override
   int get hashCode =>
       upsert.hashCode ^
+      pendingAppend.hashCode ^
       removedIds.hashCode ^
       earliestId.hashCode ^
       totalBytes.hashCode ^
@@ -776,6 +779,7 @@ class LogDelta {
       other is LogDelta &&
           runtimeType == other.runtimeType &&
           upsert == other.upsert &&
+          pendingAppend == other.pendingAppend &&
           removedIds == other.removedIds &&
           earliestId == other.earliestId &&
           totalBytes == other.totalBytes &&
@@ -857,6 +861,30 @@ class LogSnapshot {
 enum Newline { none, lf, cr, crLf }
 
 enum Parity { none, odd, even }
+
+class PendingAppend {
+  final int timestampMs;
+  final int offset;
+  final Uint8List data;
+
+  const PendingAppend({
+    required this.timestampMs,
+    required this.offset,
+    required this.data,
+  });
+
+  @override
+  int get hashCode => timestampMs.hashCode ^ offset.hashCode ^ data.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PendingAppend &&
+          runtimeType == other.runtimeType &&
+          timestampMs == other.timestampMs &&
+          offset == other.offset &&
+          data == other.data;
+}
 
 class PortInfo {
   final String portName;

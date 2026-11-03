@@ -38,9 +38,11 @@ pub struct SearchSeekReply {
     pub wrapped: bool,
     pub error: Option<CoreError>,
 }
+// Preserve the core's u64 ID bit pattern: Dart int represents the pending
+// u64::MAX sentinel as -1, whereas unsigned BigInt.toInt() would clamp it.
 #[derive(Clone, Debug)]
 pub struct SearchHit {
-    pub record_id: u64,
+    pub record_id: i64,
     pub timestamp_ms: i64,
     pub source_length: u64,
     pub index: u64,
@@ -48,8 +50,8 @@ pub struct SearchHit {
 #[derive(Clone, Debug)]
 pub struct SearchSnapshotInfo {
     pub sequence: u64,
-    pub first_record_id: Option<u64>,
-    pub last_record_id: Option<u64>,
+    pub first_record_id: Option<i64>,
+    pub last_record_id: Option<i64>,
     pub pending: Option<SearchHit>,
 }
 #[derive(Clone, Copy, Debug)]
@@ -59,7 +61,7 @@ pub struct SearchRange {
 }
 #[derive(Clone, Debug)]
 pub struct SearchRecordView {
-    pub record_id: u64,
+    pub record_id: i64,
     pub timestamp_ms: i64,
     pub source_length: u64,
     pub start_offset: u64,
@@ -83,7 +85,7 @@ impl From<SearchOptions> for core::SearchOptions {
 impl From<core::SearchHit> for SearchHit {
     fn from(value: core::SearchHit) -> Self {
         Self {
-            record_id: value.record_id,
+            record_id: value.record_id as i64,
             timestamp_ms: value.timestamp_ms,
             source_length: value.source_length,
             index: value.index,
@@ -94,8 +96,8 @@ impl From<core::SearchSnapshotInfo> for SearchSnapshotInfo {
     fn from(value: core::SearchSnapshotInfo) -> Self {
         Self {
             sequence: value.sequence,
-            first_record_id: value.first_record_id,
-            last_record_id: value.last_record_id,
+            first_record_id: value.first_record_id.map(|id| id as i64),
+            last_record_id: value.last_record_id.map(|id| id as i64),
             pending: value.pending.map(Into::into),
         }
     }
@@ -111,7 +113,7 @@ impl From<core::SearchRange> for SearchRange {
 impl From<core::SearchRecordView> for SearchRecordView {
     fn from(value: core::SearchRecordView) -> Self {
         Self {
-            record_id: value.record_id,
+            record_id: value.record_id as i64,
             timestamp_ms: value.timestamp_ms,
             source_length: value.source_length,
             start_offset: value.start_offset,
@@ -312,7 +314,7 @@ pub enum Direction {
 }
 #[derive(Clone, Debug)]
 pub struct LogRecord {
-    pub id: u64,
+    pub id: i64,
     pub timestamp_ms: i64,
     pub direction: Direction,
     pub data: Vec<u8>,
@@ -327,10 +329,17 @@ pub struct LogSnapshot {
     pub incomplete: bool,
 }
 #[derive(Clone, Debug)]
+pub struct PendingAppend {
+    pub timestamp_ms: i64,
+    pub offset: u64,
+    pub data: Vec<u8>,
+}
+#[derive(Clone, Debug)]
 pub struct LogDelta {
     pub upsert: Vec<LogRecord>,
-    pub removed_ids: Vec<u64>,
-    pub earliest_id: u64,
+    pub pending_append: Option<PendingAppend>,
+    pub removed_ids: Vec<i64>,
+    pub earliest_id: i64,
     pub total_bytes: u64,
     pub trimmed_bytes: u64,
     pub trimmed_records: u64,
@@ -656,7 +665,7 @@ impl From<core::logging::Direction> for Direction {
 impl From<core::LogRecord> for LogRecord {
     fn from(value: core::LogRecord) -> Self {
         Self {
-            id: value.id,
+            id: value.id as i64,
             timestamp_ms: value.timestamp_ms,
             direction: value.direction.into(),
             data: value.data,
@@ -675,12 +684,22 @@ impl From<core::LogSnapshot> for LogSnapshot {
         }
     }
 }
+impl From<core::PendingAppend> for PendingAppend {
+    fn from(value: core::PendingAppend) -> Self {
+        Self {
+            timestamp_ms: value.timestamp_ms,
+            offset: value.offset,
+            data: value.data,
+        }
+    }
+}
 impl From<core::LogDelta> for LogDelta {
     fn from(value: core::LogDelta) -> Self {
         Self {
             upsert: value.upsert.into_iter().map(Into::into).collect(),
-            removed_ids: value.removed_ids,
-            earliest_id: value.earliest_id,
+            pending_append: value.pending_append.map(Into::into),
+            removed_ids: value.removed_ids.into_iter().map(|id| id as i64).collect(),
+            earliest_id: value.earliest_id as i64,
             total_bytes: value.total_bytes,
             trimmed_bytes: value.trimmed_bytes,
             trimmed_records: value.trimmed_records,
@@ -884,10 +903,10 @@ pub fn search_match(search: &SearchHandle, index: u64) -> SearchMatchReply {
 }
 pub fn search_record(
     search: &SearchHandle,
-    record_id: u64,
+    record_id: i64,
     focus_index: Option<u64>,
 ) -> SearchRecordReply {
-    match search.0.search_record(record_id, focus_index) {
+    match search.0.search_record(record_id as u64, focus_index) {
         Ok(record) => SearchRecordReply {
             record: record.map(Into::into),
             error: None,
@@ -900,11 +919,11 @@ pub fn search_record(
 }
 pub fn search_seek(
     search: &SearchHandle,
-    record_id: u64,
+    record_id: i64,
     offset: u64,
     backwards: bool,
 ) -> SearchSeekReply {
-    match search.0.search_seek(record_id, offset, backwards) {
+    match search.0.search_seek(record_id as u64, offset, backwards) {
         Ok(value) => SearchSeekReply {
             hit: value.hit.map(Into::into),
             pending: value.pending,

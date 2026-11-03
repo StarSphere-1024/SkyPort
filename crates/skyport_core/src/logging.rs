@@ -31,6 +31,13 @@ pub struct LogSnapshot {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct PendingAppend {
+    pub timestamp_ms: i64,
+    pub offset: u64,
+    pub data: Vec<u8>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct LogDelta {
     pub upsert: Vec<LogRecord>,
     pub removed_ids: Vec<u64>,
@@ -39,6 +46,7 @@ pub struct LogDelta {
     pub trimmed_bytes: u64,
     pub trimmed_records: u64,
     pub incomplete: bool,
+    pub pending_append: Option<PendingAppend>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -136,19 +144,27 @@ impl LogStore {
             changed.push(self.finish_pending(timestamp_ms));
             start = index + 1;
         }
+        let mut pending_append = None;
         if start < data.len() {
+            let offset = self.pending_len();
             self.append_pending(&data[start..], timestamp_ms);
             if self.pending_len() > MAX_PENDING_BYTES {
                 if let Some(id) = self.pending_id {
                     removed.push(id);
                 }
                 changed.push(self.finish_pending(timestamp_ms));
-            } else if let Some(record) = self.pending_record() {
-                changed.push(record);
+            } else if let Some(id) = self.pending_id {
+                let timestamp_ms = self.pending_timestamp_ms.unwrap_or(timestamp_ms);
+                debug_assert_eq!(id, u64::MAX);
+                pending_append = Some(PendingAppend {
+                    timestamp_ms,
+                    offset: offset as u64,
+                    data: data[start..].to_vec(),
+                });
             }
         }
         removed.extend(self.trim());
-        self.delta(changed, removed)
+        self.delta(changed, removed, pending_append)
     }
 
     pub fn sent(&mut self, data: &[u8], timestamp_ms: i64) -> LogDelta {
@@ -168,7 +184,7 @@ impl LogStore {
             self.records.push_back(record.clone());
         }
         let removed = self.trim();
-        self.delta(vec![record.owned()], removed)
+        self.delta(vec![record.owned()], removed, None)
     }
 
     pub fn clear(&mut self) -> LogDelta {
@@ -180,18 +196,18 @@ impl LogStore {
         self.incomplete = false;
         self.pending_id = None;
         self.pending_timestamp_ms = None;
-        self.delta(Vec::new(), removed)
+        self.delta(Vec::new(), removed, None)
     }
 
     pub fn set_capacity(&mut self, capacity: u64) -> LogDelta {
         self.capacity = capacity;
         let removed = self.trim();
-        self.delta(Vec::new(), removed)
+        self.delta(Vec::new(), removed, None)
     }
 
     pub fn mark_incomplete(&mut self) -> LogDelta {
         self.incomplete = true;
-        self.delta(Vec::new(), Vec::new())
+        self.delta(Vec::new(), Vec::new(), None)
     }
     pub(crate) fn mark_incomplete_if_pending(&mut self) -> Option<LogDelta> {
         self.pending_id.map(|_| self.mark_incomplete())
@@ -285,12 +301,6 @@ impl LogStore {
             }
         }
     }
-    fn pending_record(&self) -> Option<LogRecord> {
-        self.records
-            .back()
-            .filter(|r| r.pending)
-            .map(StoredRecord::owned)
-    }
     fn finish_pending(&mut self, timestamp_ms: i64) -> LogRecord {
         if let Some(id) = self.pending_id.take() {
             let mut record = self.records.pop_back().expect("pending record exists");
@@ -335,13 +345,18 @@ impl LogStore {
         }
         removed
     }
-    fn delta(&self, mut upsert: Vec<LogRecord>, mut removed_ids: Vec<u64>) -> LogDelta {
+    fn delta(
+        &self,
+        mut upsert: Vec<LogRecord>,
+        mut removed_ids: Vec<u64>,
+        mut pending_append: Option<PendingAppend>,
+    ) -> LogDelta {
         if !removed_ids.is_empty() {
             removed_ids.sort_unstable();
-            upsert.retain(|record| {
-                (record.id == u64::MAX && self.pending_id == Some(u64::MAX))
-                    || removed_ids.binary_search(&record.id).is_err()
-            });
+            upsert.retain(|record| removed_ids.binary_search(&record.id).is_err());
+        }
+        if self.pending_id != Some(u64::MAX) {
+            pending_append = None;
         }
         let earliest_id = self
             .records
@@ -356,6 +371,7 @@ impl LogStore {
             trimmed_bytes: self.trimmed_bytes,
             trimmed_records: self.trimmed_records,
             incomplete: self.incomplete,
+            pending_append,
         }
     }
 }

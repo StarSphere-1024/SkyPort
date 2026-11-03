@@ -163,6 +163,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Parity dco_decode_box_autoadd_parity(dynamic raw);
 
   @protected
+  PendingAppend dco_decode_box_autoadd_pending_append(dynamic raw);
+
+  @protected
   SearchHit dco_decode_box_autoadd_search_hit(dynamic raw);
 
   @protected
@@ -244,7 +247,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LegacyConfig dco_decode_legacy_config(dynamic raw);
 
   @protected
-  List<int> dco_decode_list_CastedPrimitive_u_64(dynamic raw);
+  List<int> dco_decode_list_CastedPrimitive_i_64(dynamic raw);
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
@@ -334,6 +337,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Parity? dco_decode_opt_box_autoadd_parity(dynamic raw);
 
   @protected
+  PendingAppend? dco_decode_opt_box_autoadd_pending_append(dynamic raw);
+
+  @protected
   SearchHit? dco_decode_opt_box_autoadd_search_hit(dynamic raw);
 
   @protected
@@ -370,6 +376,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Parity dco_decode_parity(dynamic raw);
+
+  @protected
+  PendingAppend dco_decode_pending_append(dynamic raw);
 
   @protected
   PortInfo dco_decode_port_info(dynamic raw);
@@ -571,6 +580,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Parity sse_decode_box_autoadd_parity(SseDeserializer deserializer);
 
   @protected
+  PendingAppend sse_decode_box_autoadd_pending_append(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SearchHit sse_decode_box_autoadd_search_hit(SseDeserializer deserializer);
 
   @protected
@@ -660,7 +674,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LegacyConfig sse_decode_legacy_config(SseDeserializer deserializer);
 
   @protected
-  List<int> sse_decode_list_CastedPrimitive_u_64(SseDeserializer deserializer);
+  List<int> sse_decode_list_CastedPrimitive_i_64(SseDeserializer deserializer);
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
@@ -760,6 +774,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Parity? sse_decode_opt_box_autoadd_parity(SseDeserializer deserializer);
 
   @protected
+  PendingAppend? sse_decode_opt_box_autoadd_pending_append(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SearchHit? sse_decode_opt_box_autoadd_search_hit(
     SseDeserializer deserializer,
   );
@@ -804,6 +823,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Parity sse_decode_parity(SseDeserializer deserializer);
+
+  @protected
+  PendingAppend sse_decode_pending_append(SseDeserializer deserializer);
 
   @protected
   PortInfo sse_decode_port_info(SseDeserializer deserializer);
@@ -1047,6 +1069,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_parity(Parity self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_pending_append(
+    PendingAppend self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_search_hit(
     SearchHit self,
     SseSerializer serializer,
@@ -1152,7 +1180,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_legacy_config(LegacyConfig self, SseSerializer serializer);
 
   @protected
-  void sse_encode_list_CastedPrimitive_u_64(
+  void sse_encode_list_CastedPrimitive_i_64(
     List<int> self,
     SseSerializer serializer,
   );
@@ -1284,6 +1312,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_pending_append(
+    PendingAppend? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_search_hit(
     SearchHit? self,
     SseSerializer serializer,
@@ -1339,6 +1373,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_parity(Parity self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pending_append(PendingAppend self, SseSerializer serializer);
 
   @protected
   void sse_encode_port_info(PortInfo self, SseSerializer serializer);

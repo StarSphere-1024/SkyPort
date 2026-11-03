@@ -260,24 +260,56 @@ class UiState {
 
     final upsert = <int, rust.LogRecord>{};
     final removed = <int>{};
+    final appendBytes = BytesBuilder(copy: false);
+    int? appendOffset;
+    int? appendTimestamp;
+    var pendingReset = false;
     for (final delta in deltas) {
       for (final id in delta.removedIds) {
         upsert.remove(id);
         removed.add(id);
+        if (id == 0xFFFFFFFFFFFFFFFF) {
+          appendBytes.clear();
+          appendOffset = null;
+          appendTimestamp = null;
+          pendingReset = true;
+        }
       }
       for (final record in delta.upsert) {
-        // Preserve removal before reinsertion: a recycled pending ID is a new
-        // record even when its timestamp and bytes equal the previous one.
         upsert[record.id] = record;
+      }
+      final append = delta.pendingAppend;
+      if (append != null) {
+        final existing = pendingReset ? null : _existingPending();
+        final expectedOffset = appendOffset == null
+            ? (existing?.data.length ?? 0)
+            : appendOffset + appendBytes.length;
+        final expectedTimestamp =
+            appendTimestamp ?? existing?.timestamp.millisecondsSinceEpoch;
+        if (append.offset != expectedOffset ||
+            (expectedTimestamp != null &&
+                append.timestampMs != expectedTimestamp)) {
+          throw StateError('Inconsistent pending log append');
+        }
+        appendOffset ??= append.offset;
+        appendTimestamp ??= append.timestampMs;
+        appendBytes.add(append.data);
+        pendingReset = false;
       }
     }
     final last = deltas.last;
+    final pendingAppend = appendOffset == null
+        ? null
+        : rust.PendingAppend(
+            timestampMs: appendTimestamp!,
+            offset: appendOffset,
+            data: appendBytes.takeBytes(),
+          );
     return next.withLogDelta(
       rust.LogDelta(
         upsert: [
           for (final record in upsert.values)
-            if (record.id == 0xFFFFFFFFFFFFFFFF || record.id >= last.earliestId)
-              record,
+            if (record.id >= last.earliestId) record,
         ],
         removedIds: removed.toList(),
         earliestId: last.earliestId,
@@ -285,6 +317,7 @@ class UiState {
         trimmedBytes: last.trimmedBytes,
         trimmedRecords: last.trimmedRecords,
         incomplete: last.incomplete,
+        pendingAppend: pendingAppend,
       ),
     );
   }
@@ -321,6 +354,37 @@ class UiState {
       } else {
         chunks.insert(index, chunk);
       }
+    }
+    final append = delta.pendingAppend;
+    if (append != null &&
+        (chunks.isEmpty || chunks.last.id != 0xFFFFFFFFFFFFFFFF)) {
+      if (append.offset != 0) {
+        throw StateError('Inconsistent pending log append');
+      }
+      final entry = LogEntry(
+        Uint8List.fromList(append.data),
+        LogEntryType.received,
+        DateTime.fromMillisecondsSinceEpoch(append.timestampMs),
+        id: 0xFFFFFFFFFFFFFFFF,
+      );
+      chunks.add(LogChunk(entries: [entry], id: entry.id));
+    } else if (append != null) {
+      final index = chunks.length - 1;
+      final old = chunks[index].entries.first;
+      if (append.offset != old.data.length ||
+          append.timestampMs != old.timestamp.millisecondsSinceEpoch) {
+        throw StateError('Inconsistent pending log append');
+      }
+      final data = Uint8List(old.data.length + append.data.length)
+        ..setRange(0, old.data.length, old.data)
+        ..setRange(
+          old.data.length,
+          old.data.length + append.data.length,
+          append.data,
+        );
+      final entry = LogEntry(data, old.type, old.timestamp, id: old.id);
+      LogEntry.evictCachedData([old]);
+      chunks[index] = LogChunk(entries: [entry], id: entry.id);
     }
     return _copy(
       sequence: sequence ?? this.sequence,
@@ -406,6 +470,13 @@ class UiState {
           parity: _parity(config.parity),
           stopBits: config.stopBits,
         );
+
+  LogEntry? _existingPending() {
+    final chunks = logs.chunks;
+    return chunks.isNotEmpty && chunks.last.id == 0xFFFFFFFFFFFFFFFF
+        ? chunks.last.entries.first
+        : null;
+  }
 
   static LogChunk _chunk(rust.LogRecord record) {
     final entry = LogEntry(

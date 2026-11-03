@@ -54,6 +54,14 @@ def main() -> None:
                                     temporary_link = symlink.with_suffix(".new")
                                     os.symlink(os.ttyname(current_slave), temporary_link)
                                     temporary_link.replace(symlink)
+                                elif command.startswith("pending-"):
+                                    fragments = {
+                                        "pending-prefix": b"\x00\xe4",
+                                        "pending-tail": b"\xb8\xad\r",
+                                        "pending-complete": b"\n\xff",
+                                        "pending-finish": b"\n",
+                                    }
+                                    os.write(current_master, fragments[command])
                                 elif command == "search-anchor-data":
                                     os.write(current_master, b"".join(
                                         f"ANCHOR-{index:03d} reading position\r\n".encode()

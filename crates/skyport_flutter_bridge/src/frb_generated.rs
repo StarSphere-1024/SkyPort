@@ -722,7 +722,7 @@ fn wire__crate__api__search_record_impl(
             let api_search = <RustOpaqueMoi<
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SearchHandle>,
             >>::sse_decode(&mut deserializer);
-            let api_record_id = <u64>::sse_decode(&mut deserializer);
+            let api_record_id = <i64>::sse_decode(&mut deserializer);
             let api_focus_index = <Option<u64>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
@@ -779,7 +779,7 @@ fn wire__crate__api__search_seek_impl(
             let api_search = <RustOpaqueMoi<
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SearchHandle>,
             >>::sse_decode(&mut deserializer);
-            let api_record_id = <u64>::sse_decode(&mut deserializer);
+            let api_record_id = <i64>::sse_decode(&mut deserializer);
             let api_offset = <u64>::sse_decode(&mut deserializer);
             let api_backwards = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
@@ -1907,13 +1907,13 @@ impl SseDecode for crate::api::LegacyConfig {
     }
 }
 
-impl SseDecode for Vec<u64> {
+impl SseDecode for Vec<i64> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<u64>::sse_decode(deserializer));
+            ans_.push(<i64>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -1995,14 +1995,16 @@ impl SseDecode for crate::api::LogDelta {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_upsert = <Vec<crate::api::LogRecord>>::sse_decode(deserializer);
-        let mut var_removedIds = <Vec<u64>>::sse_decode(deserializer);
-        let mut var_earliestId = <u64>::sse_decode(deserializer);
+        let mut var_pendingAppend = <Option<crate::api::PendingAppend>>::sse_decode(deserializer);
+        let mut var_removedIds = <Vec<i64>>::sse_decode(deserializer);
+        let mut var_earliestId = <i64>::sse_decode(deserializer);
         let mut var_totalBytes = <u64>::sse_decode(deserializer);
         let mut var_trimmedBytes = <u64>::sse_decode(deserializer);
         let mut var_trimmedRecords = <u64>::sse_decode(deserializer);
         let mut var_incomplete = <bool>::sse_decode(deserializer);
         return crate::api::LogDelta {
             upsert: var_upsert,
+            pending_append: var_pendingAppend,
             removed_ids: var_removedIds,
             earliest_id: var_earliestId,
             total_bytes: var_totalBytes,
@@ -2016,7 +2018,7 @@ impl SseDecode for crate::api::LogDelta {
 impl SseDecode for crate::api::LogRecord {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_id = <u64>::sse_decode(deserializer);
+        let mut var_id = <i64>::sse_decode(deserializer);
         let mut var_timestampMs = <i64>::sse_decode(deserializer);
         let mut var_direction = <crate::api::Direction>::sse_decode(deserializer);
         let mut var_data = <Vec<u8>>::sse_decode(deserializer);
@@ -2239,6 +2241,17 @@ impl SseDecode for Option<crate::api::Parity> {
     }
 }
 
+impl SseDecode for Option<crate::api::PendingAppend> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::PendingAppend>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::api::SearchHit> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2373,6 +2386,20 @@ impl SseDecode for crate::api::Parity {
     }
 }
 
+impl SseDecode for crate::api::PendingAppend {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_timestampMs = <i64>::sse_decode(deserializer);
+        let mut var_offset = <u64>::sse_decode(deserializer);
+        let mut var_data = <Vec<u8>>::sse_decode(deserializer);
+        return crate::api::PendingAppend {
+            timestamp_ms: var_timestampMs,
+            offset: var_offset,
+            data: var_data,
+        };
+    }
+}
+
 impl SseDecode for crate::api::PortInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2396,7 +2423,7 @@ impl SseDecode for crate::api::PortInfo {
 impl SseDecode for crate::api::SearchHit {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_recordId = <u64>::sse_decode(deserializer);
+        let mut var_recordId = <i64>::sse_decode(deserializer);
         let mut var_timestampMs = <i64>::sse_decode(deserializer);
         let mut var_sourceLength = <u64>::sse_decode(deserializer);
         let mut var_index = <u64>::sse_decode(deserializer);
@@ -2480,7 +2507,7 @@ impl SseDecode for crate::api::SearchRecordReply {
 impl SseDecode for crate::api::SearchRecordView {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_recordId = <u64>::sse_decode(deserializer);
+        let mut var_recordId = <i64>::sse_decode(deserializer);
         let mut var_timestampMs = <i64>::sse_decode(deserializer);
         let mut var_sourceLength = <u64>::sse_decode(deserializer);
         let mut var_startOffset = <u64>::sse_decode(deserializer);
@@ -2523,8 +2550,8 @@ impl SseDecode for crate::api::SearchSnapshotInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_sequence = <u64>::sse_decode(deserializer);
-        let mut var_firstRecordId = <Option<u64>>::sse_decode(deserializer);
-        let mut var_lastRecordId = <Option<u64>>::sse_decode(deserializer);
+        let mut var_firstRecordId = <Option<i64>>::sse_decode(deserializer);
+        let mut var_lastRecordId = <Option<i64>>::sse_decode(deserializer);
         let mut var_pending = <Option<crate::api::SearchHit>>::sse_decode(deserializer);
         return crate::api::SearchSnapshotInfo {
             sequence: var_sequence,
@@ -3164,6 +3191,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::LogDelta {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.upsert.into_into_dart().into_dart(),
+            self.pending_append.into_into_dart().into_dart(),
             self.removed_ids.into_into_dart().into_dart(),
             self.earliest_id.into_into_dart().into_dart(),
             self.total_bytes.into_into_dart().into_dart(),
@@ -3250,6 +3278,23 @@ impl flutter_rust_bridge::IntoDart for crate::api::Parity {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::Parity {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::Parity> for crate::api::Parity {
     fn into_into_dart(self) -> crate::api::Parity {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::PendingAppend {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.timestamp_ms.into_into_dart().into_dart(),
+            self.offset.into_into_dart().into_dart(),
+            self.data.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::PendingAppend {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::PendingAppend> for crate::api::PendingAppend {
+    fn into_into_dart(self) -> crate::api::PendingAppend {
         self
     }
 }
@@ -3935,12 +3980,12 @@ impl SseEncode for crate::api::LegacyConfig {
     }
 }
 
-impl SseEncode for Vec<u64> {
+impl SseEncode for Vec<i64> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <u64>::sse_encode(item, serializer);
+            <i64>::sse_encode(item, serializer);
         }
     }
 }
@@ -4009,8 +4054,9 @@ impl SseEncode for crate::api::LogDelta {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <Vec<crate::api::LogRecord>>::sse_encode(self.upsert, serializer);
-        <Vec<u64>>::sse_encode(self.removed_ids, serializer);
-        <u64>::sse_encode(self.earliest_id, serializer);
+        <Option<crate::api::PendingAppend>>::sse_encode(self.pending_append, serializer);
+        <Vec<i64>>::sse_encode(self.removed_ids, serializer);
+        <i64>::sse_encode(self.earliest_id, serializer);
         <u64>::sse_encode(self.total_bytes, serializer);
         <u64>::sse_encode(self.trimmed_bytes, serializer);
         <u64>::sse_encode(self.trimmed_records, serializer);
@@ -4021,7 +4067,7 @@ impl SseEncode for crate::api::LogDelta {
 impl SseEncode for crate::api::LogRecord {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u64>::sse_encode(self.id, serializer);
+        <i64>::sse_encode(self.id, serializer);
         <i64>::sse_encode(self.timestamp_ms, serializer);
         <crate::api::Direction>::sse_encode(self.direction, serializer);
         <Vec<u8>>::sse_encode(self.data, serializer);
@@ -4218,6 +4264,16 @@ impl SseEncode for Option<crate::api::Parity> {
     }
 }
 
+impl SseEncode for Option<crate::api::PendingAppend> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::PendingAppend>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::api::SearchHit> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -4345,6 +4401,15 @@ impl SseEncode for crate::api::Parity {
     }
 }
 
+impl SseEncode for crate::api::PendingAppend {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i64>::sse_encode(self.timestamp_ms, serializer);
+        <u64>::sse_encode(self.offset, serializer);
+        <Vec<u8>>::sse_encode(self.data, serializer);
+    }
+}
+
 impl SseEncode for crate::api::PortInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -4360,7 +4425,7 @@ impl SseEncode for crate::api::PortInfo {
 impl SseEncode for crate::api::SearchHit {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u64>::sse_encode(self.record_id, serializer);
+        <i64>::sse_encode(self.record_id, serializer);
         <i64>::sse_encode(self.timestamp_ms, serializer);
         <u64>::sse_encode(self.source_length, serializer);
         <u64>::sse_encode(self.index, serializer);
@@ -4414,7 +4479,7 @@ impl SseEncode for crate::api::SearchRecordReply {
 impl SseEncode for crate::api::SearchRecordView {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u64>::sse_encode(self.record_id, serializer);
+        <i64>::sse_encode(self.record_id, serializer);
         <i64>::sse_encode(self.timestamp_ms, serializer);
         <u64>::sse_encode(self.source_length, serializer);
         <u64>::sse_encode(self.start_offset, serializer);
@@ -4440,8 +4505,8 @@ impl SseEncode for crate::api::SearchSnapshotInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u64>::sse_encode(self.sequence, serializer);
-        <Option<u64>>::sse_encode(self.first_record_id, serializer);
-        <Option<u64>>::sse_encode(self.last_record_id, serializer);
+        <Option<i64>>::sse_encode(self.first_record_id, serializer);
+        <Option<i64>>::sse_encode(self.last_record_id, serializer);
         <Option<crate::api::SearchHit>>::sse_encode(self.pending, serializer);
     }
 }

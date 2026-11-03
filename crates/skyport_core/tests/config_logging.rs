@@ -312,8 +312,11 @@ fn flow_control_update_is_not_applied_when_atomic_save_fails() {
 fn receive_rows_keep_completion_order_across_send_and_split_crlf() {
     let mut log = LogStore::new(1024);
     let pending = log.receive(b"part", 10);
-    assert_eq!(pending.upsert[0].timestamp_ms, 10);
-    assert!(pending.upsert[0].pending);
+    assert!(pending.upsert.is_empty());
+    let append = pending.pending_append.as_ref().unwrap();
+    assert_eq!(append.timestamp_ms, 10);
+    assert_eq!(append.offset, 0);
+    assert_eq!(append.data, b"part");
     let sent = log.sent(b"tx", 20);
     assert_eq!(sent.upsert[0].direction, Direction::Sent);
     assert_eq!(sent.upsert[0].id, log.snapshot().records[0].id);
@@ -360,10 +363,12 @@ fn delta_replaces_pending_after_completion_while_tx_precedes_it() {
     let mut cache = log.snapshot().records;
     let delta = log.receive(b"\npart", 30);
     assert_eq!(delta.removed_ids, vec![u64::MAX]);
-    assert!(delta
-        .upsert
-        .iter()
-        .any(|record| record.id == u64::MAX && record.pending));
+    assert_eq!(delta.upsert.len(), 1);
+    assert_eq!(delta.upsert[0].data, b"old");
+    let append = delta.pending_append.as_ref().unwrap();
+    assert_eq!(append.timestamp_ms, 30);
+    assert_eq!(append.offset, 0);
+    assert_eq!(append.data, b"part");
     cache.retain(|record| !delta.removed_ids.contains(&record.id));
     cache.retain(|record| record.id == u64::MAX || record.id >= delta.earliest_id);
     for record in delta.upsert {
@@ -373,8 +378,61 @@ fn delta_replaces_pending_after_completion_while_tx_precedes_it() {
             cache.push(record);
         }
     }
+    if let Some(append) = delta.pending_append {
+        assert_eq!(append.offset, 0);
+        cache.push(skyport_core::LogRecord {
+            id: u64::MAX,
+            timestamp_ms: append.timestamp_ms,
+            direction: Direction::Received,
+            data: append.data,
+            pending: true,
+        });
+    }
     cache.sort_by_key(|record| record.id);
     assert_eq!(cache, log.snapshot().records);
+}
+#[test]
+fn pending_deltas_transmit_only_new_bytes_and_finalize_exact_snapshot() {
+    let mut log = LogStore::new(1024 * 1024);
+    let fragments = [b"a".as_slice(), b"bc", b"d", b"ef"];
+    let mut transmitted = 0;
+    for (index, fragment) in fragments.iter().enumerate() {
+        let delta = log.receive(fragment, 10 + index as i64);
+        assert!(delta.upsert.is_empty());
+        let append = delta.pending_append.unwrap();
+        assert_eq!(append.timestamp_ms, 10);
+        assert_eq!(append.offset, transmitted);
+        assert_eq!(append.data, *fragment);
+        transmitted += append.data.len() as u64;
+    }
+    assert_eq!(
+        transmitted,
+        fragments.iter().map(|part| part.len()).sum::<usize>() as u64
+    );
+    assert!(log.receive(b"\r", 20).pending_append.is_some());
+    let completed = log.receive(b"\n", 21);
+    assert_eq!(completed.pending_append, None);
+    assert_eq!(completed.upsert.len(), 1);
+    assert_eq!(completed.upsert[0].data, b"abcdef");
+    assert_eq!(completed.upsert[0].timestamp_ms, 10);
+    assert_eq!(completed.upsert[0], log.snapshot().records[0]);
+}
+
+#[test]
+fn oversized_pending_is_finalized_once_and_trimmed_pending_is_not_appended() {
+    let mut log = LogStore::new(1024 * 1024);
+    let oversized = vec![b'x'; 256 * 1024 + 1];
+    let delta = log.receive(&oversized, 1);
+    assert_eq!(delta.pending_append, None);
+    assert_eq!(delta.upsert.len(), 1);
+    assert_eq!(delta.upsert[0].data, oversized);
+    assert!(!delta.upsert[0].pending);
+
+    let mut log = LogStore::new(2);
+    let delta = log.receive(b"long", 2);
+    assert_eq!(delta.pending_append, None);
+    assert!(delta.removed_ids.contains(&u64::MAX));
+    assert!(log.snapshot().records.is_empty());
 }
 
 #[test]

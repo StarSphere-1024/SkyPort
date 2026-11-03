@@ -651,7 +651,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             search,
             serializer,
           );
-          sse_encode_CastedPrimitive_u_64(recordId, serializer);
+          sse_encode_CastedPrimitive_i_64(recordId, serializer);
           sse_encode_opt_CastedPrimitive_u_64(focusIndex, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -691,7 +691,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             search,
             serializer,
           );
-          sse_encode_CastedPrimitive_u_64(recordId, serializer);
+          sse_encode_CastedPrimitive_i_64(recordId, serializer);
           sse_encode_CastedPrimitive_u_64(offset, serializer);
           sse_encode_bool(backwards, serializer);
           pdeCallFfi(
@@ -1418,6 +1418,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PendingAppend dco_decode_box_autoadd_pending_append(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_pending_append(raw);
+  }
+
+  @protected
   SearchHit dco_decode_box_autoadd_search_hit(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_search_hit(raw);
@@ -1670,9 +1676,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  List<int> dco_decode_list_CastedPrimitive_u_64(dynamic raw) {
+  List<int> dco_decode_list_CastedPrimitive_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return (raw as List<dynamic>).map(dco_decode_CastedPrimitive_u_64).toList();
+    return (raw as List<dynamic>).map(dco_decode_CastedPrimitive_i_64).toList();
   }
 
   @protected
@@ -1715,16 +1721,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   LogDelta dco_decode_log_delta(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return LogDelta(
       upsert: dco_decode_list_log_record(arr[0]),
-      removedIds: dco_decode_list_CastedPrimitive_u_64(arr[1]),
-      earliestId: dco_decode_CastedPrimitive_u_64(arr[2]),
-      totalBytes: dco_decode_CastedPrimitive_u_64(arr[3]),
-      trimmedBytes: dco_decode_CastedPrimitive_u_64(arr[4]),
-      trimmedRecords: dco_decode_CastedPrimitive_u_64(arr[5]),
-      incomplete: dco_decode_bool(arr[6]),
+      pendingAppend: dco_decode_opt_box_autoadd_pending_append(arr[1]),
+      removedIds: dco_decode_list_CastedPrimitive_i_64(arr[2]),
+      earliestId: dco_decode_CastedPrimitive_i_64(arr[3]),
+      totalBytes: dco_decode_CastedPrimitive_u_64(arr[4]),
+      trimmedBytes: dco_decode_CastedPrimitive_u_64(arr[5]),
+      trimmedRecords: dco_decode_CastedPrimitive_u_64(arr[6]),
+      incomplete: dco_decode_bool(arr[7]),
     );
   }
 
@@ -1735,7 +1742,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (arr.length != 5)
       throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return LogRecord(
-      id: dco_decode_CastedPrimitive_u_64(arr[0]),
+      id: dco_decode_CastedPrimitive_i_64(arr[0]),
       timestampMs: dco_decode_CastedPrimitive_i_64(arr[1]),
       direction: dco_decode_direction(arr[2]),
       data: dco_decode_list_prim_u_8_strict(arr[3]),
@@ -1882,6 +1889,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PendingAppend? dco_decode_opt_box_autoadd_pending_append(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_pending_append(raw);
+  }
+
+  @protected
   SearchHit? dco_decode_opt_box_autoadd_search_hit(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_search_hit(raw);
@@ -1958,6 +1971,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PendingAppend dco_decode_pending_append(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return PendingAppend(
+      timestampMs: dco_decode_CastedPrimitive_i_64(arr[0]),
+      offset: dco_decode_CastedPrimitive_u_64(arr[1]),
+      data: dco_decode_list_prim_u_8_strict(arr[2]),
+    );
+  }
+
+  @protected
   PortInfo dco_decode_port_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -1980,7 +2006,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (arr.length != 4)
       throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return SearchHit(
-      recordId: dco_decode_CastedPrimitive_u_64(arr[0]),
+      recordId: dco_decode_CastedPrimitive_i_64(arr[0]),
       timestampMs: dco_decode_CastedPrimitive_i_64(arr[1]),
       sourceLength: dco_decode_CastedPrimitive_u_64(arr[2]),
       index: dco_decode_CastedPrimitive_u_64(arr[3]),
@@ -2058,7 +2084,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (arr.length != 9)
       throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return SearchRecordView(
-      recordId: dco_decode_CastedPrimitive_u_64(arr[0]),
+      recordId: dco_decode_CastedPrimitive_i_64(arr[0]),
       timestampMs: dco_decode_CastedPrimitive_i_64(arr[1]),
       sourceLength: dco_decode_CastedPrimitive_u_64(arr[2]),
       startOffset: dco_decode_CastedPrimitive_u_64(arr[3]),
@@ -2092,8 +2118,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return SearchSnapshotInfo(
       sequence: dco_decode_CastedPrimitive_u_64(arr[0]),
-      firstRecordId: dco_decode_opt_CastedPrimitive_u_64(arr[1]),
-      lastRecordId: dco_decode_opt_CastedPrimitive_u_64(arr[2]),
+      firstRecordId: dco_decode_opt_CastedPrimitive_i_64(arr[1]),
+      lastRecordId: dco_decode_opt_CastedPrimitive_i_64(arr[2]),
       pending: dco_decode_opt_box_autoadd_search_hit(arr[3]),
     );
   }
@@ -2556,6 +2582,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PendingAppend sse_decode_box_autoadd_pending_append(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_pending_append(deserializer));
+  }
+
+  @protected
   SearchHit sse_decode_box_autoadd_search_hit(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_search_hit(deserializer));
@@ -2847,13 +2881,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  List<int> sse_decode_list_CastedPrimitive_u_64(SseDeserializer deserializer) {
+  List<int> sse_decode_list_CastedPrimitive_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     var len_ = sse_decode_i_32(deserializer);
     var ans_ = <int>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
-      ans_.add(sse_decode_CastedPrimitive_u_64(deserializer));
+      ans_.add(sse_decode_CastedPrimitive_i_64(deserializer));
     }
     return ans_;
   }
@@ -2929,14 +2963,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   LogDelta sse_decode_log_delta(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_upsert = sse_decode_list_log_record(deserializer);
-    var var_removedIds = sse_decode_list_CastedPrimitive_u_64(deserializer);
-    var var_earliestId = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_pendingAppend = sse_decode_opt_box_autoadd_pending_append(
+      deserializer,
+    );
+    var var_removedIds = sse_decode_list_CastedPrimitive_i_64(deserializer);
+    var var_earliestId = sse_decode_CastedPrimitive_i_64(deserializer);
     var var_totalBytes = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_trimmedBytes = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_trimmedRecords = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_incomplete = sse_decode_bool(deserializer);
     return LogDelta(
       upsert: var_upsert,
+      pendingAppend: var_pendingAppend,
       removedIds: var_removedIds,
       earliestId: var_earliestId,
       totalBytes: var_totalBytes,
@@ -2949,7 +2987,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   LogRecord sse_decode_log_record(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_id = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_id = sse_decode_CastedPrimitive_i_64(deserializer);
     var var_timestampMs = sse_decode_CastedPrimitive_i_64(deserializer);
     var var_direction = sse_decode_direction(deserializer);
     var var_data = sse_decode_list_prim_u_8_strict(deserializer);
@@ -3189,6 +3227,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PendingAppend? sse_decode_opt_box_autoadd_pending_append(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_pending_append(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   SearchHit? sse_decode_opt_box_autoadd_search_hit(
     SseDeserializer deserializer,
   ) {
@@ -3327,6 +3378,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PendingAppend sse_decode_pending_append(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_timestampMs = sse_decode_CastedPrimitive_i_64(deserializer);
+    var var_offset = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_data = sse_decode_list_prim_u_8_strict(deserializer);
+    return PendingAppend(
+      timestampMs: var_timestampMs,
+      offset: var_offset,
+      data: var_data,
+    );
+  }
+
+  @protected
   PortInfo sse_decode_port_info(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_portName = sse_decode_String(deserializer);
@@ -3348,7 +3412,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   SearchHit sse_decode_search_hit(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_recordId = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_recordId = sse_decode_CastedPrimitive_i_64(deserializer);
     var var_timestampMs = sse_decode_CastedPrimitive_i_64(deserializer);
     var var_sourceLength = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_index = sse_decode_CastedPrimitive_u_64(deserializer);
@@ -3421,7 +3485,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   SearchRecordView sse_decode_search_record_view(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_recordId = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_recordId = sse_decode_CastedPrimitive_i_64(deserializer);
     var var_timestampMs = sse_decode_CastedPrimitive_i_64(deserializer);
     var var_sourceLength = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_startOffset = sse_decode_CastedPrimitive_u_64(deserializer);
@@ -3464,8 +3528,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_sequence = sse_decode_CastedPrimitive_u_64(deserializer);
-    var var_firstRecordId = sse_decode_opt_CastedPrimitive_u_64(deserializer);
-    var var_lastRecordId = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_firstRecordId = sse_decode_opt_CastedPrimitive_i_64(deserializer);
+    var var_lastRecordId = sse_decode_opt_CastedPrimitive_i_64(deserializer);
     var var_pending = sse_decode_opt_box_autoadd_search_hit(deserializer);
     return SearchSnapshotInfo(
       sequence: var_sequence,
@@ -3926,6 +3990,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_pending_append(
+    PendingAppend self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_pending_append(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_search_hit(
     SearchHit self,
     SseSerializer serializer,
@@ -4159,14 +4232,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_list_CastedPrimitive_u_64(
+  void sse_encode_list_CastedPrimitive_i_64(
     List<int> self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
-      sse_encode_CastedPrimitive_u_64(item, serializer);
+      sse_encode_CastedPrimitive_i_64(item, serializer);
     }
   }
 
@@ -4238,8 +4311,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_log_delta(LogDelta self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_log_record(self.upsert, serializer);
-    sse_encode_list_CastedPrimitive_u_64(self.removedIds, serializer);
-    sse_encode_CastedPrimitive_u_64(self.earliestId, serializer);
+    sse_encode_opt_box_autoadd_pending_append(self.pendingAppend, serializer);
+    sse_encode_list_CastedPrimitive_i_64(self.removedIds, serializer);
+    sse_encode_CastedPrimitive_i_64(self.earliestId, serializer);
     sse_encode_CastedPrimitive_u_64(self.totalBytes, serializer);
     sse_encode_CastedPrimitive_u_64(self.trimmedBytes, serializer);
     sse_encode_CastedPrimitive_u_64(self.trimmedRecords, serializer);
@@ -4249,7 +4323,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_log_record(LogRecord self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_CastedPrimitive_u_64(self.id, serializer);
+    sse_encode_CastedPrimitive_i_64(self.id, serializer);
     sse_encode_CastedPrimitive_i_64(self.timestampMs, serializer);
     sse_encode_direction(self.direction, serializer);
     sse_encode_list_prim_u_8_strict(self.data, serializer);
@@ -4487,6 +4561,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_pending_append(
+    PendingAppend? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_pending_append(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_search_hit(
     SearchHit? self,
     SseSerializer serializer,
@@ -4627,6 +4714,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_pending_append(PendingAppend self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_CastedPrimitive_i_64(self.timestampMs, serializer);
+    sse_encode_CastedPrimitive_u_64(self.offset, serializer);
+    sse_encode_list_prim_u_8_strict(self.data, serializer);
+  }
+
+  @protected
   void sse_encode_port_info(PortInfo self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.portName, serializer);
@@ -4640,7 +4735,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_search_hit(SearchHit self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_CastedPrimitive_u_64(self.recordId, serializer);
+    sse_encode_CastedPrimitive_i_64(self.recordId, serializer);
     sse_encode_CastedPrimitive_i_64(self.timestampMs, serializer);
     sse_encode_CastedPrimitive_u_64(self.sourceLength, serializer);
     sse_encode_CastedPrimitive_u_64(self.index, serializer);
@@ -4700,7 +4795,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_CastedPrimitive_u_64(self.recordId, serializer);
+    sse_encode_CastedPrimitive_i_64(self.recordId, serializer);
     sse_encode_CastedPrimitive_i_64(self.timestampMs, serializer);
     sse_encode_CastedPrimitive_u_64(self.sourceLength, serializer);
     sse_encode_CastedPrimitive_u_64(self.startOffset, serializer);
@@ -4730,8 +4825,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_CastedPrimitive_u_64(self.sequence, serializer);
-    sse_encode_opt_CastedPrimitive_u_64(self.firstRecordId, serializer);
-    sse_encode_opt_CastedPrimitive_u_64(self.lastRecordId, serializer);
+    sse_encode_opt_CastedPrimitive_i_64(self.firstRecordId, serializer);
+    sse_encode_opt_CastedPrimitive_i_64(self.lastRecordId, serializer);
     sse_encode_opt_box_autoadd_search_hit(self.pending, serializer);
   }
 

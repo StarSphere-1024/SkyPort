@@ -484,6 +484,7 @@ void main() {
       expect(state.rxBytes, 0);
       expect(state.logs.chunks, isEmpty);
       expect(state.dataGap, isFalse);
+      await _exercisePendingAppends(tester, container, handle);
       await _exerciseReadingAnchor(tester, container);
 
       // Persist every selection through a real core shutdown/recreation, then
@@ -781,6 +782,100 @@ void main() {
       await tester.runAsync(() => directory.delete(recursive: true));
     }
   }, skip: !hasPtyHarness);
+}
+
+Future<void> _exercisePendingAppends(
+  WidgetTester tester,
+  ProviderContainer container,
+  rust.CoreHandle handle,
+) async {
+  const pending = 0xFFFFFFFFFFFFFFFF;
+  UiState current() => container.read(uiControllerProvider);
+  await tester.runAsync(() => _ptyControl('pending-prefix'));
+  await _until(tester, () => current().rxBytes == 2);
+  final firstFrame = current();
+  expect(firstFrame.logs.chunks.single.id, pending);
+  expect(firstFrame.logs.chunks.single.entries.single.data, [0, 0xe4]);
+
+  final subscribed = (await tester.runAsync(
+    () => rust.subscribe(handle: handle),
+  ))!;
+  expect(subscribed.error, isNull);
+  var resumed = UiState.fromSnapshot(subscribed.snapshot!);
+  expect(resumed.logs.chunks.single.id, pending);
+  try {
+    await tester.runAsync(() => _ptyControl('pending-tail'));
+    await _until(tester, () => current().rxBytes == 5);
+    await tester.runAsync(() async {
+      final deadline = DateTime.now().add(const Duration(seconds: 5));
+      while (resumed.rxBytes < 5) {
+        expect(DateTime.now().isBefore(deadline), isTrue);
+        final reply = await rust.nextEvents(
+          subscription: subscribed.subscription!,
+        );
+        expect(reply.error, isNull);
+        resumed = resumed.withEvents(reply.events);
+      }
+    });
+    expect(resumed.logs.chunks.single.entries.single.data, [
+      0,
+      0xe4,
+      0xb8,
+      0xad,
+      13,
+    ]);
+    expect(
+      current().logs.chunks.single.entries.single.data,
+      resumed.logs.chunks.single.entries.single.data,
+    );
+    expect(firstFrame.logs.chunks.single.entries.single.data, [0, 0xe4]);
+    final search = (await tester.runAsync(
+      () async => rust.startSearch(
+        handle: handle,
+        query: '中',
+        options: const rust.SearchOptions(
+          hex: false,
+          caseSensitive: true,
+          showSent: true,
+          stripAnsi: false,
+        ),
+      ),
+    ))!;
+    expect(search.error, isNull);
+    try {
+      expect(search.snapshot!.pending!.recordId, pending);
+    } finally {
+      await tester.runAsync(() => rust.cancelSearch(search: search.search!));
+    }
+  } finally {
+    await tester.runAsync(
+      () => rust.cancelSubscription(subscription: subscribed.subscription!),
+    );
+  }
+
+  await tester.runAsync(() => _ptyControl('pending-complete'));
+  await _until(tester, () => current().rxBytes == 7);
+  expect(current().logs.chunks.first.entries.single.data, [
+    0,
+    0xe4,
+    0xb8,
+    0xad,
+  ]);
+  expect(current().logs.chunks.last.id, pending);
+  expect(current().logs.chunks.last.entries.single.data, [0xff]);
+  await tester.runAsync(() => _ptyControl('pending-finish'));
+  await _until(tester, () => current().rxBytes == 8);
+  expect(
+    current().logs.chunks.map((chunk) => chunk.id),
+    isNot(contains(pending)),
+  );
+  expect(current().logs.chunks.last.entries.single.data, [0xff]);
+  expect(current().dataGap, isFalse);
+  expect(current().error, isNull);
+  await tester.runAsync(
+    () => container.read(uiControllerProvider.notifier).clearLog(),
+  );
+  await _until(tester, () => current().logs.chunks.isEmpty);
 }
 
 Future<void> _exerciseSnapshotSearch(

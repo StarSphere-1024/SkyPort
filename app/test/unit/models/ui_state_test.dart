@@ -71,8 +71,10 @@ rust.LogDelta delta(
   List<int> removed = const [],
   int earliest = 1,
   required int bytes,
+  rust.PendingAppend? pendingAppend,
 }) => rust.LogDelta(
   upsert: rows,
+  pendingAppend: pendingAppend,
   removedIds: removed,
   earliestId: earliest,
   totalBytes: bytes,
@@ -212,10 +214,17 @@ void main() {
         kind: rust.EventType.dataReceived,
         rxBytes: 2,
         lastRxBytes: 2,
-        log: delta([
-          row(1, [1]),
-          row(pending, [2], pending: true),
-        ], bytes: 2),
+        log: delta(
+          [
+            row(1, [1]),
+          ],
+          bytes: 2,
+          pendingAppend: rust.PendingAppend(
+            timestampMs: 1700000000000,
+            offset: 0,
+            data: Uint8List.fromList([2]),
+          ),
+        ),
       ),
       rust.Event(
         sequence: 2,
@@ -233,11 +242,15 @@ void main() {
         log: delta(
           [
             row(3, [2, 4]),
-            row(pending, [5], pending: true),
           ],
           removed: [pending],
           earliest: 2,
           bytes: 4,
+          pendingAppend: rust.PendingAppend(
+            timestampMs: 1700000000000,
+            offset: 0,
+            data: Uint8List.fromList([5]),
+          ),
         ),
       ),
       rust.Event(
@@ -253,10 +266,14 @@ void main() {
         log: delta(
           [
             row(4, [0, 255]),
-            row(pending, [254], pending: true),
           ],
           earliest: 4,
           bytes: 3,
+          pendingAppend: rust.PendingAppend(
+            timestampMs: 1700000000000,
+            offset: 0,
+            data: Uint8List.fromList([254]),
+          ),
         ),
       ),
     ]);
@@ -275,9 +292,15 @@ void main() {
   test('batched appends preserve pending and trimmed row update indices', () {
     const pending = 0xFFFFFFFFFFFFFFFF;
     final initial = emptyState().withLogDelta(
-      delta([
-        row(pending, [255], pending: true),
-      ], bytes: 1),
+      delta(
+        [],
+        bytes: 1,
+        pendingAppend: rust.PendingAppend(
+          timestampMs: 1700000000000,
+          offset: 0,
+          data: Uint8List.fromList([255]),
+        ),
+      ),
     );
     final appended = initial.withLogDelta(
       delta([
@@ -285,10 +308,17 @@ void main() {
       ], bytes: 101),
     );
     final updated = appended.withLogDelta(
-      delta([
-        row(50, [0, 128]),
-        row(pending, [254], pending: true),
-      ], bytes: 102),
+      delta(
+        [
+          row(50, [0, 128]),
+        ],
+        bytes: 103,
+        pendingAppend: rust.PendingAppend(
+          timestampMs: 1700000000000,
+          offset: 1,
+          data: Uint8List.fromList([254]),
+        ),
+      ),
     );
     final trimmed = updated.withLogDelta(
       delta(
@@ -298,17 +328,21 @@ void main() {
         ],
         removed: [1, 2],
         earliest: 3,
-        bytes: 102,
+        bytes: 103,
       ),
     );
     final finalState = trimmed.withLogDelta(
       delta(
         [
           row(99, [0]),
-          row(pending, [253, 252], pending: true),
         ],
         earliest: 3,
-        bytes: 103,
+        bytes: 105,
+        pendingAppend: rust.PendingAppend(
+          timestampMs: 1700000000000,
+          offset: 2,
+          data: Uint8List.fromList([253, 252]),
+        ),
       ),
     );
     expect(finalState.logs.chunks.map((chunk) => chunk.id), [
@@ -320,6 +354,8 @@ void main() {
       [
         for (var id = 3; id <= 102; id++)
           if (id == 50) ...[0, 128] else if (id == 99) 0 else id,
+        255,
+        254,
         253,
         252,
       ],
@@ -327,7 +363,7 @@ void main() {
     expect(finalState.logs.chunks[98].entries.single.type, LogEntryType.sent);
     expect(initial.logs.chunks.single.entries.single.data, [255]);
     expect(appended.logs.chunks[49].entries.single.data, [50]);
-    expect(updated.logs.chunks.last.entries.single.data, [254]);
+    expect(updated.logs.chunks.last.entries.single.data, [255, 254]);
   });
   test(
     'partial-write failures and port scans cannot erase received data or double-count TX',
@@ -499,13 +535,152 @@ void main() {
     },
   );
   test(
+    'batched tails extend snapshot bytes once and preserve TX and CRLF order',
+    () {
+      const pending = 0xFFFFFFFFFFFFFFFF;
+      final prefix = emptyState().withLogDelta(
+        delta(
+          [],
+          bytes: 2,
+          pendingAppend: rust.PendingAppend(
+            timestampMs: 1700000000000,
+            offset: 0,
+            data: Uint8List.fromList([0, 0xe4]),
+          ),
+        ),
+      );
+      final state = prefix.withEvents([
+        rust.Event(
+          sequence: 1,
+          kind: rust.EventType.dataReceived,
+          log: delta(
+            [],
+            bytes: 3,
+            pendingAppend: rust.PendingAppend(
+              timestampMs: 1700000000000,
+              offset: 2,
+              data: Uint8List.fromList([0xb8]),
+            ),
+          ),
+        ),
+        rust.Event(
+          sequence: 2,
+          kind: rust.EventType.dataSent,
+          log: delta([
+            row(1, [65], sent: true),
+          ], bytes: 4),
+        ),
+        rust.Event(
+          sequence: 3,
+          kind: rust.EventType.dataReceived,
+          log: delta(
+            [],
+            bytes: 6,
+            pendingAppend: rust.PendingAppend(
+              timestampMs: 1700000000000,
+              offset: 3,
+              data: Uint8List.fromList([0xad, 13]),
+            ),
+          ),
+        ),
+      ]);
+      expect(state.logs.chunks.map((chunk) => chunk.id), [1, pending]);
+      expect(state.logs.chunks.last.entries.single.data, [
+        0,
+        0xe4,
+        0xb8,
+        0xad,
+        13,
+      ]);
+      expect(prefix.logs.chunks.single.entries.single.data, [0, 0xe4]);
+      final completed = state.withLogDelta(
+        delta(
+          [
+            row(2, [0, 0xe4, 0xb8, 0xad]),
+          ],
+          removed: [pending],
+          bytes: 6,
+          pendingAppend: rust.PendingAppend(
+            timestampMs: 1700000000001,
+            offset: 0,
+            data: Uint8List.fromList([0xff]),
+          ),
+        ),
+      );
+      expect(completed.logs.chunks.map((chunk) => chunk.id), [1, 2, pending]);
+      expect(completed.logs.chunks[1].entries.single.data, [
+        0,
+        0xe4,
+        0xb8,
+        0xad,
+      ]);
+      expect(completed.logs.chunks.last.entries.single.data, [0xff]);
+      expect(state.logs.chunks.last.entries.single.data, [
+        0,
+        0xe4,
+        0xb8,
+        0xad,
+        13,
+      ]);
+    },
+  );
+
+  test('pending appends reject offset and timestamp discontinuities', () {
+    final state = emptyState().withLogDelta(
+      delta(
+        [],
+        bytes: 1,
+        pendingAppend: rust.PendingAppend(
+          timestampMs: 1700000000000,
+          offset: 0,
+          data: Uint8List.fromList([13]),
+        ),
+      ),
+    );
+    expect(
+      () => state.withLogDelta(
+        delta(
+          [],
+          bytes: 2,
+          pendingAppend: rust.PendingAppend(
+            timestampMs: 1700000000000,
+            offset: 2,
+            data: Uint8List.fromList([10]),
+          ),
+        ),
+      ),
+      throwsStateError,
+    );
+    expect(
+      () => state.withLogDelta(
+        delta(
+          [],
+          bytes: 2,
+          pendingAppend: rust.PendingAppend(
+            timestampMs: 1700000000001,
+            offset: 1,
+            data: Uint8List.fromList([10]),
+          ),
+        ),
+      ),
+      throwsStateError,
+    );
+  });
+
+  test(
     'TX and finalized RX retain wire bytes and pending order without mutating prior frames',
     () {
       const pending = 0xFFFFFFFFFFFFFFFF;
       final receiving = emptyState().withLogDelta(
-        delta([
-          row(pending, [0, 255], pending: true),
-        ], bytes: 2),
+        delta(
+          [],
+          bytes: 2,
+          pendingAppend: rust.PendingAppend(
+            timestampMs: 1700000000000,
+            offset: 0,
+            data: Uint8List.fromList([0, 255]),
+          ),
+        ),
       );
       final sent = receiving.withEvent(
         rust.Event(
@@ -526,10 +701,14 @@ void main() {
         delta(
           [
             row(2, [0, 255]),
-            row(pending, [254], pending: true),
           ],
           removed: [pending],
           bytes: 4,
+          pendingAppend: rust.PendingAppend(
+            timestampMs: 1700000000000,
+            offset: 0,
+            data: Uint8List.fromList([254]),
+          ),
         ),
       );
       expect(finalized.logs.chunks.map((chunk) => chunk.id), [1, 2, pending]);
