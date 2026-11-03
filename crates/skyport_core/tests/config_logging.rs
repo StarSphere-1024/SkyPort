@@ -437,3 +437,39 @@ fn export_without_sent_markers_preserves_utf8_after_unknown_escape() {
     });
     assert_eq!(String::from_utf8(exported).unwrap(), "汉\n");
 }
+
+#[test]
+fn export_preserves_long_received_and_sent_records_in_text_and_hex() {
+    let text = format!("{}汉😀TAIL", "x".repeat(4095));
+    let data = text.as_bytes();
+    for received in [true, false] {
+        let mut log = LogStore::new(16 * 1024);
+        let marker = if received {
+            log.receive(data, 0);
+            log.receive(b"\n", 0);
+            "RX < "
+        } else {
+            log.sent(data, 0);
+            "TX > "
+        };
+        let options = ExportOptions {
+            show_sent: true,
+            hex: false,
+            timestamps: false,
+            strip_ansi: false,
+        };
+        assert_eq!(log.export(options), format!("{marker}{text}\n").as_bytes());
+        let exported_hex = String::from_utf8(log.export(ExportOptions {
+            hex: true,
+            ..options
+        }))
+        .unwrap();
+        let decoded: Vec<u8> = exported_hex
+            .strip_prefix(marker)
+            .unwrap()
+            .split_whitespace()
+            .map(|byte| u8::from_str_radix(byte, 16).unwrap())
+            .collect();
+        assert_eq!(decoded, data);
+    }
+}

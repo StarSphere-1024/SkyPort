@@ -5,7 +5,6 @@ use std::{collections::VecDeque, fmt::Write};
 
 const MAX_PENDING_BYTES: usize = 256 * 1024;
 const MAX_RECORDS: usize = 65_536;
-const EXPORT_PREVIEW_BYTES: usize = 4096;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Direction {
@@ -204,8 +203,7 @@ impl LogStore {
             if record.direction == Direction::Sent && !options.show_sent {
                 continue;
             }
-            let truncated = record.data.len() > EXPORT_PREVIEW_BYTES;
-            let data = &record.data[..record.data.len().min(EXPORT_PREVIEW_BYTES)];
+            let data = record.data.as_slice();
             let content = if options.hex {
                 let mut value = String::with_capacity(data.len().saturating_mul(3));
                 for (i, byte) in data.iter().enumerate() {
@@ -228,9 +226,9 @@ impl LogStore {
             } else {
                 String::new()
             };
-            let mut lines = content.split('\n').peekable();
+            let lines = content.split('\n');
             let mut first = true;
-            while let Some(line) = lines.next() {
+            for line in lines {
                 if first {
                     first = false;
                     output.extend_from_slice(timestamp.as_bytes());
@@ -243,9 +241,6 @@ impl LogStore {
                     }
                 }
                 output.extend_from_slice(line.as_bytes());
-                if truncated && lines.peek().is_none() {
-                    output.extend_from_slice(b" ... [TRUNCATED]");
-                }
                 output.push(b'\n');
             }
         }
