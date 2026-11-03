@@ -120,18 +120,17 @@ class SerialDebuggerApp extends ConsumerWidget {
     final languageCode = ref.watch(
       uiSettingsProvider.select((settings) => settings.languageCode),
     );
-    Color seedFor(Brightness brightness) => resolveThemeColor(
+    final seed = resolveThemeColor(
       dynamicEnabled: dynamicEnabled,
       manualSeed: hasManualColor ? themeColor : null,
       systemAccent: systemAccent,
-      brightness: brightness,
     ).seed;
     return _DynamicAccentColorMonitor(
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
-        theme: getLightTheme(seedFor(Brightness.light)),
-        darkTheme: getDarkTheme(seedFor(Brightness.dark)),
+        theme: getLightTheme(seed),
+        darkTheme: getDarkTheme(seed),
         themeMode: themeMode,
         locale: languageCode.isEmpty ? null : Locale(languageCode),
         localizationsDelegates: AppLocalizations.localizationsDelegates,

@@ -24,7 +24,6 @@ void main() {
         dynamicEnabled: container.read(dynamicColorEnabledProvider),
         manualSeed: container.read(themeColorProvider),
         systemAccent: container.read(systemAccentColorProvider),
-        brightness: Brightness.light,
       );
 
       expect(result.source, ThemeColorSource.system);
@@ -44,7 +43,6 @@ void main() {
         dynamicEnabled: true,
         manualSeed: container.read(themeColorProvider),
         systemAccent: null,
-        brightness: Brightness.light,
       );
       expect(saved.source, ThemeColorSource.manual);
       expect(saved.seed, const Color(0xff123456));
@@ -59,7 +57,6 @@ void main() {
         dynamicEnabled: true,
         manualSeed: null,
         systemAccent: null,
-        brightness: Brightness.dark,
       );
       expect(fallback.source, ThemeColorSource.defaultColor);
       expect(fallback.seed, Colors.blue);
@@ -85,7 +82,6 @@ void main() {
           dynamicEnabled: container.read(dynamicColorEnabledProvider),
           manualSeed: container.read(themeColorProvider),
           systemAccent: Colors.red,
-          brightness: Brightness.dark,
         );
 
         expect(manual.source, ThemeColorSource.manual);
@@ -109,13 +105,11 @@ void main() {
         dynamicEnabled: true,
         manualSeed: manualSeed,
         systemAccent: container.read(systemAccentColorProvider),
-        brightness: Brightness.light,
       );
       final manual = resolveThemeColor(
         dynamicEnabled: false,
         manualSeed: manualSeed,
         systemAccent: container.read(systemAccentColorProvider),
-        brightness: Brightness.light,
       );
 
       expect(dynamic.seed, Colors.red);
@@ -143,7 +137,6 @@ void main() {
         dynamicEnabled: container.read(dynamicColorEnabledProvider),
         manualSeed: container.read(themeColorProvider),
         systemAccent: null,
-        brightness: Brightness.dark,
       );
       expect(result.source, ThemeColorSource.manual);
       expect(result.seed, Colors.green);

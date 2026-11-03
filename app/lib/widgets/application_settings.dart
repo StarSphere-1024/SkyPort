@@ -39,7 +39,6 @@ class ApplicationSettings extends ConsumerWidget {
           dynamicEnabled: dynamicColorEnabled,
           manualSeed: hasManualSeed ? manualSeed : null,
           systemAccent: systemAccent,
-          brightness: theme.brightness,
         ).source !=
         ThemeColorSource.system;
 

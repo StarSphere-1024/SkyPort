@@ -88,7 +88,6 @@ ThemeColorResolution resolveThemeColor({
   required bool dynamicEnabled,
   required Color? manualSeed,
   required Color? systemAccent,
-  required Brightness brightness,
 }) {
   if (dynamicEnabled && systemAccent != null) {
     return ThemeColorResolution(systemAccent, ThemeColorSource.system);
