@@ -14,7 +14,4 @@ class SkyPortConstants {
 
   /// Maximum display length for log entries
   static const int logDisplayMaxLength = 5000;
-
-  /// Width for interval input field
-  static const int intervalInputWidth = 100;
 }
