@@ -1,3 +1,5 @@
+mod export;
+
 use crate::{
     search::{PreparedSearch, SearchWorker},
     serial,
@@ -6,13 +8,13 @@ use crate::{
     CoreError, ErrorCode, ErrorKind, Event, EventKind, LogDelta, LogStore, Newline, RequestId,
     SearchOptions, SearchSession, SerialConfig,
 };
+use export::ExportWorker;
 use std::{
     collections::HashMap,
-    fs::{self, OpenOptions},
-    io::{self, Read, Write},
+    io::{self, Read},
     path::Path,
     sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::{AtomicBool, Ordering},
         mpsc::{self, Receiver, RecvTimeoutError, SyncSender, TrySendError},
         Arc, Condvar, Mutex,
     },
@@ -117,6 +119,7 @@ impl AppCore {
         });
         let (tx, rx) = mpsc::sync_channel(options.command_capacity);
         let search = SearchWorker::new()?;
+        let exports = ExportWorker::new(shared.clone())?;
         let shared_for_worker = shared.clone();
         let stop = Arc::new(AtomicBool::new(false));
         let worker_stop = stop.clone();
@@ -129,6 +132,7 @@ impl AppCore {
                         shared_for_worker.clone(),
                         options.data_directory,
                         worker_stop.clone(),
+                        exports,
                     );
                 }));
                 if failed.is_err() {
@@ -440,6 +444,7 @@ fn run_worker(
     shared: Arc<Shared>,
     data_directory: std::path::PathBuf,
     stop: Arc<AtomicBool>,
+    mut exports: ExportWorker,
 ) {
     let mut port: Option<Box<dyn TransportPort>> = None;
     let mut reconnect_at: Option<Instant> = None;
@@ -450,6 +455,7 @@ fn run_worker(
     let mut next_auto = Instant::now();
     let mut next_ports = Instant::now();
     let mut buf = [0u8; 8192];
+    let mut received_last_turn = false;
     loop {
         if stop.load(Ordering::Acquire) {
             while let Ok(WorkerMessage::Command(id, command)) = rx.try_recv() {
@@ -465,12 +471,17 @@ fn run_worker(
             break;
         }
         let maximum = if port.is_some() {
-            Duration::from_millis(10)
+            if received_last_turn {
+                Duration::ZERO
+            } else {
+                Duration::from_millis(10)
+            }
         } else {
             reconnect_at
                 .map_or(next_ports, |at| at.min(next_ports))
                 .saturating_duration_since(Instant::now())
         };
+        received_last_turn = false;
         match rx.recv_timeout(auto_wait(&shared, next_auto, maximum)) {
             Ok(WorkerMessage::Command(id, command)) => handle_command(
                 id,
@@ -481,6 +492,7 @@ fn run_worker(
                 &mut reconnect_at,
                 &mut next_auto,
                 &mut link_lost,
+                &exports,
             ),
             Ok(WorkerMessage::Shutdown) | Err(RecvTimeoutError::Disconnected) => break,
             Err(RecvTimeoutError::Timeout) => {}
@@ -519,7 +531,11 @@ fn run_worker(
             let result = open.read(&mut buf);
             match result {
                 Ok(0) => {}
-                Ok(n) => publish_received(&shared, &buf[..n]),
+                Ok(n) => {
+                    // Keep draining ready input, one bounded read per command/scheduler turn.
+                    received_last_turn = true;
+                    publish_received(&shared, &buf[..n]);
+                }
                 Err(e)
                     if e.kind() == io::ErrorKind::TimedOut
                         || e.kind() == io::ErrorKind::WouldBlock
@@ -583,6 +599,8 @@ fn run_worker(
             );
         }
     }
+    drop(port);
+    exports.close();
 }
 
 fn handle_command(
@@ -594,8 +612,10 @@ fn handle_command(
     reconnect_at: &mut Option<Instant>,
     next_auto: &mut Instant,
     link_lost: &mut bool,
+    exports: &ExportWorker,
 ) {
     let mut send_final = false;
+    let is_export = matches!(&command, Command::ExportLog { .. });
     let result = (|| -> Result<(), CoreError> {
         match command {
             Command::ListPorts => shared
@@ -819,27 +839,11 @@ fn handle_command(
                 *next_auto = Instant::now() + Duration::from_millis(interval_ms as u64);
                 auto_error.map_or(Ok(()), Err)
             }
-            Command::ExportLog { path, options } => {
-                let bytes = match shared.state.lock().map_err(lock_error) {
-                    Ok(state) => state.log.export(options),
-                    Err(error) => return Err(error),
-                };
-                if bytes.is_empty() {
-                    return Err(CoreError::new(
-                        ErrorKind::InvalidArgument,
-                        "no retained log records match the export options",
-                    )
-                    .with_code(ErrorCode::NoLogsToExport));
-                }
-                write_export_atomic(Path::new(&path), &bytes).map_err(|error| {
-                    CoreError::new(ErrorKind::TaskFailed, format!("export log: {error}"))
-                        .with_code(ErrorCode::ExportFailed)
-                })
-            }
+            Command::ExportLog { path, options } => exports.submit(id, path, options),
         }
     })();
     match result {
-        Ok(()) if !send_final => {
+        Ok(()) if !send_final && !is_export => {
             publish_simple(shared, EventKind::CommandCompleted { request_id: id })
         }
         Ok(()) => {}
@@ -1593,40 +1597,6 @@ fn record_history(shared: &Shared, dir: &Path, item: &str) {
         }
         Err(error) => publish_simple(shared, EventKind::TaskFailed(error)),
     }
-}
-static EXPORT_TEMP_ID: AtomicU64 = AtomicU64::new(0);
-
-fn write_export_atomic(path: &Path, bytes: &[u8]) -> io::Result<()> {
-    let parent = path
-        .parent()
-        .filter(|p| !p.as_os_str().is_empty())
-        .unwrap_or_else(|| Path::new("."));
-    let name = path.file_name().unwrap_or_default().to_string_lossy();
-    let (temporary, mut file) = loop {
-        let id = EXPORT_TEMP_ID.fetch_add(1, Ordering::Relaxed);
-        let candidate = parent.join(format!(".{name}.{}.{}.tmp", std::process::id(), id));
-        match OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&candidate)
-        {
-            Ok(file) => break (candidate, file),
-            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
-            Err(error) => return Err(error),
-        }
-    };
-    let result = file.write_all(bytes).and_then(|()| file.sync_all());
-    drop(file);
-    let result = result.and_then(|()| crate::config::replace_file(&temporary, path));
-    if result.is_ok() {
-        if let Ok(directory) = OpenOptions::new().read(true).open(parent) {
-            let _ = directory.sync_all();
-        }
-    }
-    if result.is_err() {
-        let _ = fs::remove_file(temporary);
-    }
-    result
 }
 
 fn auto_wait(shared: &Shared, next: Instant, maximum: Duration) -> Duration {

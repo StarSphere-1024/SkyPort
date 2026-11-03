@@ -1097,3 +1097,254 @@ fn close_finishes_every_accepted_send_with_one_correlated_outcome() {
     }
     assert_eq!(finished, accepted);
 }
+
+#[test]
+fn pty_continuous_receive_preserves_bytes_and_allows_command_progress() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut pty = Pty::new();
+    let core = AppCore::create(options(
+        dir.path().into(),
+        pty.slave.to_string_lossy().into_owned(),
+    ))
+    .unwrap();
+    let (_, events) = core.subscribe().unwrap();
+    core.dispatch(Command::Connect).unwrap();
+    wait_for(|| core.snapshot().unwrap().connection == ConnectionState::Connected);
+
+    let expected: Vec<u8> = (0..4 * 1_048_576)
+        .map(|index| (index % 251) as u8)
+        .collect();
+    let (received, command_completed, auto_sent) = thread::scope(|scope| {
+        let writer = {
+            let payload = expected.clone();
+            let fd = pty.fd();
+            scope.spawn(move || {
+                let deadline = Instant::now() + Duration::from_secs(8);
+                let mut offset = 0;
+                while offset < payload.len() {
+                    assert!(Instant::now() < deadline, "PTY producer timed out");
+                    let written = unsafe {
+                        libc::write(
+                            fd,
+                            payload[offset..].as_ptr().cast(),
+                            payload.len() - offset,
+                        )
+                    };
+                    if written > 0 {
+                        offset += written as usize;
+                    } else if written < 0 {
+                        let error = std::io::Error::last_os_error();
+                        if error.kind() == std::io::ErrorKind::Interrupted {
+                            continue;
+                        }
+                        assert!(
+                            error.kind() == std::io::ErrorKind::WouldBlock,
+                            "PTY producer failed: {error}"
+                        );
+                        thread::sleep(Duration::from_millis(1));
+                    } else {
+                        panic!("PTY producer made no progress");
+                    }
+                }
+            })
+        };
+
+        let auto = core
+            .dispatch(Command::SetAutoSend {
+                enabled: true,
+                interval_ms: 10,
+                input: "under-load".into(),
+                hex: false,
+                newline: Newline::None,
+            })
+            .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut received = Vec::with_capacity(expected.len());
+        let mut command_completed = false;
+        let mut auto_sent = false;
+        while Instant::now() < deadline && received.len() < expected.len() {
+            if let Some(event) = events.recv_timeout(Duration::from_millis(20)).unwrap() {
+                match event.kind {
+                    EventKind::DataReceived { data, .. } => received.extend(data),
+                    EventKind::CommandCompleted { request_id } if request_id == auto => {
+                        command_completed = true;
+                    }
+                    EventKind::DataSent { data, .. } if data == b"under-load" => auto_sent = true,
+                    _ => {}
+                }
+            }
+        }
+        writer.join().unwrap();
+        (received, command_completed, auto_sent)
+    });
+    assert_eq!(received, expected, "RX data changed or was lost");
+    assert!(command_completed, "command starved during continuous RX");
+    assert!(auto_sent, "auto-send did not run during continuous RX");
+    core.close().unwrap();
+    pty.close();
+}
+
+#[test]
+fn export_log_snapshots_at_command_position_and_reports_destination_failure() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut pty = Pty::new();
+    let core = AppCore::create(options(
+        dir.path().into(),
+        pty.slave.to_string_lossy().into_owned(),
+    ))
+    .unwrap();
+    let (_, events) = core.subscribe().unwrap();
+    core.dispatch(Command::Connect).unwrap();
+    wait_for(|| core.snapshot().unwrap().connection == ConnectionState::Connected);
+
+    pty.write(b"before-clear");
+    wait_for(|| core.snapshot().unwrap().rx_bytes >= b"before-clear".len() as u64);
+    let export = dir.path().join("snapshot.txt");
+    let snapshot_request = core
+        .dispatch(Command::ExportLog {
+            path: export.to_string_lossy().into_owned(),
+            options: skyport_core::ExportOptions {
+                show_sent: true,
+                hex: false,
+                timestamps: false,
+                strip_ansi: false,
+            },
+        })
+        .unwrap();
+    let clear_request = core.dispatch(Command::ClearLog).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(4);
+    let mut snapshot_completed = false;
+    let mut clear_completed = false;
+    while Instant::now() < deadline && !(snapshot_completed && clear_completed) {
+        if let Some(event) = events.recv_timeout(Duration::from_millis(20)).unwrap() {
+            match event.kind {
+                EventKind::CommandCompleted { request_id } if request_id == snapshot_request => {
+                    snapshot_completed = true;
+                }
+                EventKind::CommandCompleted { request_id } if request_id == clear_request => {
+                    clear_completed = true;
+                }
+                _ => {}
+            }
+        }
+    }
+    assert!(snapshot_completed, "export command did not complete");
+    assert!(clear_completed, "clear command did not complete");
+    assert_eq!(fs::read(export).unwrap(), b"RX < before-clear\n");
+
+    pty.write(b"after-clear");
+    wait_for(|| core.snapshot().unwrap().rx_bytes == b"after-clear".len() as u64);
+    let failed_target = dir.path().join("protected");
+    fs::create_dir(&failed_target).unwrap();
+    fs::write(failed_target.join("keep"), b"untouched").unwrap();
+    let failed_request = core
+        .dispatch(Command::ExportLog {
+            path: failed_target.to_string_lossy().into_owned(),
+            options: skyport_core::ExportOptions {
+                show_sent: true,
+                hex: false,
+                timestamps: false,
+                strip_ansi: false,
+            },
+        })
+        .unwrap();
+
+    let deadline = Instant::now() + Duration::from_secs(4);
+    let mut destination_failed = false;
+    while Instant::now() < deadline && !destination_failed {
+        if let Some(event) = events.recv_timeout(Duration::from_millis(20)).unwrap() {
+            if let EventKind::CommandFailed { request_id, error } = event.kind {
+                if request_id == failed_request {
+                    assert_eq!(error.code, Some(ErrorCode::ExportFailed));
+                    destination_failed = true;
+                }
+            }
+        }
+    }
+    assert!(
+        destination_failed,
+        "invalid export destination did not fail"
+    );
+    assert_eq!(fs::read(failed_target.join("keep")).unwrap(), b"untouched");
+    core.close().unwrap();
+    pty.close();
+}
+
+#[test]
+fn close_drains_accepted_exports_before_closing_subscribers() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut pty = Pty::new();
+    let core = AppCore::create(options(
+        dir.path().into(),
+        pty.slave.to_string_lossy().into_owned(),
+    ))
+    .unwrap();
+    let (_, events) = core.subscribe().unwrap();
+    core.dispatch(Command::Connect).unwrap();
+    wait_for(|| core.snapshot().unwrap().connection == ConnectionState::Connected);
+    pty.write(b"close-drain");
+    wait_for(|| core.snapshot().unwrap().rx_bytes >= b"close-drain".len() as u64);
+    let export = dir.path().join("close-export.txt");
+    let request = core
+        .dispatch(Command::ExportLog {
+            path: export.to_string_lossy().into_owned(),
+            options: skyport_core::ExportOptions {
+                show_sent: true,
+                hex: false,
+                timestamps: false,
+                strip_ansi: false,
+            },
+        })
+        .unwrap();
+    let fence = core.dispatch(Command::ClearLog).unwrap();
+    let fence_deadline = Instant::now() + Duration::from_secs(2);
+    let mut completions = 0;
+    loop {
+        assert!(Instant::now() < fence_deadline, "export was not accepted");
+        if let Some(event) = events.recv_timeout(Duration::from_millis(20)).unwrap() {
+            match event.kind {
+                EventKind::CommandCompleted { request_id } if request_id == request => {
+                    completions += 1;
+                }
+                EventKind::CommandFailed { request_id, error } if request_id == request => {
+                    panic!("accepted export failed: {error:?}");
+                }
+                EventKind::CommandCompleted { request_id } if request_id == fence => break,
+                _ => {}
+            }
+        }
+    }
+    core.close().unwrap();
+
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let mut closed = false;
+    let mut saw_closed_state = false;
+    while Instant::now() < deadline {
+        match events.recv_timeout(Duration::from_millis(20)) {
+            Ok(Some(event)) => match event.kind {
+                EventKind::CommandCompleted { request_id } if request_id == request => {
+                    completions += 1;
+                }
+                EventKind::CommandFailed { request_id, error } if request_id == request => {
+                    panic!("accepted export failed: {error:?}");
+                }
+                EventKind::StateChanged(state) if state.connection == ConnectionState::Closed => {
+                    assert_eq!(completions, 1, "Closed preceded the export outcome");
+                    saw_closed_state = true;
+                }
+                _ => {}
+            },
+            Err(error) => {
+                assert_eq!(error.kind, ErrorKind::Closed);
+                closed = true;
+                break;
+            }
+            Ok(None) => panic!("subscriber closed before export completion"),
+        }
+    }
+    assert!(closed, "close did not terminate the subscriber");
+    assert!(saw_closed_state, "close did not publish its final state");
+    assert_eq!(completions, 1, "export must complete exactly once");
+    assert_eq!(fs::read(export).unwrap(), b"RX < close-drain\n");
+    pty.close();
+}

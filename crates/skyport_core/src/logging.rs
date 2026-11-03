@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::sync::Arc;
-use std::{collections::VecDeque, fmt::Write};
+use std::{
+    collections::VecDeque,
+    io::{self, Write},
+};
 
 const MAX_PENDING_BYTES: usize = 256 * 1024;
 const MAX_RECORDS: usize = 65_536;
@@ -215,51 +218,8 @@ impl LogStore {
 
     pub fn export(&self, options: ExportOptions) -> Vec<u8> {
         let mut output = Vec::new();
-        for record in &self.records {
-            if record.direction == Direction::Sent && !options.show_sent {
-                continue;
-            }
-            let data = record.data.as_slice();
-            let content = if options.hex {
-                let mut value = String::with_capacity(data.len().saturating_mul(3));
-                for (i, byte) in data.iter().enumerate() {
-                    if i > 0 {
-                        value.push(' ');
-                    }
-                    let _ = write!(value, "{byte:02X}");
-                }
-                Cow::Owned(value)
-            } else {
-                let value = String::from_utf8_lossy(data);
-                if options.strip_ansi {
-                    Cow::Owned(strip_ansi(&value))
-                } else {
-                    value
-                }
-            };
-            let timestamp = if options.timestamps {
-                format!("{} ", local_timestamp(record.timestamp_ms))
-            } else {
-                String::new()
-            };
-            let lines = content.split('\n');
-            let mut first = true;
-            for line in lines {
-                if first {
-                    first = false;
-                    output.extend_from_slice(timestamp.as_bytes());
-                    if options.show_sent {
-                        let marker = match record.direction {
-                            Direction::Sent => "TX > ",
-                            Direction::Received => "RX < ",
-                        };
-                        output.extend_from_slice(marker.as_bytes());
-                    }
-                }
-                output.extend_from_slice(line.as_bytes());
-                output.push(b'\n');
-            }
-        }
+        write_export(self.records.iter(), options, &mut output)
+            .expect("writing log export to Vec cannot fail");
         output
     }
 
@@ -375,6 +335,52 @@ impl LogStore {
         }
     }
 }
+pub(crate) fn write_export<'a, W, I>(
+    records: I,
+    options: ExportOptions,
+    output: &mut W,
+) -> io::Result<()>
+where
+    W: Write,
+    I: IntoIterator<Item = &'a StoredRecord>,
+{
+    for record in records {
+        if record.direction == Direction::Sent && !options.show_sent {
+            continue;
+        }
+        if options.timestamps {
+            output.write_all(local_timestamp(record.timestamp_ms).as_bytes())?;
+            output.write_all(b" ")?;
+        }
+        if options.show_sent {
+            output.write_all(match record.direction {
+                Direction::Sent => b"TX > ",
+                Direction::Received => b"RX < ",
+            })?;
+        }
+        let data = record.data.as_slice();
+        if options.hex {
+            const HEX: &[u8; 16] = b"0123456789ABCDEF";
+            for (index, byte) in data.iter().enumerate() {
+                let token = [b' ', HEX[(byte >> 4) as usize], HEX[(byte & 15) as usize]];
+                output.write_all(if index == 0 { &token[1..] } else { &token })?;
+            }
+            output.write_all(b"\n")?;
+        } else {
+            let text = String::from_utf8_lossy(data);
+            let content = if options.strip_ansi {
+                Cow::Owned(strip_ansi(&text))
+            } else {
+                text
+            };
+            for line in content.split('\n') {
+                output.write_all(line.as_bytes())?;
+                output.write_all(b"\n")?;
+            }
+        }
+    }
+    Ok(())
+}
 
 fn local_timestamp(timestamp_ms: i64) -> String {
     let seconds = timestamp_ms.div_euclid(1000) as libc::time_t;
@@ -455,4 +461,75 @@ fn strip_ansi(text: &str) -> String {
     }
     output.push_str(&text[start..]);
     output
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn export_snapshot_survives_pending_continuation_and_clear() {
+        let mut store = LogStore::new(1024);
+        store.receive(b"part", 1);
+        let snapshot = store.search_snapshot(true);
+        store.receive(b"ial\n", 2);
+        store.clear();
+        let mut output = Vec::new();
+        write_export(
+            &snapshot,
+            ExportOptions {
+                show_sent: true,
+                hex: false,
+                timestamps: false,
+                strip_ansi: false,
+            },
+            &mut output,
+        )
+        .unwrap();
+        assert_eq!(output, b"RX < part\n");
+    }
+
+    #[test]
+    fn export_format_and_writer_errors() {
+        let mut store = LogStore::new(1024);
+        store.receive(b"\x1b[31mhello\nworld", 0);
+        store.sent(b"\x01\xff", 0);
+        let records = store.search_snapshot(true);
+        let mut output = Vec::new();
+        write_export(
+            &records,
+            ExportOptions {
+                show_sent: true,
+                hex: false,
+                timestamps: false,
+                strip_ansi: true,
+            },
+            &mut output,
+        )
+        .unwrap();
+        assert_eq!(
+            output,
+            "RX < hello\nTX > \u{1}\u{fffd}\nRX < world\n".as_bytes()
+        );
+
+        struct FailWriter;
+        impl Write for FailWriter {
+            fn write(&mut self, _: &[u8]) -> io::Result<usize> {
+                Err(io::Error::other("write failed"))
+            }
+            fn flush(&mut self) -> io::Result<()> {
+                Ok(())
+            }
+        }
+        assert!(write_export(
+            &records,
+            ExportOptions {
+                show_sent: true,
+                hex: false,
+                timestamps: false,
+                strip_ansi: false,
+            },
+            &mut FailWriter
+        )
+        .is_err());
+    }
 }
