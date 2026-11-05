@@ -23,10 +23,12 @@ class SearchResultsList extends ConsumerStatefulWidget {
 }
 
 class _SearchResultsListState extends ConsumerState<SearchResultsList> {
+  final _selection = GlobalKey<SelectionAreaState>();
   final _items = ItemScrollController();
   final _positions = ItemPositionsListener.create();
   bool _followLatest = true;
   bool _manualScrolling = false;
+  bool _scrollingDown = false;
   bool _hasActiveSelection = false;
   final _rowContexts = <int, _SearchResultRowState>{};
   late final SearchController _searchController;
@@ -70,6 +72,7 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
 
   void _manualScroll() {
     _manualScrolling = true;
+    _scrollingDown = false;
     final search = ref.read(searchControllerProvider);
     ref.read(searchControllerProvider.notifier).userScrolled();
     _suppressedNavigation = search.navigation;
@@ -86,7 +89,11 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
   void _jumpToLatest() {
     final last = (_mapper?.totalCount ?? 0) - 1;
     if (_items.isAttached && last >= 0) {
+      final row = _rowContexts.values.firstOrNull;
+      final position = row == null ? null : Scrollable.of(row.context).position;
       _items.jumpTo(index: last);
+      // Unchanged dimensions do not invoke the follow physics after an index jump.
+      position?.jumpTo(position.maxScrollExtent);
     }
   }
 
@@ -209,9 +216,16 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
                 notification is UserScrollNotification &&
                 notification.direction != ScrollDirection.idle;
             if (dragging || scrolling) _manualScroll();
+            if (notification is ScrollUpdateNotification &&
+                _manualScrolling &&
+                notification.scrollDelta != null &&
+                notification.scrollDelta != 0) {
+              _scrollingDown = notification.scrollDelta! > 0;
+            }
             if (notification is ScrollEndNotification && _manualScrolling) {
               _manualScrolling = false;
-              if (!ref.read(searchControllerProvider).visible &&
+              if (_scrollingDown &&
+                  !ref.read(searchControllerProvider).visible &&
                   !_hasActiveSelection &&
                   notification.metrics.extentAfter <=
                       SkyPortConstants.scrollBottomThreshold) {
@@ -222,8 +236,12 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
             return false;
           },
           child: SelectionArea(
+            key: _selection,
             onSelectionChanged: (selection) {
-              _hasActiveSelection = selection?.plainText.isNotEmpty ?? false;
+              final active = selection?.plainText.isNotEmpty ?? false;
+              if (active == _hasActiveSelection) return;
+              setState(() => _hasActiveSelection = active);
+              if (_shouldFollowLatest) _jumpToLatest();
             },
             child: ScrollablePositionedList.builder(
               key: const ValueKey('search-results'),
@@ -263,12 +281,13 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
             ),
           ),
         ),
-        if (!search.visible && !search.hasResults && !_followLatest)
+        if (!search.visible && !_shouldFollowLatest)
           Positioned(
             right: 16,
             bottom: 16,
             child: FloatingActionButton.small(
               onPressed: () {
+                _selection.currentState?.selectableRegion.clearSelection();
                 setState(() => _followLatest = true);
                 _jumpToLatest();
               },

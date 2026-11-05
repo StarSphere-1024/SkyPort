@@ -474,6 +474,95 @@ void main() {
     },
   );
 
+  for (final delta in [1.0, 20.0, 50.0]) {
+    testWidgets('small upward wheel steps accumulate ($delta pixels)', (
+      tester,
+    ) async {
+      final logs = SearchFixtureController();
+      await mount(tester, logs, FixtureSearchBackend(logs, []));
+      logs.upsert([
+        for (var id = 1; id <= 200; id++) fixtureRecord(id, 'row $id'),
+      ]);
+      await tester.pumpAndSettle();
+      final list = find.byKey(const ValueKey('search-results'));
+      final readingRow = find.byKey(const ValueKey('search-row-190'));
+      final initialTop = tester.getTopLeft(readingRow).dy;
+      for (var step = 1; step <= 3; step++) {
+        await tester.sendEventToBinding(
+          PointerScrollEvent(
+            position: tester.getCenter(list),
+            scrollDelta: Offset(0, -delta),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(FloatingActionButton), findsOneWidget);
+        expect(
+          tester.getTopLeft(readingRow).dy,
+          closeTo(initialTop + delta * step, 1),
+        );
+      }
+      final anchor = tester.getTopLeft(readingRow);
+      logs.upsert([fixtureRecord(201, 'row 201')]);
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(readingRow), anchor);
+      await tester.sendEventToBinding(
+        PointerScrollEvent(
+          position: tester.getCenter(list),
+          scrollDelta: Offset(0, delta * 3),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(FloatingActionButton), findsNothing);
+      expect(
+        tester.getBottomRight(find.byKey(const ValueKey('search-row-201'))).dy,
+        closeTo(tester.getBottomRight(list).dy - 8, 1),
+      );
+    });
+  }
+
+  for (final count in [1, 200]) {
+    testWidgets(
+      'return reaches tall final record repeatedly ($count records)',
+      (tester) async {
+        final logs = SearchFixtureController();
+        await mount(tester, logs, FixtureSearchBackend(logs, []));
+        logs.upsert([
+          for (var id = 1; id <= count; id++)
+            fixtureRecord(id, id == count ? 'wrapped data ' * 300 : 'row $id'),
+        ]);
+        await tester.pumpAndSettle();
+        final list = find.byKey(const ValueKey('search-results'));
+        final tail = find.byKey(ValueKey('search-row-$count'));
+        for (var cycle = 0; cycle < 3; cycle++) {
+          await tester.sendEventToBinding(
+            PointerScrollEvent(
+              position: tester.getCenter(list),
+              scrollDelta: const Offset(0, -120),
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(find.byType(FloatingActionButton), findsOneWidget);
+          if (cycle == 1) {
+            await tester.sendEventToBinding(
+              PointerScrollEvent(
+                position: tester.getCenter(list),
+                scrollDelta: const Offset(0, 10000),
+              ),
+            );
+          } else {
+            await tester.tap(find.byType(FloatingActionButton));
+          }
+          await tester.pumpAndSettle();
+          expect(
+            tester.getBottomRight(tail).dy,
+            closeTo(tester.getBottomRight(list).dy - 8, 1),
+          );
+          expect(find.byType(FloatingActionButton), findsNothing);
+        }
+      },
+    );
+  }
+
   testWidgets(
     'following after search keeps every frame in bounds and yields to scrolling',
     (tester) async {
@@ -497,7 +586,6 @@ void main() {
       await search.submit();
       await tester.pumpAndSettle();
       search.close();
-      search.clear();
       await tester.pumpAndSettle();
 
       final list = find.byKey(const ValueKey('search-results'));
@@ -594,6 +682,16 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pump();
       expect(copied, 'row 186');
+      expect(find.byType(FloatingActionButton), findsOneWidget);
+      await tester.tap(find.byType(FloatingActionButton));
+      await pumpBoundedFrames();
+      logs.upsert([fixtureRecord(188, text(188))]);
+      await pumpBoundedFrames();
+      expect(
+        tester.getBottomRight(find.byKey(const ValueKey('search-row-188'))).dy,
+        closeTo(tester.getBottomRight(list).dy - 8, 1),
+      );
+      expect(find.byType(FloatingActionButton), findsNothing);
 
       await logs.clearLog();
       await tester.pumpAndSettle();
