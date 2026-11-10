@@ -6,7 +6,7 @@
 
 **English** · [简体中文](README_zh_CN.md)
 
-**A cross-platform desktop serial port debugging assistant built with Flutter and Rust**
+**A cross-platform serial port debugging assistant built with Flutter and Rust**
 
 Connect devices, send and receive text or Hex data, inspect ANSI-colored logs, and export debugging records.
 
@@ -14,7 +14,7 @@ Connect devices, send and receive text or Hex data, inspect ANSI-colored logs, a
 
 [Download](#download) · [Quick start](#quick-start) · [Release notes](https://github.com/StarSphere-1024/SkyPort/releases) · [Build from source](#build-from-source) · [Report an issue](#report-an-issue)
 
-**Windows / Linux** · **Text / Hex** transfer · **English / Chinese** interface
+**Windows / Linux / Android** · **Text / Hex** transfer · **English / Chinese** interface
 
 </div>
 
@@ -39,10 +39,13 @@ Download from the **[latest release](https://github.com/StarSphere-1024/SkyPort/
 | --- | --- | --- |
 | Windows | Installer `-setup.exe` / portable `-portable.zip` | Follow the installer, or fully extract the portable archive and run `skyport.exe` |
 | Linux | `.deb` / `.rpm` / `.AppImage` | Prefer `.deb` on Debian / Ubuntu, `.rpm` on RPM-based distributions such as Fedora, or make the AppImage executable and run it |
+| Android | `-android-arm64.apk` | Android 8.0+ (API 26), ARM64; USB Host / OTG support required for serial devices |
 
-Both platforms provide `amd64` (x64 / x86_64) and `arm64` (ARM64 / aarch64) packages. Choose `amd64` for Intel / AMD x64 computers and `arm64` for ARM devices. Check your system's processor architecture if unsure.
+Windows and Linux provide `amd64` (x64 / x86_64) and `arm64` (ARM64 / aarch64) packages. Choose `amd64` for Intel / AMD x64 computers and `arm64` for ARM devices. Check your system's processor architecture if unsure.
 
-> Keep the entire portable directory intact. Do not copy only the executable or remove bundled libraries and resources. Windows and Linux are currently supported; macOS is not. The macOS project files in this repository do not imply a supported release.
+> Keep the entire desktop portable directory intact. Do not copy only the executable or remove bundled libraries and resources. Windows, Linux, and Android are supported; macOS is not. The macOS project files in this repository do not imply a supported release.
+
+Android: install the APK, connect a USB serial device via OTG, and grant USB access. Leaving the app disconnects USB and stops automatic sending; reconnect manually after returning.
 
 ## Quick start
 

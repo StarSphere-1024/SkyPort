@@ -6,7 +6,7 @@
 
 [English](README.md) · **简体中文**
 
-**基于 Flutter 与 Rust 的跨平台桌面串口调试助手**
+**基于 Flutter 与 Rust 的跨平台串口调试助手**
 
 连接设备，收发文本与 Hex 数据，查看 ANSI 彩色日志，导出调试记录。
 
@@ -14,7 +14,7 @@
 
 [下载安装](#下载安装) · [快速开始](#快速开始) · [更新记录](https://github.com/StarSphere-1024/SkyPort/releases) · [从源码运行](#从源码运行) · [问题反馈](#问题反馈)
 
-支持 **Windows / Linux** · **文本 / Hex** 收发 · **中英文**界面
+支持 **Windows / Linux / Android** · **文本 / Hex** 收发 · **中英文**界面
 
 </div>
 
@@ -39,10 +39,13 @@
 | --- | --- | --- |
 | Windows | 安装版 `-setup.exe` / 便携版 `-portable.zip` | 安装版按向导安装；便携版完整解压后运行 `skyport.exe` |
 | Linux | `.deb` / `.rpm` / `.AppImage` | Debian / Ubuntu 优先选择 `.deb`；Fedora 等 RPM 系发行版选择 `.rpm`；AppImage 赋予执行权限后运行 |
+| Android | `-android-arm64.apk` | Android 8.0+（API 26）、ARM64；串口设备接入需要 USB Host / OTG 支持 |
 
-两种平台均提供 `amd64`（x64 / x86_64）和 `arm64`（ARM64 / aarch64）包。Intel / AMD 的 x64 电脑选 `amd64`，ARM 设备选 `arm64`；不确定时先查看系统的处理器架构。
+Windows 和 Linux 均提供 `amd64`（x64 / x86_64）和 `arm64`（ARM64 / aarch64）包。Intel / AMD 的 x64 电脑选 `amd64`，ARM 设备选 `arm64`；不确定时先查看系统的处理器架构。
 
-> 便携版必须保留完整目录，不要只复制可执行文件或删除附带的动态库、资源目录。当前支持 Windows 和 Linux；macOS 暂不支持，仓库中的 macOS 项目文件不代表可用发行版。
+> 桌面便携版必须保留完整目录，不要只复制可执行文件或删除附带的动态库、资源目录。当前支持 Windows、Linux 和 Android；macOS 暂不支持，仓库中的 macOS 项目文件不代表可用发行版。
+
+Android：安装 APK，通过 OTG 接入 USB 串口设备并授予 USB 权限。离开应用会断开 USB 并停止自动发送，返回后需手动连接。
 
 ## 快速开始
 
