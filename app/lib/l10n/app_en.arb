@@ -14,7 +14,7 @@
   "expandConfiguration": "Expand configuration panel",
   "collapseConfiguration": "Collapse configuration panel",
   "noPortSelected": "No port selected",
-  "serialPortSettings": "Serial Port Settings",
+  "serialPortSettings": "Port Settings",
   "portName": "Port Name",
   "serialNumber": "Serial",
   "noPortsFound": "No ports found",

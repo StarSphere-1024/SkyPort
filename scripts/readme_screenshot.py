@@ -74,7 +74,7 @@ def main() -> None:
     )
     parser.add_argument('--theme', choices=['dark', 'light'], default='dark', help='UI theme')
     parser.add_argument('--language', choices=['zh', 'en'], default='zh', help='UI language')
-    parser.add_argument('--output', type=Path, default=root / 'static/images/main_interface.png',
+    parser.add_argument('--output', type=Path, default=root / 'static/images/main_interface_zh.png',
                         help='Destination PNG path')
     parser.add_argument('--width', type=int, default=1280, help='Window width in pixels')
     parser.add_argument('--height', type=int, default=800, help='Window height in pixels')

@@ -19,7 +19,7 @@ Connect devices, send and receive text or Hex data, inspect ANSI-colored logs, a
 </div>
 
 <p align="center">
-  <img src="static/images/main_interface.png" alt="SkyPort dark theme with a Chinese interface and deterministic demo data: serial settings, text transmission, and ANSI-colored logs" width="100%">
+  <img src="static/images/main_interface_en.png" alt="SkyPort dark theme with an English interface and deterministic demo data: serial settings, text transmission, and ANSI-colored logs" width="100%">
 </p>
 
 ## Features
@@ -46,7 +46,7 @@ Both platforms provide `amd64` (x64 / x86_64) and `arm64` (ARM64 / aarch64) pack
 
 ## Quick start
 
-1. **Connect your device**: plug the serial device into your computer, launch SkyPort, and select a port under "Serial Port Settings".
+1. **Connect your device**: plug the serial device into your computer, launch SkyPort, and select a port under "Port Settings".
 2. **Match the parameters**: set baud rate, data bits, stop bits, parity, and flow control to match your device. Click "Connect" and confirm that the status becomes "Connected".
 3. **Send data**: enter a command supported by your device. In text mode, configure newline handling to match its protocol. For binary data, enable "Hex Send" and enter complete bytes.
 4. **Inspect the response**: view sent and received records in the log area. Enable Hex display, timestamps, or ANSI rendering as needed. Whether the device echoes or responds depends on its protocol.

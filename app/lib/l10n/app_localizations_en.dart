@@ -53,7 +53,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noPortSelected => 'No port selected';
 
   @override
-  String get serialPortSettings => 'Serial Port Settings';
+  String get serialPortSettings => 'Port Settings';
 
   @override
   String get portName => 'Port Name';

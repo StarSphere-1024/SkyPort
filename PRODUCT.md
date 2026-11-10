@@ -88,7 +88,7 @@ SkyPort 是桌面优先的串口调试助手。帮助用户完成连接设备、
 - `app/lib/`：现有 Flutter 界面、状态投影和主题实现。
 - `app/lib/l10n/app_en.arb`、`app/lib/l10n/app_zh.arb`：英文与中文界面文案。
 - `crates/skyport_core/`、`crates/skyport_flutter_bridge/`：Rust 核心与 Flutter 接入边界。
-- `static/images/main_interface.png`：仓库中的界面截图；未核验其与当前实现的一致性，不能直接作为最新视觉基准。
+- `static/images/main_interface_zh.png`：仓库中的中文界面截图；未核验其与当前实现的一致性，不能直接作为最新视觉基准。
 - `scripts/pty_ui_smoke.py`、`scripts/package_smoke.py`：已有真实桥接、界面和发行包验收入口；本次仅记录，未运行。
 - 本次用户确认：开发与测试同等优先；日常调试效率优先；安卓平板及 Googlebook 为未来方向；macOS 暂不支持。用户补充了 Googlebook / Googlebook OS 的平台定义及笔记本交互要求，详见 Platform 与 Operating Context。
 - 本次未提供用户研究、客户背书、对比测评或性能基准；不得虚构。

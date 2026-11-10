@@ -185,7 +185,7 @@ abstract class AppLocalizations {
   /// No description provided for @serialPortSettings.
   ///
   /// In en, this message translates to:
-  /// **'Serial Port Settings'**
+  /// **'Port Settings'**
   String get serialPortSettings;
 
   /// No description provided for @portName.
