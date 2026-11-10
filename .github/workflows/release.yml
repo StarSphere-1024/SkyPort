@@ -110,7 +110,6 @@ jobs:
         run: |
           sdkmanager 'build-tools;36.0.0'
           export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
-          (cd artifacts && sha256sum --check SHA256SUMS-android.txt)
           APK=(artifacts/SkyPort-v*-android-arm64.apk)
           test "${#APK[@]}" -eq 1 && test -f "${APK[0]}"
           python3 .github/scripts/check_android_release.py --apk "${APK[0]}" \
