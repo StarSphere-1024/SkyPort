@@ -91,7 +91,7 @@ class _ScreenshotController extends UiController {
       lastRxBytes: rx,
       error: null,
       logs: LogState(
-        chunks: [LogChunk(entries: entries, id: 1)],
+        chunks: [LogChunk(entries: entries)],
         totalBytes: rx + 4,
       ),
       trimmedBytes: 0,

@@ -120,9 +120,23 @@ class UiState {
     bool dataGap = false,
   }) {
     final chunks = <LogChunk>[];
+    var entries = <LogEntry>[];
     for (final record in snapshot.log.records) {
-      chunks.add(_chunk(record));
+      if (record.id == 0xFFFFFFFFFFFFFFFF) {
+        if (entries.isNotEmpty) {
+          chunks.add(LogChunk(entries: entries));
+          entries = <LogEntry>[];
+        }
+        chunks.add(LogChunk(entries: [_entry(record)]));
+      } else {
+        entries.add(_entry(record));
+        if (entries.length == LogChunk.capacity) {
+          chunks.add(LogChunk(entries: entries));
+          entries = <LogEntry>[];
+        }
+      }
     }
+    if (entries.isNotEmpty) chunks.add(LogChunk(entries: entries));
     return UiState(
       sequence: snapshot.sequence,
       connection: _connection(snapshot.connection),
@@ -323,41 +337,86 @@ class UiState {
   }
 
   UiState withLogDelta(rust.LogDelta delta, {int? sequence}) {
-    // ponytail: O(retained rows) metadata copies are capped at 65,536; group immutable chunks if measured jank.
+    const pendingId = 0xFFFFFFFFFFFFFFFF;
     final chunks = List<LogChunk>.of(logs.chunks);
-    final removed = delta.removedIds.isEmpty
-        ? const <int>{}
-        : delta.removedIds.toSet();
-    if (removed.isNotEmpty ||
-        (chunks.isNotEmpty &&
-            chunks.first.id != 0xFFFFFFFFFFFFFFFF &&
-            chunks.first.id < delta.earliestId)) {
-      chunks.removeWhere((chunk) {
-        final remove =
-            removed.contains(chunk.id) ||
-            (chunk.id != 0xFFFFFFFFFFFFFFFF && chunk.id < delta.earliestId);
-        if (remove) LogEntry.evictCachedData(chunk.entries);
-        return remove;
-      });
+    final edited = <LogChunk>{};
+    List<LogEntry> writable(int index) {
+      final chunk = chunks[index];
+      if (edited.contains(chunk)) return chunk.entries;
+      final copy = LogChunk(entries: List<LogEntry>.of(chunk.entries));
+      chunks[index] = copy;
+      edited.add(copy);
+      return copy.entries;
+    }
+
+    final expired = LogChunk.insertionIndex(chunks, delta.earliestId);
+    for (var index = 0; index < expired; index++) {
+      LogEntry.evictCachedData(chunks[index].entries);
+    }
+    chunks.removeRange(0, expired);
+    if (chunks.isNotEmpty &&
+        !chunks.first.isPending &&
+        chunks.first.firstId < delta.earliestId) {
+      final first = chunks.first;
+      final offset = first.indexOfId(delta.earliestId);
+      LogEntry.evictCachedData(first.entries.take(offset));
+      final retained = LogChunk(entries: first.entries.sublist(offset));
+      chunks[0] = retained;
+      edited.add(retained);
+    }
+
+    for (final id in delta.removedIds) {
+      if (id != pendingId && id < delta.earliestId) continue;
+      final index = id == pendingId
+          ? chunks.length - 1
+          : LogChunk.insertionIndex(chunks, id);
+      if (index < 0 || index == chunks.length) continue;
+      final chunk = chunks[index];
+      final offset = chunk.indexOfId(id);
+      if (offset == chunk.entries.length || chunk.entries[offset].id != id) {
+        continue;
+      }
+      LogEntry.evictCachedData([chunk.entries[offset]]);
+      final entries = writable(index)..removeAt(offset);
+      if (entries.isEmpty) chunks.removeAt(index);
     }
 
     for (final record in delta.upsert) {
-      final index = LogChunk.insertionIndex(chunks, record.id);
-      final exists = index < chunks.length && chunks[index].id == record.id;
-      if (exists && _sameRecord(chunks[index].entries.first, record)) {
+      var index = LogChunk.insertionIndex(chunks, record.id);
+      if (index < chunks.length &&
+          chunks[index].isPending == (record.id == pendingId)) {
+        final chunk = chunks[index];
+        final offset = chunk.indexOfId(record.id);
+        if (offset < chunk.entries.length &&
+            chunk.entries[offset].id == record.id) {
+          final old = chunk.entries[offset];
+          if (_sameRecord(old, record)) continue;
+          LogEntry.evictCachedData([old]);
+          writable(index)[offset] = _entry(record);
+          continue;
+        }
+      } else if (record.id != pendingId &&
+          index > 0 &&
+          chunks[index - 1].entries.length < LogChunk.capacity) {
+        index--;
+      } else {
+        final chunk = LogChunk(entries: [_entry(record)]);
+        chunks.insert(index, chunk);
+        edited.add(chunk);
         continue;
       }
-      if (exists) LogEntry.evictCachedData(chunks[index].entries);
-      final chunk = _chunk(record);
-      if (exists) {
-        chunks[index] = chunk;
-      } else {
-        chunks.insert(index, chunk);
+      final offset = chunks[index].indexOfId(record.id);
+      final entries = writable(index)..insert(offset, _entry(record));
+      if (entries.length > LogChunk.capacity) {
+        final split = LogChunk.capacity ~/ 2;
+        final tail = LogChunk(entries: entries.sublist(split));
+        entries.removeRange(split, entries.length);
+        chunks.insert(index + 1, tail);
+        edited.add(tail);
       }
     }
     final append = delta.pendingAppend;
-    if (append != null &&
-        (chunks.isEmpty || chunks.last.id != 0xFFFFFFFFFFFFFFFF)) {
+    if (append != null && (chunks.isEmpty || !chunks.last.isPending)) {
       if (append.offset != 0) {
         throw StateError('Inconsistent pending log append');
       }
@@ -365,12 +424,12 @@ class UiState {
         Uint8List.fromList(append.data),
         LogEntryType.received,
         DateTime.fromMillisecondsSinceEpoch(append.timestampMs),
-        id: 0xFFFFFFFFFFFFFFFF,
+        id: pendingId,
       );
-      chunks.add(LogChunk(entries: [entry], id: entry.id));
+      chunks.add(LogChunk(entries: [entry]));
     } else if (append != null) {
       final index = chunks.length - 1;
-      final old = chunks[index].entries.first;
+      final old = chunks[index].entries.single;
       if (append.offset != old.data.length ||
           append.timestampMs != old.timestamp.millisecondsSinceEpoch) {
         throw StateError('Inconsistent pending log append');
@@ -384,7 +443,7 @@ class UiState {
         );
       final entry = LogEntry(data, old.type, old.timestamp, id: old.id);
       LogEntry.evictCachedData([old]);
-      chunks[index] = LogChunk(entries: [entry], id: entry.id);
+      chunks[index] = LogChunk(entries: [entry]);
     }
     return _copy(
       sequence: sequence ?? this.sequence,
@@ -473,22 +532,19 @@ class UiState {
 
   LogEntry? _existingPending() {
     final chunks = logs.chunks;
-    return chunks.isNotEmpty && chunks.last.id == 0xFFFFFFFFFFFFFFFF
-        ? chunks.last.entries.first
+    return chunks.isNotEmpty && chunks.last.isPending
+        ? chunks.last.entries.single
         : null;
   }
 
-  static LogChunk _chunk(rust.LogRecord record) {
-    final entry = LogEntry(
-      Uint8List.fromList(record.data),
-      record.direction == rust.Direction.sent
-          ? LogEntryType.sent
-          : LogEntryType.received,
-      DateTime.fromMillisecondsSinceEpoch(record.timestampMs),
-      id: record.id,
-    );
-    return LogChunk(entries: [entry], id: record.id);
-  }
+  static LogEntry _entry(rust.LogRecord record) => LogEntry(
+    Uint8List.fromList(record.data),
+    record.direction == rust.Direction.sent
+        ? LogEntryType.sent
+        : LogEntryType.received,
+    DateTime.fromMillisecondsSinceEpoch(record.timestampMs),
+    id: record.id,
+  );
 
   static bool _sameRecord(LogEntry entry, rust.LogRecord record) {
     if (entry.type !=

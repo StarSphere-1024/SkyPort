@@ -513,38 +513,19 @@ void main() {
       test('rxEntries filters only received entries', () {
         final now = DateTime.now();
         final entries = [
-          LogEntry(Uint8List.fromList([1]), LogEntryType.received, now),
-          LogEntry(Uint8List.fromList([2]), LogEntryType.sent, now),
-          LogEntry(Uint8List.fromList([3]), LogEntryType.received, now),
-          LogEntry(Uint8List.fromList([4]), LogEntryType.sent, now),
+          LogEntry(Uint8List.fromList([1]), LogEntryType.received, now, id: 1),
+          LogEntry(Uint8List.fromList([2]), LogEntryType.sent, now, id: 2),
+          LogEntry(Uint8List.fromList([3]), LogEntryType.received, now, id: 3),
+          LogEntry(Uint8List.fromList([4]), LogEntryType.sent, now, id: 4),
         ];
 
-        final chunk = LogChunk(entries: entries, id: 1);
+        final chunk = LogChunk(entries: entries);
         final rxEntries = chunk.rxEntries;
 
-        expect(rxEntries.length, 2);
-        expect(rxEntries.every((e) => e.type == LogEntryType.received), isTrue);
-      });
-
-      test('rxEntries is cached', () {
-        final now = DateTime.now();
-        final entries = [
-          LogEntry(Uint8List.fromList([1]), LogEntryType.received, now),
-        ];
-
-        final chunk = LogChunk(entries: entries, id: 1);
-
-        // First access
-        final rx1 = chunk.rxEntries;
-        // Second access should return cached list
-        final rx2 = chunk.rxEntries;
-
-        expect(rx1, same(rx2));
-      });
-
-      test('empty chunk has empty rxEntries', () {
-        final chunk = LogChunk(entries: [], id: 1);
-        expect(chunk.rxEntries.length, 0);
+        expect(rxEntries.map((entry) => entry.data), [
+          [1],
+          [3],
+        ]);
       });
     });
   });

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skyport/l10n/app_localizations.dart';
 import 'package:skyport/models/ui_settings.dart';
+import 'package:skyport/models/log_model.dart';
 import 'package:skyport/models/ui_state.dart';
 import 'package:skyport/providers/ui_controller.dart';
 import 'package:skyport/providers/ui_settings_provider.dart';
@@ -93,6 +94,24 @@ class ReceiveSettings extends UiSettingsNotifier {
 }
 
 void main() {
+  test('index mapper resolves IDs inside mixed-direction blocks', () {
+    final timestamp = DateTime.fromMillisecondsSinceEpoch(0);
+    LogEntry entry(int id, LogEntryType type) =>
+        LogEntry(Uint8List.fromList([id]), type, timestamp, id: id);
+    final mapper = LogIndexMapper([
+      LogChunk(
+        entries: [
+          entry(1, LogEntryType.received),
+          entry(2, LogEntryType.sent),
+          entry(3, LogEntryType.received),
+        ],
+      ),
+    ], showSent: false);
+    expect(mapper.indexForId(1), 0);
+    expect(mapper.indexForId(2), isNull);
+    expect(mapper.indexForId(3), 1);
+    expect(mapper[1].id, 3);
+  });
   testWidgets('toolbar remains usable without covering logs at narrow widths', (
     tester,
   ) async {

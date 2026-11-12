@@ -672,6 +672,45 @@ void main() {
       expect(container.read(searchControllerProvider).total, 0);
     },
   );
+  test(
+    'appending within a partial block preserves frozen search results',
+    () async {
+      logs.upsert([
+        fixtureRecord(1, 'x'),
+        fixtureRecord(2, 'sent', sent: true),
+      ]);
+      container.read(uiSettingsProvider.notifier).setShowSent(false);
+      backend.sessions.add(oneHit(1, 'x'));
+      search.setDraft('x');
+      await search.submit();
+      logs.upsert([fixtureRecord(3, 'later')]);
+      expect(container.read(searchControllerProvider).invalidated, isFalse);
+      logs.upsert([fixtureRecord(4, 'more sent', sent: true)]);
+      expect(container.read(searchControllerProvider).invalidated, isFalse);
+    },
+  );
+
+  test(
+    'search identity resolves records across 256-entry block boundary',
+    () async {
+      logs.upsert(List.generate(256, (index) => fixtureRecord(index + 1, 'x')));
+      final session = oneHit(256, 'x');
+      backend.sessions.add(session);
+      search.setDraft('x');
+      await search.submit();
+      expect(
+        container.read(searchControllerProvider).selectedHit!.recordId,
+        256,
+      );
+      logs.upsert([fixtureRecord(257, 'later')]);
+      expect(container.read(searchControllerProvider).invalidated, isFalse);
+      await search.navigate(1);
+      expect(
+        container.read(searchControllerProvider).selectedHit!.recordId,
+        256,
+      );
+    },
+  );
 }
 
 class _SnapshotBackend implements SearchBackend {

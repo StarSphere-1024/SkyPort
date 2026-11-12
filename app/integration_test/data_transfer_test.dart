@@ -794,15 +794,24 @@ Future<void> _exercisePendingAppends(
   await tester.runAsync(() => _ptyControl('pending-prefix'));
   await _until(tester, () => current().rxBytes == 2);
   final firstFrame = current();
-  expect(firstFrame.logs.chunks.single.id, pending);
-  expect(firstFrame.logs.chunks.single.entries.single.data, [0, 0xe4]);
+  expect(
+    firstFrame.logs.chunks.expand((chunk) => chunk.entries).single.id,
+    pending,
+  );
+  expect(firstFrame.logs.chunks.expand((chunk) => chunk.entries).single.data, [
+    0,
+    0xe4,
+  ]);
 
   final subscribed = (await tester.runAsync(
     () => rust.subscribe(handle: handle),
   ))!;
   expect(subscribed.error, isNull);
   var resumed = UiState.fromSnapshot(subscribed.snapshot!);
-  expect(resumed.logs.chunks.single.id, pending);
+  expect(
+    resumed.logs.chunks.expand((chunk) => chunk.entries).single.id,
+    pending,
+  );
   try {
     await tester.runAsync(() => _ptyControl('pending-tail'));
     await _until(tester, () => current().rxBytes == 5);
@@ -817,7 +826,7 @@ Future<void> _exercisePendingAppends(
         resumed = resumed.withEvents(reply.events);
       }
     });
-    expect(resumed.logs.chunks.single.entries.single.data, [
+    expect(resumed.logs.chunks.expand((chunk) => chunk.entries).single.data, [
       0,
       0xe4,
       0xb8,
@@ -825,10 +834,13 @@ Future<void> _exercisePendingAppends(
       13,
     ]);
     expect(
-      current().logs.chunks.single.entries.single.data,
-      resumed.logs.chunks.single.entries.single.data,
+      current().logs.chunks.expand((chunk) => chunk.entries).single.data,
+      resumed.logs.chunks.expand((chunk) => chunk.entries).single.data,
     );
-    expect(firstFrame.logs.chunks.single.entries.single.data, [0, 0xe4]);
+    expect(
+      firstFrame.logs.chunks.expand((chunk) => chunk.entries).single.data,
+      [0, 0xe4],
+    );
     final search = (await tester.runAsync(
       () async => rust.startSearch(
         handle: handle,
@@ -855,21 +867,30 @@ Future<void> _exercisePendingAppends(
 
   await tester.runAsync(() => _ptyControl('pending-complete'));
   await _until(tester, () => current().rxBytes == 7);
-  expect(current().logs.chunks.first.entries.single.data, [
+  expect(current().logs.chunks.expand((chunk) => chunk.entries).first.data, [
     0,
     0xe4,
     0xb8,
     0xad,
   ]);
-  expect(current().logs.chunks.last.id, pending);
-  expect(current().logs.chunks.last.entries.single.data, [0xff]);
+  expect(
+    current().logs.chunks.expand((chunk) => chunk.entries).last.id,
+    pending,
+  );
+  expect(current().logs.chunks.expand((chunk) => chunk.entries).last.data, [
+    0xff,
+  ]);
   await tester.runAsync(() => _ptyControl('pending-finish'));
   await _until(tester, () => current().rxBytes == 8);
   expect(
-    current().logs.chunks.map((chunk) => chunk.id),
+    current().logs.chunks
+        .expand((chunk) => chunk.entries)
+        .map((entry) => entry.id),
     isNot(contains(pending)),
   );
-  expect(current().logs.chunks.last.entries.single.data, [0xff]);
+  expect(current().logs.chunks.expand((chunk) => chunk.entries).last.data, [
+    0xff,
+  ]);
   expect(current().dataGap, isFalse);
   expect(current().error, isNull);
   await tester.runAsync(
@@ -965,7 +986,14 @@ Future<void> _exerciseReadingAnchor(
   await tester.runAsync(() => _ptyControl('search-anchor-data'));
   await _until(
     tester,
-    () => container.read(uiControllerProvider).logs.chunks.length >= 120,
+    () =>
+        container
+            .read(uiControllerProvider)
+            .logs
+            .chunks
+            .expand((chunk) => chunk.entries)
+            .length >=
+        120,
   );
   await tester.pumpAndSettle();
   final listFinder = find.byKey(const ValueKey('search-results'));
@@ -974,7 +1002,13 @@ Future<void> _exerciseReadingAnchor(
   var list = tester.widget<ScrollablePositionedList>(listFinder);
   list.itemScrollController!.jumpTo(index: 60);
   await tester.pumpAndSettle();
-  final readingId = container.read(uiControllerProvider).logs.chunks[60].id;
+  final readingId = container
+      .read(uiControllerProvider)
+      .logs
+      .chunks
+      .expand((chunk) => chunk.entries)
+      .elementAt(60)
+      .id;
   final readingRow = find.byKey(ValueKey('search-row-$readingId'));
   final before = tester.getTopLeft(readingRow) - tester.getTopLeft(listFinder);
   await tester.tap(find.byKey(const ValueKey('search-open')));

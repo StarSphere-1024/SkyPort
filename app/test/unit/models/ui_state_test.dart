@@ -83,6 +83,9 @@ rust.LogDelta delta(
   incomplete: false,
 );
 
+List<LogEntry> records(LogState logs) =>
+    logs.chunks.expand((chunk) => chunk.entries).toList();
+
 rust.Event stateChanged(
   int sequence,
   rust.ConnectionState connection, {
@@ -105,6 +108,69 @@ rust.Event stateChanged(
 );
 
 void main() {
+  test(
+    'snapshot history resumes across block eviction with a pending tail',
+    () {
+      const pending = 0xFFFFFFFFFFFFFFFF;
+      final initial = UiState.fromSnapshot(
+        rust.AppSnapshot(
+          sequence: 7,
+          config: config,
+          connection: rust.ConnectionState.connected,
+          ports: const [],
+          rxBytes: 257,
+          txBytes: 1,
+          lastRxBytes: 1,
+          rxBytesPerSecond: 0,
+          log: rust.LogSnapshot(
+            records: [
+              for (var id = 1; id <= 257; id++)
+                row(id, [id & 255], sent: id == 256),
+              row(pending, [0xe4], pending: true),
+            ],
+            totalBytes: 258,
+            trimmedBytes: 0,
+            trimmedRecords: 0,
+            incomplete: false,
+          ),
+          autoSendInput: '',
+        ),
+      );
+      final resumed = initial.withLogDelta(
+        delta(
+          [
+            row(258, [0, 255], sent: true),
+          ],
+          removed: [for (var id = 1; id <= 256; id++) id],
+          earliest: 257,
+          bytes: 5,
+          pendingAppend: rust.PendingAppend(
+            timestampMs: 1700000000000,
+            offset: 1,
+            data: Uint8List.fromList([0xb8]),
+          ),
+        ),
+      );
+      expect(records(resumed.logs).map((entry) => entry.id), [
+        257,
+        258,
+        pending,
+      ]);
+      expect(records(resumed.logs).map((entry) => entry.data), [
+        [1],
+        [0, 255],
+        [0xe4, 0xb8],
+      ]);
+      expect(resumed.logs.entryForId(256), isNull);
+      expect(resumed.logs.entryForId(258)!.type, LogEntryType.sent);
+      expect(records(initial.logs).map((entry) => entry.id), [
+        for (var id = 1; id <= 257; id++) id,
+        pending,
+      ]);
+      expect(initial.logs.entryForId(256)!.type, LogEntryType.sent);
+      expect(initial.logs.entryForId(pending)!.data, [0xe4]);
+    },
+  );
   test(
     'retry diagnostics cannot hide partial writes or replay loss notices',
     () {
@@ -277,12 +343,8 @@ void main() {
         ),
       ),
     ]);
-    expect(state.logs.chunks.map((chunk) => chunk.id), [4, pending]);
-    expect(state.logs.chunks.expand((chunk) => chunk.entries.single.data), [
-      0,
-      255,
-      254,
-    ]);
+    expect(records(state.logs).map((entry) => entry.id), [4, pending]);
+    expect(records(state.logs).expand((entry) => entry.data), [0, 255, 254]);
     expect(state.sequence, 5);
     expect(state.rxBytes, 7);
     expect(state.txBytes, 1);
@@ -304,15 +366,15 @@ void main() {
     );
     final appended = initial.withLogDelta(
       delta([
-        for (var id = 1; id <= 100; id++) row(id, [id]),
-      ], bytes: 101),
+        for (var id = 1; id <= 300; id++) row(id, [id]),
+      ], bytes: 301),
     );
     final updated = appended.withLogDelta(
       delta(
         [
-          row(50, [0, 128]),
+          row(150, [0, 128]),
         ],
-        bytes: 103,
+        bytes: 303,
         pendingAppend: rust.PendingAppend(
           timestampMs: 1700000000000,
           offset: 1,
@@ -323,21 +385,21 @@ void main() {
     final trimmed = updated.withLogDelta(
       delta(
         [
-          row(101, [101], sent: true),
-          row(102, [102]),
+          row(301, [301], sent: true),
+          row(302, [302]),
         ],
         removed: [1, 2],
         earliest: 3,
-        bytes: 103,
+        bytes: 303,
       ),
     );
     final finalState = trimmed.withLogDelta(
       delta(
         [
-          row(99, [0]),
+          row(299, [0]),
         ],
         earliest: 3,
-        bytes: 105,
+        bytes: 305,
         pendingAppend: rust.PendingAppend(
           timestampMs: 1700000000000,
           offset: 2,
@@ -345,25 +407,25 @@ void main() {
         ),
       ),
     );
-    expect(finalState.logs.chunks.map((chunk) => chunk.id), [
-      for (var id = 3; id <= 102; id++) id,
+    expect(records(finalState.logs).map((entry) => entry.id), [
+      for (var id = 3; id <= 302; id++) id,
       pending,
     ]);
-    expect(
-      finalState.logs.chunks.expand((chunk) => chunk.entries.single.data),
-      [
-        for (var id = 3; id <= 102; id++)
-          if (id == 50) ...[0, 128] else if (id == 99) 0 else id,
-        255,
-        254,
-        253,
-        252,
-      ],
-    );
-    expect(finalState.logs.chunks[98].entries.single.type, LogEntryType.sent);
-    expect(initial.logs.chunks.single.entries.single.data, [255]);
-    expect(appended.logs.chunks[49].entries.single.data, [50]);
-    expect(updated.logs.chunks.last.entries.single.data, [255, 254]);
+    expect(records(finalState.logs).expand((entry) => entry.data), [
+      for (var id = 3; id <= 302; id++)
+        if (id == 150) ...[0, 128] else if (id == 299) 0 else id & 0xff,
+      255,
+      254,
+      253,
+      252,
+    ]);
+    expect(finalState.logs.chunks.last.isPending, isTrue);
+    expect(finalState.logs.chunks.last.entries, hasLength(1));
+    expect(finalState.logs.entryForId(301)!.type, LogEntryType.sent);
+    expect(records(initial.logs).single.data, [255]);
+    expect(records(appended.logs).elementAt(149).data, [150]);
+    expect(records(updated.logs).last.data, [255, 254]);
+    expect(records(updated.logs).elementAt(149).data, [0, 128]);
   });
   test(
     'partial-write failures and port scans cannot erase received data or double-count TX',
@@ -444,7 +506,7 @@ void main() {
       ); // Log deltas cannot acknowledge a display gap.
       state = state.withDataGap(false);
       expect(state.dataGap, isFalse);
-      expect(failed.logs.chunks.map((chunk) => chunk.id), [1, 2]);
+      expect(records(failed.logs).map((entry) => entry.id), [1, 2]);
     },
   );
   test(
@@ -527,7 +589,7 @@ void main() {
       expect(received.dataGap, isTrue);
       expect(initial.logIncomplete, isTrue);
       expect(initial.trimmedBytes, 10);
-      expect(initial.logs.chunks.single.entries.single.data, [0, 255]);
+      expect(records(initial.logs).single.data, [0, 255]);
       final disconnected = received.withEvent(
         const rust.Event(sequence: 10, kind: rust.EventType.disconnected),
       );
@@ -584,15 +646,9 @@ void main() {
           ),
         ),
       ]);
-      expect(state.logs.chunks.map((chunk) => chunk.id), [1, pending]);
-      expect(state.logs.chunks.last.entries.single.data, [
-        0,
-        0xe4,
-        0xb8,
-        0xad,
-        13,
-      ]);
-      expect(prefix.logs.chunks.single.entries.single.data, [0, 0xe4]);
+      expect(records(state.logs).map((entry) => entry.id), [1, pending]);
+      expect(records(state.logs).last.data, [0, 0xe4, 0xb8, 0xad, 13]);
+      expect(records(prefix.logs).single.data, [0, 0xe4]);
       final completed = state.withLogDelta(
         delta(
           [
@@ -607,21 +663,10 @@ void main() {
           ),
         ),
       );
-      expect(completed.logs.chunks.map((chunk) => chunk.id), [1, 2, pending]);
-      expect(completed.logs.chunks[1].entries.single.data, [
-        0,
-        0xe4,
-        0xb8,
-        0xad,
-      ]);
-      expect(completed.logs.chunks.last.entries.single.data, [0xff]);
-      expect(state.logs.chunks.last.entries.single.data, [
-        0,
-        0xe4,
-        0xb8,
-        0xad,
-        13,
-      ]);
+      expect(records(completed.logs).map((entry) => entry.id), [1, 2, pending]);
+      expect(records(completed.logs)[1].data, [0, 0xe4, 0xb8, 0xad]);
+      expect(records(completed.logs).last.data, [0xff]);
+      expect(records(state.logs).last.data, [0, 0xe4, 0xb8, 0xad, 13]);
     },
   );
 
@@ -694,9 +739,9 @@ void main() {
           ], bytes: 3),
         ),
       );
-      expect(sent.logs.chunks.map((chunk) => chunk.id), [1, pending]);
+      expect(records(sent.logs).map((entry) => entry.id), [1, pending]);
       expect(sent.txBytes, 1);
-      expect(receiving.logs.chunks.single.entries.single.data, [0, 255]);
+      expect(records(receiving.logs).single.data, [0, 255]);
       final finalized = sent.withLogDelta(
         delta(
           [
@@ -711,17 +756,17 @@ void main() {
           ),
         ),
       );
-      expect(finalized.logs.chunks.map((chunk) => chunk.id), [1, 2, pending]);
-      expect(finalized.logs.chunks[1].entries.single.data, [0, 255]);
-      expect(finalized.logs.chunks.last.entries.single.data, [254]);
-      expect(sent.logs.chunks.last.entries.single.data, [0, 255]);
+      expect(records(finalized.logs).map((entry) => entry.id), [1, 2, pending]);
+      expect(records(finalized.logs)[1].data, [0, 255]);
+      expect(records(finalized.logs).last.data, [254]);
+      expect(records(sent.logs).last.data, [0, 255]);
       final trimmed = finalized.withLogDelta(delta([], earliest: 2, bytes: 3));
-      expect(trimmed.logs.chunks.map((chunk) => chunk.id), [2, pending]);
+      expect(records(trimmed.logs).map((entry) => entry.id), [2, pending]);
       final cleared = trimmed.withLogDelta(
         delta([], removed: [2, pending], earliest: 3, bytes: 0),
       );
       expect(cleared.logs.chunks, isEmpty);
-      expect(finalized.logs.chunks.map((chunk) => chunk.id), [1, 2, pending]);
+      expect(records(finalized.logs).map((entry) => entry.id), [1, 2, pending]);
     },
   );
 }

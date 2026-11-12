@@ -108,7 +108,7 @@ class SearchController extends Notifier<SearchState> {
   int? _pollingGeneration;
   int? _snapshotFirst;
   int? _snapshotLast;
-  LogChunk? _snapshotPending;
+  LogEntry? _snapshotPending;
   rust.SearchSnapshotInfo? _snapshotInfo;
   bool _snapshotReady = false;
   Completer<void>? _snapshotWaiter;
@@ -497,20 +497,15 @@ class SearchController extends Notifier<SearchState> {
   }
 
   bool _isCurrent(int id, int timestamp, int length) {
-    final chunks = ref.read(uiControllerProvider).logs.chunks;
-    final index = LogChunk.insertionIndex(chunks, id);
-    if (index == chunks.length || chunks[index].id != id) return false;
-    final entry = chunks[index].entries.first;
-    return entry.timestamp.millisecondsSinceEpoch == timestamp &&
+    final entry = ref.read(uiControllerProvider).logs.entryForId(id);
+    return entry != null &&
+        entry.timestamp.millisecondsSinceEpoch == timestamp &&
         entry.data.length == length;
   }
 
   void _armSnapshot(LogState logs) {
     final info = _snapshotInfo!;
-    bool contains(int id) {
-      final index = LogChunk.insertionIndex(logs.chunks, id);
-      return index < logs.chunks.length && logs.chunks[index].id == id;
-    }
+    bool contains(int id) => logs.entryForId(id) != null;
 
     if ((_snapshotFirst != null && !contains(_snapshotFirst!)) ||
         (_snapshotLast != null && !contains(_snapshotLast!))) {
@@ -527,8 +522,7 @@ class SearchController extends Notifier<SearchState> {
         invalidate();
         return;
       }
-      final index = LogChunk.insertionIndex(logs.chunks, pending.recordId);
-      _snapshotPending = logs.chunks[index];
+      _snapshotPending = logs.entryForId(pending.recordId);
     }
     _snapshotReady = true;
     _releaseSnapshotWaiter();
@@ -545,27 +539,37 @@ class SearchController extends Notifier<SearchState> {
     LogState next, {
     int? first,
     int? last,
-    LogChunk? pending,
+    LogEntry? pending,
     required bool showSent,
   }) {
     if (identical(previous, next)) return false;
-    // Immutable chunks are reused on identical upserts. Only records belonging
-    // to this snapshot matter, not records appended after explicit submission.
-    var cursor = 0;
+    // Reused blocks are cheap to skip; changed blocks only inspect snapshot entries.
     for (final old in previous.chunks) {
-      if (!showSent && old.entries.first.type == LogEntryType.sent) continue;
-      final retained = old.id == 0xFFFFFFFFFFFFFFFF
-          ? identical(old, pending)
-          : first != null && last != null && old.id >= first && old.id <= last;
-      if (!retained) continue;
-      while (cursor < next.chunks.length && next.chunks[cursor].id != old.id) {
-        cursor++;
+      if (old.isPending) {
+        final entry = old.entries.first;
+        if (!showSent && entry.type == LogEntryType.sent) continue;
+        if (pending == null || !identical(entry, pending)) continue;
+        if (!identical(entry, next.entryForId(entry.id))) return true;
+        continue;
       }
-      if (cursor == next.chunks.length ||
-          !identical(old, next.chunks[cursor])) {
-        return true;
+      if (first == null ||
+          last == null ||
+          old.lastId < first ||
+          old.firstId > last) {
+        continue;
       }
-      cursor++;
+      final index = LogChunk.insertionIndex(next.chunks, old.firstId);
+      if (index < next.chunks.length && identical(old, next.chunks[index])) {
+        continue;
+      }
+      for (final entry in old.entries) {
+        if (entry.id < first ||
+            entry.id > last ||
+            (!showSent && entry.type == LogEntryType.sent)) {
+          continue;
+        }
+        if (!identical(entry, next.entryForId(entry.id))) return true;
+      }
     }
     return false;
   }

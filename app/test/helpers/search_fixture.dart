@@ -44,10 +44,11 @@ class SearchFixtureController extends UiController {
   rust.SearchSnapshotInfo get snapshotInfo => snapshotInfoFor(showSent: true);
 
   rust.SearchSnapshotInfo snapshotInfoFor({required bool showSent}) {
-    final included = state.logs.chunks.where(
-      (chunk) => showSent || chunk.entries.first.type == LogEntryType.received,
-    );
-    final finalized = included.where((chunk) => chunk.id != 0xFFFFFFFFFFFFFFFF);
+    final included = state.logs.chunks
+        .expand((chunk) => chunk.entries)
+        .where((entry) => showSent || entry.type == LogEntryType.received)
+        .toList();
+    final finalized = included.where((entry) => entry.id != 0xFFFFFFFFFFFFFFFF);
     final pending = included.lastOrNull?.id == 0xFFFFFFFFFFFFFFFF
         ? included.last
         : null;
@@ -60,8 +61,8 @@ class SearchFixtureController extends UiController {
           : fixtureHit(
               pending.id,
               0,
-              pending.entries.first.data.length,
-              timestamp: pending.entries.first.timestamp.millisecondsSinceEpoch,
+              pending.data.length,
+              timestamp: pending.timestamp.millisecondsSinceEpoch,
             ),
     );
   }

@@ -450,25 +450,47 @@ class _CachedSpanData {
 }
 
 class LogChunk {
+  static const capacity = 256;
+
+  // Published blocks are immutable; projection copies only a touched block.
   final List<LogEntry> entries;
-  final int id;
+  int get firstId => entries.first.id;
+  int get lastId => entries.last.id;
+  bool get isPending => firstId == 0xFFFFFFFFFFFFFFFF;
 
   List<LogEntry>? _rxEntries;
   List<LogEntry> get rxEntries => _rxEntries ??= entries
       .where((e) => e.type == LogEntryType.received)
       .toList();
 
-  LogChunk({required this.entries, required this.id});
+  LogChunk({required this.entries})
+    : assert(entries.isNotEmpty && entries.length <= capacity);
 
-  // Core IDs increase by completion; the reserved pending ID is always last.
+  int indexOfId(int id) {
+    if (isPending) return 0;
+    if (id == 0xFFFFFFFFFFFFFFFF) return entries.length;
+    var low = 0;
+    var high = entries.length;
+    while (low < high) {
+      final mid = (low + high) >> 1;
+      if (entries[mid].id < id) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    return low;
+  }
+
+  // Lower bound by the last ID; the unfinished record remains a separate tail.
   static int insertionIndex(List<LogChunk> chunks, int id) {
     var low = 0;
     var high = chunks.length;
-    if (high > 0 && chunks.last.id == 0xFFFFFFFFFFFFFFFF) high--;
+    if (high > 0 && chunks.last.isPending) high--;
     if (id == 0xFFFFFFFFFFFFFFFF) return high;
     while (low < high) {
       final mid = (low + high) >> 1;
-      if (chunks[mid].id < id) {
+      if (chunks[mid].lastId < id) {
         low = mid + 1;
       } else {
         high = mid;
@@ -483,4 +505,14 @@ class LogState {
   final int totalBytes;
 
   const LogState({this.chunks = const [], this.totalBytes = 0});
+
+  LogEntry? entryForId(int id) {
+    final index = LogChunk.insertionIndex(chunks, id);
+    if (index == chunks.length) return null;
+    final entries = chunks[index].entries;
+    final offset = chunks[index].indexOfId(id);
+    return offset < entries.length && entries[offset].id == id
+        ? entries[offset]
+        : null;
+  }
 }

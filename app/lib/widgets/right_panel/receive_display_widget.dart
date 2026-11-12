@@ -39,13 +39,16 @@ class LogIndexMapper {
   }
 
   int? indexForId(int id) {
-    final index = LogChunk.insertionIndex(chunks, id);
-    if (index == chunks.length ||
-        chunks[index].id != id ||
-        (!showSent && chunks[index].rxEntries.isEmpty)) {
+    final chunkIndex = LogChunk.insertionIndex(chunks, id);
+    if (chunkIndex == chunks.length) return null;
+    final chunk = chunks[chunkIndex];
+    final offset = chunk.indexOfId(id);
+    if (offset == chunk.entries.length || chunk.entries[offset].id != id) {
       return null;
     }
-    return _chunkStartIndices[index];
+    if (showSent) return _chunkStartIndices[chunkIndex] + offset;
+    final rxOffset = chunk.rxEntries.indexWhere((entry) => entry.id == id);
+    return rxOffset < 0 ? null : _chunkStartIndices[chunkIndex] + rxOffset;
   }
 
   int _binarySearchChunk(int targetIndex) {
