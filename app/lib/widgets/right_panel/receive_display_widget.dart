@@ -13,19 +13,35 @@ import 'log_search_bar.dart';
 import 'search_results_list.dart';
 
 class LogIndexMapper {
-  final List<LogChunk> chunks;
+  List<LogChunk> _chunks = const [];
+  List<LogChunk> get chunks => _chunks;
   final bool showSent;
-  final List<int> _chunkStartIndices;
-  late final int totalCount;
+  final List<int> _chunkStartIndices = [];
+  int totalCount = 0;
 
-  LogIndexMapper(this.chunks, {required this.showSent})
-    : _chunkStartIndices = [] {
-    int current = 0;
-    for (var c in chunks) {
-      _chunkStartIndices.add(current);
-      current += showSent ? c.entries.length : c.rxEntries.length;
+  LogIndexMapper(List<LogChunk> chunks, {required this.showSent}) {
+    update(chunks);
+  }
+
+  void update(List<LogChunk> chunks) {
+    if (identical(_chunks, chunks)) return;
+    var changed = 0;
+    while (changed < _chunks.length &&
+        changed < chunks.length &&
+        identical(_chunks[changed], chunks[changed])) {
+      changed++;
     }
-    totalCount = current;
+    var count = changed < _chunkStartIndices.length
+        ? _chunkStartIndices[changed]
+        : totalCount;
+    _chunkStartIndices.length = changed;
+    for (var index = changed; index < chunks.length; index++) {
+      final chunk = chunks[index];
+      _chunkStartIndices.add(count);
+      count += showSent ? chunk.entries.length : chunk.rxEntries.length;
+    }
+    _chunks = chunks;
+    totalCount = count;
   }
 
   LogEntry operator [](int index) {

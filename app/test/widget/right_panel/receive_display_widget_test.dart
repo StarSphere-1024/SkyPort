@@ -112,6 +112,77 @@ void main() {
     expect(mapper.indexForId(3), 1);
     expect(mapper[1].id, 3);
   });
+
+  test('index offsets survive append, filtering, eviction and reset', () {
+    const pending = 0xFFFFFFFFFFFFFFFF;
+    final timestamp = DateTime.fromMillisecondsSinceEpoch(0);
+    LogEntry entry(int id, [LogEntryType type = LogEntryType.received]) =>
+        LogEntry(Uint8List.fromList([id]), type, timestamp, id: id);
+    final sent = LogChunk(entries: [entry(1, LogEntryType.sent)]);
+    final mixed = LogChunk(
+      entries: [entry(2), entry(3, LogEntryType.sent), entry(4)],
+    );
+    final hidden = LogChunk(entries: [entry(5, LogEntryType.sent)]);
+    final mapper = LogIndexMapper([
+      sent,
+      mixed,
+      hidden,
+      LogChunk(entries: [entry(pending)]),
+    ], showSent: false);
+
+    void expectRows(LogIndexMapper mapper, List<int> ids) {
+      expect(mapper.totalCount, ids.length);
+      expect([
+        for (var index = 0; index < mapper.totalCount; index++)
+          mapper[index].id,
+      ], ids);
+      for (var index = 0; index < ids.length; index++) {
+        expect(mapper.indexForId(ids[index]), index);
+      }
+    }
+
+    expectRows(mapper, [2, 4, pending]);
+    expect(mapper.indexForId(1), isNull);
+    expect(mapper.indexForId(3), isNull);
+    expect(mapper.indexForId(5), isNull);
+    final appended = LogChunk(entries: [entry(6), entry(7, LogEntryType.sent)]);
+    final tail = LogChunk(
+      entries: [
+        LogEntry(
+          Uint8List.fromList([8, 9]),
+          LogEntryType.received,
+          timestamp,
+          id: pending,
+        ),
+      ],
+    );
+    mapper.update([sent, mixed, hidden, appended, tail]);
+    expectRows(mapper, [2, 4, 6, pending]);
+    expect(mapper[3].data, [8, 9]);
+
+    final retained = [
+      LogChunk(entries: [mixed.entries.last]),
+      hidden,
+      appended,
+      tail,
+    ];
+    mapper.update(retained);
+    expectRows(mapper, [4, 6, pending]);
+    expect(mapper.indexForId(2), isNull);
+    expect(mapper.indexForId(7), isNull);
+    expectRows(LogIndexMapper(retained, showSent: true), [4, 5, 6, 7, pending]);
+
+    mapper.update([hidden]);
+    expectRows(mapper, []);
+    expect(mapper.indexForId(pending), isNull);
+    mapper.update([]);
+    expectRows(mapper, []);
+    mapper.update([
+      LogChunk(entries: [entry(8)]),
+    ]);
+    expectRows(mapper, [8]);
+  });
+
   testWidgets('toolbar remains usable without covering logs at narrow widths', (
     tester,
   ) async {

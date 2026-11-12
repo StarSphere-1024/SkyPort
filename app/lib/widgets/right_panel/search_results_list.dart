@@ -191,12 +191,10 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
         ? search.options!
         : ref.read(searchControllerProvider.notifier).currentOptions;
     final cached = _mapper;
-    final mapper =
-        cached != null &&
-            identical(cached.chunks, logs.chunks) &&
-            cached.showSent == options.showSent
+    final mapper = cached != null && cached.showSent == options.showSent
         ? cached
         : (_mapper = LogIndexMapper(logs.chunks, showSent: options.showSent));
+    mapper.update(logs.chunks);
     final hit = search.selectedHit;
     if (hit != null) _reveal(search.navigation, hit.recordId);
     final theme = Theme.of(context);
@@ -256,7 +254,7 @@ class _SearchResultsListState extends ConsumerState<SearchResultsList> {
                 final entry = mapper[index];
                 final selected = hit?.recordId == entry.id;
                 return _SearchResultRow(
-                  key: ValueKey((search.generation, entry)),
+                  key: ValueKey((search.generation, entry.id)),
                   entry: entry,
                   onRowBuilt: (row) => _rowContexts[entry.id] = row,
                   onRowDisposed: (row) {
@@ -431,7 +429,9 @@ class _SearchResultRowState extends ConsumerState<_SearchResultRow> {
   @override
   void didUpdateWidget(covariant _SearchResultRow oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.focusIndex != widget.focusIndex ||
+    if (!identical(oldWidget.entry, widget.entry) ||
+        !identical(oldWidget.selectedView, widget.selectedView) ||
+        oldWidget.focusIndex != widget.focusIndex ||
         oldWidget.generation != widget.generation ||
         oldWidget.showHighlights != widget.showHighlights) {
       _load();
@@ -439,10 +439,7 @@ class _SearchResultRowState extends ConsumerState<_SearchResultRow> {
   }
 
   void _load() {
-    if (!widget.showHighlights) {
-      _view = Future.value();
-      return;
-    }
+    if (!widget.showHighlights) return;
     _view = widget.selectedView != null
         ? Future.value(widget.selectedView)
         : ref
@@ -453,90 +450,90 @@ class _SearchResultRowState extends ConsumerState<_SearchResultRow> {
   @override
   Widget build(BuildContext context) {
     widget.onRowBuilt(this);
+    if (!widget.showHighlights) return _buildContent(context, null);
+    return FutureBuilder<rust.SearchRecordView?>(
+      future: _view,
+      initialData: widget.selectedView,
+      builder: (context, snapshot) => _buildContent(
+        context,
+        widget.selectedView ??
+            (snapshot.connectionState == ConnectionState.done
+                ? snapshot.data
+                : null),
+      ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context, rust.SearchRecordView? view) {
     final colors = Theme.of(context).colorScheme;
     final timestampStyle = widget.style.copyWith(
       color: Theme.of(context).disabledColor,
     );
-    return FutureBuilder<rust.SearchRecordView?>(
-      future: _view,
-      initialData: widget.selectedView,
-      builder: (context, snapshot) {
-        final view =
-            widget.selectedView ??
-            (snapshot.connectionState == ConnectionState.done
-                ? snapshot.data
-                : null);
-        final entry = widget.entry;
-        // A late view is never rendered against a different current record.
-        final valid =
-            widget.showHighlights &&
-            view != null &&
-            view.recordId == entry.id &&
-            view.timestampMs == entry.timestamp.millisecondsSinceEpoch &&
-            view.sourceLength == entry.data.length;
-        final focus = valid ? view.focusRange : null;
-        final useCanonical =
-            valid &&
-            (view.ranges.isNotEmpty ||
-                view.leadingClipped ||
-                view.trailingClipped);
-        _renderedView = useCanonical ? view : null;
-        _renderedText = useCanonical
-            ? view.text
-            : entry.getDisplayTextPreview(widget.hex).text;
-        final spans = useCanonical
-            ? entry.getSearchSpans(
-                text: view.text,
-                ranges: [
-                  for (final range in view.ranges)
-                    (start: range.start, end: range.end),
-                ],
-                focus: focus == null
-                    ? null
-                    : (start: focus.start, end: focus.end),
-                showTimestamp: widget.showTimestamp,
-                showSent: widget.showSent,
-                baseStyle: widget.style,
-                timestampStyle: timestampStyle,
-                primaryColor: colors.primary,
-                onSurfaceColor: colors.onSurface,
-                matchColor: colors.secondaryContainer,
-                selectedColor: colors.tertiaryContainer,
-              )
-            : entry.getSpans(
-                hexDisplay: widget.hex,
-                showTimestamp: widget.showTimestamp,
-                showSent: widget.showSent,
-                enableAnsi: widget.ansi,
-                baseStyle: widget.style,
-                timestampStyle: timestampStyle,
-                primaryColor: colors.primary,
-                onSurfaceColor: colors.onSurface,
-              );
-        final l10n = AppLocalizations.of(context);
-        return Column(
-          key: ValueKey('search-row-${entry.id}'),
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (valid && view.leadingClipped)
-              Text(
-                l10n.searchContextBefore,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            Text.rich(
-              key: widget.focusTextKey,
-              TextSpan(style: widget.style, children: spans),
-              textAlign: TextAlign.left,
-              softWrap: true,
-            ),
-            if (valid && view.trailingClipped)
-              Text(
-                l10n.searchContextAfter,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-          ],
-        );
-      },
+    final entry = widget.entry;
+    // A late view is never rendered against a different current record.
+    final valid =
+        widget.showHighlights &&
+        view != null &&
+        view.recordId == entry.id &&
+        view.timestampMs == entry.timestamp.millisecondsSinceEpoch &&
+        view.sourceLength == entry.data.length;
+    final focus = valid ? view.focusRange : null;
+    final useCanonical =
+        valid &&
+        (view.ranges.isNotEmpty || view.leadingClipped || view.trailingClipped);
+    _renderedView = useCanonical ? view : null;
+    _renderedText = useCanonical
+        ? view.text
+        : entry.getDisplayTextPreview(widget.hex).text;
+    final spans = useCanonical
+        ? entry.getSearchSpans(
+            text: view.text,
+            ranges: [
+              for (final range in view.ranges)
+                (start: range.start, end: range.end),
+            ],
+            focus: focus == null ? null : (start: focus.start, end: focus.end),
+            showTimestamp: widget.showTimestamp,
+            showSent: widget.showSent,
+            baseStyle: widget.style,
+            timestampStyle: timestampStyle,
+            primaryColor: colors.primary,
+            onSurfaceColor: colors.onSurface,
+            matchColor: colors.secondaryContainer,
+            selectedColor: colors.tertiaryContainer,
+          )
+        : entry.getSpans(
+            hexDisplay: widget.hex,
+            showTimestamp: widget.showTimestamp,
+            showSent: widget.showSent,
+            enableAnsi: widget.ansi,
+            baseStyle: widget.style,
+            timestampStyle: timestampStyle,
+            primaryColor: colors.primary,
+            onSurfaceColor: colors.onSurface,
+          );
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      key: ValueKey('search-row-${entry.id}'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (valid && view.leadingClipped)
+          Text(
+            l10n.searchContextBefore,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        Text.rich(
+          key: widget.focusTextKey,
+          TextSpan(style: widget.style, children: spans),
+          textAlign: TextAlign.left,
+          softWrap: true,
+        ),
+        if (valid && view.trailingClipped)
+          Text(
+            l10n.searchContextAfter,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+      ],
     );
   }
 }
