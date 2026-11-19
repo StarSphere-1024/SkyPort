@@ -1,7 +1,7 @@
 name: skyport
 description: "A serial port debugging assistant."
 publish_to: "none"
-version: 2.1.0+3
+version: 2.1.1+4
 
 environment:
   sdk: ">=3.10.0 <4.0.0"
