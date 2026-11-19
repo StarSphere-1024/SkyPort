@@ -8,39 +8,84 @@ import '../../models/ui_state.dart';
 import '../../providers/ui_controller.dart';
 import '../../utils/connection_status.dart';
 
-class PortSelectionWidget extends ConsumerWidget {
+class PortSelectionWidget extends ConsumerStatefulWidget {
   const PortSelectionWidget({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PortSelectionWidget> createState() =>
+      _PortSelectionWidgetState();
+}
+
+class _PortSelectionWidgetState extends ConsumerState<PortSelectionWidget> {
+  String? _pendingPort;
+  bool _switching = false;
+
+  Future<void> _switchPort(String port) async {
+    setState(() => _switching = true);
+    try {
+      await ref.read(uiControllerProvider.notifier).switchPort(port);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _switching = false;
+          _pendingPort = null;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(
       uiControllerProvider.select(
         (state) => (
           connection: state.connection,
           ports: state.ports,
           portName: state.portName,
+          appliedConfig: state.appliedConfig,
         ),
       ),
     );
     final controller = ref.read(uiControllerProvider.notifier);
+    ref.listen(uiControllerProvider.select((state) => state.connection), (
+      _,
+      connection,
+    ) {
+      if (connection == UiConnection.disconnected && !_switching) {
+        setState(() => _pendingPort = null);
+      }
+    });
 
     final connectionState = state.connection;
     final isConnected = connectionState == UiConnection.connected;
     final isBusy =
+        _switching ||
         connectionState == UiConnection.connecting ||
         connectionState == UiConnection.disconnecting ||
         connectionState == UiConnection.reconfiguring ||
         connectionState == UiConnection.closing ||
         connectionState == UiConnection.closed;
-    final ports = state.ports;
-    final selectedPort = state.portName.isEmpty ? null : state.portName;
-    final isUnavailable =
-        !isConnected &&
-        selectedPort != null &&
-        !ports.any((port) => port.portName == selectedPort);
-
-    final disconnect =
+    final connectedPort = isConnected ? state.appliedConfig?.portName : null;
+    final ports = [
+      if (connectedPort != null)
+        state.ports.firstWhere(
+          (port) => port.portName == connectedPort,
+          orElse: () => UiPort(portName: connectedPort),
+        ),
+      for (final port in state.ports)
+        if (port.portName != connectedPort) port,
+    ];
+    final hasConnection =
         isConnected || connectionState == UiConnection.reconnecting;
+    final selectedPort = hasConnection
+        ? _pendingPort ?? state.portName
+        : state.portName;
+    final switchingPort =
+        hasConnection && selectedPort != (connectedPort ?? state.portName);
+    final isUnavailable =
+        selectedPort.isNotEmpty &&
+        !ports.any((port) => port.portName == selectedPort);
+    final disconnect = hasConnection && !switchingPort;
     final l10n = AppLocalizations.of(context);
     final colors = Theme.of(context).colorScheme;
     return LayoutBuilder(
@@ -52,11 +97,17 @@ class PortSelectionWidget extends ConsumerWidget {
               context: context,
               ports: ports,
               selectedPort: selectedPort,
+              connectedPort: connectedPort,
               isUnavailable: isUnavailable,
               isReconnecting: connectionState == UiConnection.reconnecting,
-              isDisabled: isConnected || isBusy,
+              isDisabled: isBusy,
               onSelected: (value) {
-                if (value != null) controller.setPort(value);
+                if (value == null) return;
+                if (hasConnection) {
+                  setState(() => _pendingPort = value);
+                } else {
+                  controller.setPort(value);
+                }
               },
             ),
           ),
@@ -69,16 +120,18 @@ class PortSelectionWidget extends ConsumerWidget {
               child: FilledButton.icon(
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  backgroundColor: isConnected ? colors.error : colors.primary,
-                  foregroundColor: isConnected
+                  backgroundColor: disconnect ? colors.error : colors.primary,
+                  foregroundColor: disconnect
                       ? colors.onError
                       : colors.onPrimary,
                 ),
                 onPressed:
                     isBusy ||
-                        (!disconnect && (selectedPort == null || isUnavailable))
+                        (!disconnect && (selectedPort.isEmpty || isUnavailable))
                     ? null
-                    : () => disconnect
+                    : () => switchingPort
+                          ? _switchPort(selectedPort)
+                          : disconnect
                           ? controller.disconnect()
                           : controller.connect(),
                 icon: isBusy
@@ -87,10 +140,21 @@ class PortSelectionWidget extends ConsumerWidget {
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : Icon(disconnect ? Icons.link_off : Icons.link, size: 18),
+                    : Icon(
+                        switchingPort
+                            ? Icons.swap_horiz
+                            : disconnect
+                            ? Icons.link_off
+                            : Icons.link,
+                        size: 18,
+                      ),
                 label: Text(
                   isBusy
-                      ? connectionStatusLabel(connectionState, l10n)
+                      ? _switching
+                            ? l10n.applyingConfiguration
+                            : connectionStatusLabel(connectionState, l10n)
+                      : switchingPort
+                      ? l10n.switchPort
                       : disconnect
                       ? l10n.disconnect
                       : l10n.connect,
@@ -109,6 +173,7 @@ class PortSelectionWidget extends ConsumerWidget {
     required BuildContext context,
     required List<UiPort> ports,
     required String? selectedPort,
+    required String? connectedPort,
     required bool isUnavailable,
     required bool isReconnecting,
     required bool isDisabled,
@@ -225,10 +290,25 @@ class PortSelectionWidget extends ConsumerWidget {
                         title(port),
                         if (details(port).isNotEmpty) details(port),
                       ].join('\n'),
-                      child: Text(
-                        title(port),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title(port),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (port.portName == connectedPort) ...[
+                            const SizedBox(width: 8),
+                            Text(
+                              l10n.connected,
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ),

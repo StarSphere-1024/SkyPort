@@ -218,6 +218,12 @@ abstract class AppLocalizations {
   /// **'Disconnect'**
   String get disconnect;
 
+  /// No description provided for @switchPort.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch'**
+  String get switchPort;
+
   /// No description provided for @close.
   ///
   /// In en, this message translates to:

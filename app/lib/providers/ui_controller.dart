@@ -252,6 +252,21 @@ class UiController extends Notifier<UiState> {
     await _dispatch(rust.disconnect(handle: _handle));
   }
 
+  Future<void> switchPort(String portName) async {
+    // Suspend stops I/O and automatic sending in the core before changing targets.
+    if (await _dispatch(rust.suspend(handle: _handle)) != null || _disposed) {
+      return;
+    }
+    final error = await _dispatch(
+      rust.updateConfig(
+        handle: _handle,
+        patch: rust.ConfigPatch(portName: portName),
+      ),
+    );
+    if (error != null || _disposed) return;
+    await connect();
+  }
+
   Future<void> suspend() async {
     final error = await _dispatch(rust.suspend(handle: _handle));
     if (error != null) throw CoreCommandException(error);

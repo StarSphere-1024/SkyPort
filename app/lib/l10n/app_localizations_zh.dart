@@ -69,6 +69,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get disconnect => '断开';
 
   @override
+  String get switchPort => '切换';
+
+  @override
   String get close => '关闭';
 
   @override

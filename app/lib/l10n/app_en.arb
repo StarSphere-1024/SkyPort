@@ -20,6 +20,7 @@
   "noPortsFound": "No ports found",
   "connect": "Connect",
   "disconnect": "Disconnect",
+  "switchPort": "Switch",
   "close": "Close",
   "baudRate": "Baud Rate",
   "flowControl": "Flow Control",

@@ -21,6 +21,15 @@ class _PortController extends UiController {
     sequence: 0,
     connection: connection,
     portName: selectedPort,
+    appliedConfig: connection == UiConnection.connected
+        ? (
+            portName: selectedPort,
+            baudRate: 115200,
+            dataBits: 8,
+            parity: UiParity.none,
+            stopBits: 1,
+          )
+        : null,
     baudRate: 115200,
     dataBits: 8,
     parity: UiParity.none,
@@ -139,6 +148,87 @@ void main() {
       expect(action().onPressed, isNotNull);
       await tester.tap(find.byType(FilledButton));
       expect(controller.disconnects, 1);
+    },
+  );
+
+  testWidgets(
+    'connected port stays pinned while selection can be cancelled or unplugged',
+    (tester) async {
+      final container = ProviderContainer(
+        overrides: [uiControllerProvider.overrideWith(_PortController.new)],
+      );
+      addTearDown(container.dispose);
+      final controller =
+          container.read(uiControllerProvider.notifier) as _PortController;
+      controller.updatePorts(const [
+        UiPort(portName: '/dev/ttyUSB1'),
+        UiPort(portName: '/dev/ttyUSB0'),
+      ]);
+      controller.updateConnection(UiConnection.connected);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: SizedBox(width: 278, child: PortSelectionWidget()),
+            ),
+          ),
+        ),
+      );
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(PortSelectionWidget)),
+      );
+      DropdownButton<String> selector() =>
+          tester.widget(find.byType(DropdownButton<String>));
+      Future<void> select(String port) async {
+        await tester.tap(find.byType(DropdownButton<String>));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(port).hitTestable().last);
+        await tester.pumpAndSettle();
+      }
+
+      await tester.tap(find.byType(DropdownButton<String>));
+      await tester.pumpAndSettle();
+      expect(selector().items!.first.value, '/dev/ttyUSB0');
+      expect(find.text(l10n.connected).hitTestable(), findsOneWidget);
+      await tester.tap(find.text('/dev/ttyUSB1').hitTestable());
+      await tester.pumpAndSettle();
+      expect(selector().value, '/dev/ttyUSB1');
+      expect(
+        find.widgetWithText(FilledButton, l10n.switchPort),
+        findsOneWidget,
+      );
+      expect(container.read(uiControllerProvider).portName, '/dev/ttyUSB0');
+      expect(
+        container.read(uiControllerProvider).connection,
+        UiConnection.connected,
+      );
+
+      await select('/dev/ttyUSB0');
+      expect(
+        find.widgetWithText(FilledButton, l10n.disconnect),
+        findsOneWidget,
+      );
+      await select('/dev/ttyUSB1');
+      controller.updatePorts(const []);
+      await tester.pumpAndSettle();
+      expect(selector().items!.single.value, '/dev/ttyUSB0');
+      expect(find.text('${l10n.unavailable}: /dev/ttyUSB1'), findsOneWidget);
+      expect(
+        tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+        isNull,
+      );
+      await select('/dev/ttyUSB0');
+      expect(
+        tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+        isNotNull,
+      );
+      expect(
+        find.widgetWithText(FilledButton, l10n.disconnect),
+        findsOneWidget,
+      );
     },
   );
 

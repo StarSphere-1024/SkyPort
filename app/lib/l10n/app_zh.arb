@@ -20,6 +20,7 @@
   "noPortsFound": "未发现端口",
   "connect": "连接",
   "disconnect": "断开",
+  "switchPort": "切换",
   "close": "关闭",
   "baudRate": "波特率",
   "flowControl": "流控制",

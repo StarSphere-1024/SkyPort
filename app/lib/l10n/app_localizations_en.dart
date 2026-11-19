@@ -71,6 +71,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get disconnect => 'Disconnect';
 
   @override
+  String get switchPort => 'Switch';
+
+  @override
   String get close => 'Close';
 
   @override
